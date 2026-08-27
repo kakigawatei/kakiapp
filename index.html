@@ -61,6 +61,20 @@
   nav button .ic { display: block; font-size: 20px; margin-bottom: 2px; }
   nav button.on { color: var(--navy); font-weight: 700; }
 
+  /* ガチャ演出（CSS版・全抽選共通） */
+  @keyframes gshake { 0%,100%{transform:rotate(0)} 15%{transform:rotate(-4deg)} 30%{transform:rotate(4deg)} 45%{transform:rotate(-3deg)} 60%{transform:rotate(3deg)} 75%{transform:rotate(-1.5deg)} 90%{transform:rotate(1.5deg)} }
+  .gshake { animation: gshake .9s ease-in-out 2; transform-origin: 50% 90%; }
+  #capOverlay { position: fixed; inset: 0; background: rgba(23,42,88,.88); display: none; align-items: center; justify-content: center; flex-direction: column; gap: 18px; z-index: 55; }
+  #capOverlay.show { display: flex; }
+  .capsule { width: 120px; height: 120px; position: relative; animation: capdrop .8s cubic-bezier(.3,1.6,.5,1) both; cursor: pointer; }
+  @keyframes capdrop { 0%{transform:translateY(-70vh) rotate(-40deg)} 70%{transform:translateY(0) rotate(8deg)} 85%{transform:translateY(-16px) rotate(-4deg)} 100%{transform:translateY(0) rotate(0)} }
+  .capsule .top, .capsule .bottom { position: absolute; left: 0; width: 120px; height: 60px; transition: transform .35s ease; }
+  .capsule .top { top: 0; border-radius: 60px 60px 0 0; background: linear-gradient(#e85a4a, #c93b2c); }
+  .capsule .bottom { bottom: 0; border-radius: 0 0 60px 60px; background: linear-gradient(#fdf6e0, #ecdfb8); }
+  .capsule.open .top { transform: translateY(-46px) rotate(-14deg); }
+  .capsule.open .bottom { transform: translateY(24px) rotate(8deg); }
+  .capsule .shine { position: absolute; top: 14px; left: 20px; width: 26px; height: 14px; border-radius: 50%; background: rgba(255,255,255,.55); transform: rotate(-25deg); }
+  #capHint { color: #ffe9a8; font-size: 15px; font-weight: 700; }
   .page { display: none; }
   .page.on { display: block; }
   .itemrow { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; }
@@ -185,6 +199,12 @@
     <p class="muted" style="font-size:10px;padding:0 4px">⚠️ 不正行為（位置情報の偽装・複数アカウントの利用など）が確認された場合、ポイントの没収およびアカウント停止の対象となります。ポイントの有効期限や交換内容は予告なく変更される場合があります。</p>
   </main>
 </section>
+
+<!-- カプセル演出オーバーレイ（全抽選共通） -->
+<div id="capOverlay">
+  <div class="capsule" id="capsuleEl"><div class="top"></div><div class="bottom"></div><div class="shine"></div></div>
+  <div id="capHint">タップしてあける！</div>
+</div>
 
 <!-- 大当たり動画オーバーレイ -->
 <div id="videoOverlay" style="position:fixed;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:60">
@@ -343,19 +363,38 @@ document.getElementById("btnGeoCheckin2").onclick = geoCheckin;
   if (sid) { show("gacha"); }
 })();
 document.getElementById("btnGacha").onclick = () => {
+  const btn = document.getElementById("btnGacha");
+  if (btn.disabled) return;
   const roll = Math.random();
   let acc = 0, hit = C.visitGacha.table[0];
   for (const row of C.visitGacha.table) { acc += row.rate; if (roll < acc) { hit = row; break; } }
   store.set({ points: (store.s.points || 0) + hit.points, gachaDate: today() });
   logTx("来店ガチャ", hit.points);
-  if (hit.points >= 50) {
-    const ov = document.getElementById("videoOverlay"), v = document.getElementById("gachaVideo");
-    ov.style.display = "flex"; v.currentTime = 0; v.play();
-    v.onended = () => { ov.style.display = "none"; celebrate(hit.points, "🎉 大当たり！！"); };
-    ov.onclick = () => { v.pause(); ov.style.display = "none"; celebrate(hit.points, "🎉 大当たり！！"); };
-  } else {
-    celebrate(hit.points, "来店ガチャ");
-  }
+
+  // ① ガチャ機が揺れる
+  const img = document.getElementById("gachaImg");
+  img.classList.add("gshake");
+  setTimeout(() => {
+    img.classList.remove("gshake");
+    if (hit.points >= 50) {
+      // ② 大当たり: 金カプセル動画
+      const ov = document.getElementById("videoOverlay"), v = document.getElementById("gachaVideo");
+      ov.style.display = "flex"; v.currentTime = 0; v.play();
+      v.onended = () => { ov.style.display = "none"; celebrate(hit.points, "🎉 大当たり！！"); };
+      ov.onclick = () => { v.pause(); ov.style.display = "none"; celebrate(hit.points, "🎉 大当たり！！"); };
+    } else {
+      // ② 通常: カプセルが落ちてくる → タップで開封
+      const ov = document.getElementById("capOverlay"), cap = document.getElementById("capsuleEl");
+      cap.classList.remove("open");
+      ov.classList.add("show");
+      const openIt = () => {
+        cap.classList.add("open");
+        setTimeout(() => { ov.classList.remove("show"); celebrate(hit.points, "来店ガチャ"); }, 450);
+        ov.removeEventListener("click", openIt);
+      };
+      ov.addEventListener("click", openIt);
+    }
+  }, 1900);
 };
 
 /* つかう（PayPay方式） */
