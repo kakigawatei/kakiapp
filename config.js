@@ -3,8 +3,11 @@
 window.KAKI_CONFIG = {
   // 1P = 1円換算
   itemCatalog: [
-    { id: "topping", name: "トッピング1品", points: 150 },
+    { id: "topping50", name: "トッピング（50円のもの）", points: 50 },
+    { id: "topping120", name: "トッピング（120円のもの）", points: 120 },
     { id: "namimori", name: "油そば 並盛", points: 850 },
+    { id: "oomori", name: "油そば 大盛", points: 900 },
+    { id: "tokumori", name: "油そば 特盛", points: 950 },
   ],
 
   // 来店ガチャ（各席QR・1日1回・ハズレなし）期待値17.5P
@@ -28,7 +31,7 @@ window.KAKI_CONFIG = {
 
   // 来店判定（GPS）: 店舗リスト。新店はここに1行足す。半径はメートル
   stores: [
-    { id: "nagaoka", name: "柿川亭 長岡本店", lat: 37.4472, lng: 138.8446, radius: 150 },  // 🟡座標は仮値・開店前に実測で直す
+    { id: "nagaoka", name: "柿川亭 長岡本店", lat: 37.439442, lng: 138.816467, radius: 150 },  // 北山3-19（国土地理院ジオコーダ・番地レベル）
   ],
   // 開発用: trueにするとGPS判定を常に成功させる
   devSkipGeo: false,
