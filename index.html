@@ -90,7 +90,15 @@
   <div class="balance"><span id="bal">0</span><small>P</small></div>
 </header>
 
-<div class="devnote">🛠 開発版（データは端末内のみ・Firebase接続前）</div>
+<div class="devnote" id="devnote">🛠 開発版（データは端末内のみ・Firebase接続前）</div>
+<div id="devPanel" style="display:none;margin:0 16px 10px;padding:10px 12px;background:#fff3f8;border:2px dashed #d43f8f;border-radius:12px">
+  <b style="color:#d43f8f;font-size:13px">🔧 開発モード</b>
+  <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+    <button id="devReset" style="padding:8px 10px;border-radius:8px;border:1px solid #d43f8f;background:#fff;font-size:12px">今日の制限リセット</button>
+    <button id="devGeo" style="padding:8px 10px;border-radius:8px;border:1px solid #d43f8f;background:#fff;font-size:12px">GPS判定スキップ: OFF</button>
+    <button id="devWipe" style="padding:8px 10px;border-radius:8px;border:1px solid #d43f8f;background:#fff;font-size:12px">全データ初期化</button>
+  </div>
+</div>
 
 <!-- ホーム -->
 <section class="page on" id="page-home">
@@ -340,7 +348,7 @@ document.getElementById("btnMockQR").onclick = checkin;
 /* GPSで来店判定（店から半径内なら成功） */
 function geoCheckin() {
   if (store.s.gachaDate === today()) { alert("今日の来店ガチャは回済みです"); return; }
-  if (C.devSkipGeo) { checkin(); return; }
+  if (C.devSkipGeo || store.s.devSkipGeo) { checkin(); return; }
   if (!navigator.geolocation) { alert("この端末では位置情報が使えません。お店の方にお知らせください。"); return; }
   navigator.geolocation.getCurrentPosition(pos => {
     const { latitude, longitude } = pos.coords;
@@ -432,6 +440,38 @@ document.getElementById("btnStaffOk").onclick = () => {
   pay = 0; document.getElementById("payAmt").textContent = 0;
   document.getElementById("btnPayCancel").onclick();
   show("home");
+};
+
+/* 開発モード: タイトルを7回タップで出現 */
+let devTaps = 0, devTapTimer = null;
+document.querySelector("header h1").addEventListener("click", () => {
+  devTaps++;
+  clearTimeout(devTapTimer);
+  devTapTimer = setTimeout(() => { devTaps = 0; }, 1600);
+  if (devTaps >= 7) {
+    devTaps = 0;
+    const on = !(store.s.devMode);
+    store.set({ devMode: on });
+    document.getElementById("devPanel").style.display = on ? "block" : "none";
+    alert(on ? "開発モードON" : "開発モードOFF");
+  }
+});
+if (store.s.devMode) document.getElementById("devPanel").style.display = "block";
+document.getElementById("devReset").onclick = () => {
+  const s2 = store.s;
+  delete s2.rouletteDate; delete s2.gachaDate; delete s2.qrDate; delete s2.loginDate;
+  localStorage.setItem("kakiapp", JSON.stringify(s2));
+  render();
+  alert("今日の制限（ルーレット/ガチャ/チェックイン/ログボ）をリセットしました");
+};
+document.getElementById("devGeo").onclick = (e) => {
+  const on = !(store.s.devSkipGeo);
+  store.set({ devSkipGeo: on });
+  e.target.textContent = "GPS判定スキップ: " + (on ? "ON" : "OFF");
+};
+if (store.s.devSkipGeo) document.getElementById("devGeo").textContent = "GPS判定スキップ: ON";
+document.getElementById("devWipe").onclick = () => {
+  if (confirm("ポイント・履歴・来店記録をすべて消します。いい？")) { localStorage.removeItem("kakiapp"); location.reload(); }
 };
 
 /* ログボ（1日1回） */
