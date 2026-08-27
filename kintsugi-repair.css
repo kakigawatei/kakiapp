@@ -1,0 +1,107 @@
+/* ===================================================================
+   kintsugi-repair.css — 柿川亭ポイントアプリ（開発版）の追補CSS
+   金継ぎ 2026-08-27 の修理デモで作ったもの。写し（kintsugi-out/demo/after/）に当てて検証済み。
+   使い方: index.html の </head> の直前に次の1行を足すだけ。本体のCSSは1行も消さない。
+       <link rel="stylesheet" href="kintsugi-repair.css">
+   直した順（1巡3件・2巡）:
+     1巡 ①低コントラスト ②極小文字 ③文字サイズの段数過多
+     2巡 ④角丸の種類過多 ⑤似て非なる色 ⑥主従が逆の釦（型紙 dual-cta の格下げ・CSSだけ）
+     最後の1点 ⑦見立て問い6の処方（広い画面でアプリの器に上限幅）
+   =================================================================== */
+
+:root {
+  /* 床(4.5)に届かせるための派生1色。#888/#999 の明度だけを下げたもので、色相は動かしていない */
+  --muted: #666666;
+  /* 薄い罫・溝を1本の役割色に統合（もとは #E8DFC6 / #EEE4C8 / #DDDDDD / #EEEEEE / #CCCCCC の5色） */
+  --line: #e8dfc6;
+}
+
+/* ── ① 破れ: 低コントラスト（9群 → 0） ───────────────────────────── */
+.muted { color: var(--muted); }                       /* #888 比3.54 → #666 比5.74 */
+nav button { color: var(--muted); }                   /* #999 比2.85 → #666 比5.74 */
+button.primary:disabled {                             /* 白 on #ccc は比1.61＝読めない */
+  background: var(--line);
+  color: var(--ink);                                  /* → 比10.6 */
+}
+
+/* ── ② 破れ: 極小文字（4群 → 0・12px未満をなくす） ───────────────── */
+.muted { font-size: 12px !important; }                /* style属性の10px指定もここで拾う */
+.devnote { font-size: 12px; }                         /* 11px → 12px */
+nav button { font-size: 12px; }                       /* 11px → 12px */
+
+/* ── ③ 乱れ: 文字サイズの段数過多（役割ごとに統合） ──────────────── */
+/* 釦・入力だけがUA既定の書体（Arial系）で描かれていた＝本文と別書体。1行で揃う（見立て問い3） */
+button, input, select, textarea { font: inherit; }
+
+/* 釦: 4段(20/16/15/11) → 2段(16/12) */
+button.primary,
+button.ghost,
+.numpad button,
+#overlay button,
+.staff button { font-size: 16px; }
+nav button { font-size: 12px; }
+
+/* その他(div/span/svg text): 7段(40/22/20/16/15/12/11) → 3段(40/20/12) */
+.payamount, .staff .amt { font-size: 40px; }
+.rankline .badge { font-size: 20px; }                 /* 22px → 20px（.ic と同じ段へ） */
+.balance { font-size: 20px; }                         /* 残高は主役の数字なので大きい方へ寄せる */
+.rankline .info b { font-size: 20px; }
+.balance small { font-size: 12px; }                   /* 13.33px（small のUA既定 .83em）→ 12px */
+svg.wheel text { font-size: 12px; }                   /* 15 → 12（盤は240pxに拡大表示されるので実寸14.4px） */
+#overlay .big { font-size: 40px; }
+#overlay .sub { font-size: 20px; }
+
+/* 本文: style属性の13pxを補足の段へ */
+.staff p { font-size: 14px !important; }
+
+/* ── ④ 乱れ: 角丸 7種 → 3種（999px=丸/ピル・14px=面/カード・12px=小/釦） ── */
+.hero { border-radius: 14px; }                        /* 16px → 14px */
+.numpad button { border-radius: 12px; }               /* 10px → 12px */
+.rankline .badge { border-radius: 999px; }            /* 50% → 999px（同じ円） */
+.bar { border-radius: 999px; }                        /* 4px → 999px（溝はピル） */
+
+/* ── ⑤ 乱れ: 似て非なる色 4組 → 0 ─────────────────────────────── */
+.hero { background: var(--cream); }                   /* #F6ECD2 → #FAF3E0（絵で完全に覆われる下敷き） */
+.bar { background: var(--line); }                     /* #EEE4C8 → 罫の役割色へ */
+.numpad button { border-color: var(--line); }         /* #DDDDDD → 同上 */
+.itemrow { border-bottom-color: var(--line); }        /* #EEEEEE → 同上 */
+#payInput .card { border-color: var(--line) !important; } /* style属性の #DDDDDD → 同上 */
+
+/* ── ⑥ 型紙 dual-cta の格下げ（CSSだけ・DOMと行き先は変えない） ──── */
+/* ガチャ画面は「いま押せるチェックイン」が細い白抜き、「押せないガチャ」が一番大きい塗り＝主従が逆だった */
+#page-gacha #btnGeoCheckin2 {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+#page-gacha #btnGacha:disabled {
+  background: transparent;
+  color: var(--muted);
+  border: 2px solid var(--line);
+}
+
+/* ── ⑦ 最後の1点（見立て問い6）: 広い画面でアプリの器に上限幅 ───── */
+/* 幅1280では hero が1248×1250になり、最初の画面が丼だけで残高も釦も1枚目に入らなかった。
+   スマホ幅(390/768)の見え方は1pxも変わらない。 */
+@media (min-width: 520px) {
+  html { background: var(--cream); }
+  body {
+    max-width: 480px;
+    margin-inline: auto;
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    min-height: 100vh;
+  }
+  nav {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+  }
+}
+
+/* ── 追補（2巡目の詰め）: 同じ部品が2つの大きさで描かれていた ─────── */
+/* .itemrow は「交換の目安」(16px) と「ポイント履歴」(#txList.muted=12px) の2箇所に出る同じ部品。
+   一覧の行という同じ役割なので16pxの1段にそろえる。 */
+.itemrow { font-size: 16px; }

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>柿川亭アプリ（開発版）</title>
+<link rel="icon" href="assets/icon.png">
+<script src="config.js"></script>
+<style>
+  :root {
+    --cream: #faf3e0; --navy: #172a58; --red: #d43f2f; --ink: #2b2b2b;
+    --card: #ffffff; --gold: #c9a227;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; background: var(--cream); color: var(--ink); padding-bottom: 76px; }
+
+  header { padding: 14px 16px 8px; display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 18px; color: var(--navy); letter-spacing: .04em; }
+  .balance { background: var(--navy); color: #fff; border-radius: 999px; padding: 6px 14px; font-weight: 700; }
+  .balance small { opacity: .7; font-weight: 400; margin-left: 2px; }
+
+  .hero { margin: 4px 16px 12px; border-radius: 16px; overflow: hidden; background: #f6ecd2; }
+  .hero img { width: 100%; display: block; }
+
+  main { padding: 0 16px; }
+  .card { background: var(--card); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  .card h2 { font-size: 15px; color: var(--navy); margin-bottom: 8px; }
+  .muted { color: #888; font-size: 12px; }
+
+  .rankline { display: flex; align-items: center; gap: 10px; }
+  .rankline .badge { width: 44px; height: 44px; border-radius: 50%; background: var(--cream); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .rankline .info { flex: 1; }
+  .bar { height: 8px; background: #eee4c8; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+  .bar > div { height: 100%; background: var(--gold); }
+
+  button.primary { width: 100%; padding: 14px; border: none; border-radius: 12px; background: var(--red); color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; }
+  button.primary:disabled { background: #ccc; }
+  button.ghost { width: 100%; padding: 12px; border: 2px solid var(--navy); border-radius: 12px; background: transparent; color: var(--navy); font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+
+  /* ルーレット */
+  .wheelwrap { position: relative; width: 240px; margin: 8px auto; }
+  .pointer { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-top: 18px solid var(--navy); z-index: 2; }
+  svg.wheel { width: 240px; height: 240px; transition: transform 4s cubic-bezier(.15,.75,.25,1); }
+
+  /* 演出オーバーレイ */
+  #overlay { position: fixed; inset: 0; background: rgba(23,42,88,.86); display: none; align-items: center; justify-content: center; z-index: 50; flex-direction: column; gap: 14px; }
+  #overlay.show { display: flex; }
+  #overlay .big { font-size: 52px; font-weight: 800; color: #fff; }
+  #overlay .sub { color: #ffe9a8; font-size: 18px; }
+  #overlay button { padding: 10px 28px; border-radius: 999px; border: none; font-size: 15px; font-weight: 700; }
+
+  /* つかう（PayPay方式） */
+  .payamount { font-size: 40px; font-weight: 800; text-align: center; color: var(--navy); padding: 8px 0; }
+  .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .numpad button { padding: 14px 0; font-size: 20px; border-radius: 10px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
+  .staff { background: var(--navy); color: #fff; border-radius: 14px; padding: 18px; text-align: center; }
+  .staff .amt { font-size: 46px; font-weight: 800; color: #ffe9a8; }
+
+  nav { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e8dfc6; display: flex; z-index: 10; padding-bottom: env(safe-area-inset-bottom); }
+  nav button { flex: 1; padding: 10px 0 8px; border: none; background: none; font-size: 11px; color: #999; cursor: pointer; }
+  nav button .ic { display: block; font-size: 20px; margin-bottom: 2px; }
+  nav button.on { color: var(--navy); font-weight: 700; }
+
+  .page { display: none; }
+  .page.on { display: block; }
+  .itemrow { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; }
+  .itemrow:last-child { border-bottom: none; }
+  .pt { font-weight: 700; color: var(--red); }
+  .devnote { margin: 10px 16px; font-size: 11px; color: #b09; }
+</style>
+<link rel="stylesheet" href="kintsugi-repair.css">
+</head>
+<body>
+<header>
+  <h1>柿川亭アプリ</h1>
+  <div class="balance"><span id="bal">0</span><small>P</small></div>
+</header>
+
+<div class="devnote">🛠 開発版（データは端末内のみ・Firebase接続前）</div>
+
+<!-- ホーム -->
+<section class="page on" id="page-home">
+  <div class="hero"><img src="assets/hero.png" alt=""></div>
+  <main>
+    <div class="card">
+      <div class="rankline">
+        <div class="badge" id="rankBadge">🍜</div>
+        <div class="info">
+          <b id="rankName">油そば見習い</b>
+          <div class="muted">累計来店 <span id="visitCount">0</span>回 ／ 次のランクまであと<span id="nextLeft">-</span>回</div>
+          <div class="bar"><div id="rankBar" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🎡 毎日ルーレット</h2>
+      <p class="muted">1日1回、無料で回せます</p>
+      <button class="primary" id="btnGoRoulette">ルーレットを回す</button>
+    </div>
+    <div class="card">
+      <h2>🏮 来店ガチャ</h2>
+      <p class="muted">お店に来たら1日1回回せます（10〜100P・ハズレなし）</p>
+      <button class="primary" id="btnGeoCheckin" style="margin-top:6px">📍 お店にいるのでチェックイン</button>
+      <button class="ghost" id="btnMockQR">（開発用）来店したことにする</button>
+    </div>
+  </main>
+</section>
+
+<!-- ルーレット -->
+<section class="page" id="page-roulette">
+  <main>
+    <div class="card" style="text-align:center">
+      <h2>🎡 毎日ルーレット</h2>
+      <div class="wheelwrap">
+        <div class="pointer"></div>
+        <svg class="wheel" id="wheel" viewBox="0 0 200 200"></svg>
+      </div>
+      <button class="primary" id="btnSpin">回す！</button>
+      <p class="muted" id="rouletteMsg" style="margin-top:8px"></p>
+    </div>
+  </main>
+</section>
+
+<!-- ガチャ -->
+<section class="page" id="page-gacha">
+  <main>
+    <div class="card" style="text-align:center">
+      <h2>🏮 来店ガチャ</h2>
+      <img src="assets/gacha.png" id="gachaImg" style="width:60%;max-width:220px;border-radius:12px" onerror="this.style.display='none'">
+      <p class="muted" id="gachaMsg">お店に来たら📍チェックインで回せます</p>
+      <button class="ghost" id="btnGeoCheckin2">📍 お店にいるのでチェックイン</button>
+      <button class="primary" id="btnGacha" disabled style="margin-top:8px">ガチャを回す</button>
+      <p class="muted" style="margin-top:10px;font-size:10px">⚠️ 位置情報の偽装・複数アカウントなどの不正行為が確認された場合、ポイントの没収およびアカウント停止の対象となります。</p>
+    </div>
+  </main>
+</section>
+
+<!-- つかう -->
+<section class="page" id="page-pay">
+  <main>
+    <div class="card" id="payInput">
+      <h2>💴 ポイントをつかう（1P=1円）</h2>
+      <div class="payamount"><span id="payAmt">0</span>P</div>
+      <div class="numpad" id="numpad"></div>
+      <button class="primary" id="btnPayShow" style="margin-top:10px">この金額で使う</button>
+      <div class="card" style="box-shadow:none;border:1px dashed #ddd;margin-top:12px">
+        <h2>交換の目安</h2>
+        <div id="catalog"></div>
+      </div>
+    </div>
+    <div class="card staff" id="payConfirm" style="display:none">
+      <p>この画面をスタッフに見せてください</p>
+      <div class="amt"><span id="payAmt2">0</span>P</div>
+      <p style="margin:8px 0 14px;font-size:13px">スタッフ確認ボタン ↓</p>
+      <button class="primary" id="btnStaffOk" style="background:#fff;color:var(--navy)">✅ 使用を確認しました（スタッフ）</button>
+      <button class="ghost" id="btnPayCancel" style="border-color:#fff;color:#fff">もどる</button>
+    </div>
+  </main>
+</section>
+
+<!-- 演出 -->
+<div id="overlay">
+  <div class="big" id="ovBig">+10P</div>
+  <div class="sub" id="ovSub">やったね！</div>
+  <button id="ovClose">OK</button>
+</div>
+
+<!-- マイページ -->
+<section class="page" id="page-mypage">
+  <main>
+    <div class="card">
+      <h2>🏅 ランク</h2>
+      <div class="rankline">
+        <img id="myBadge" src="assets/badge_bronze.png" style="width:64px;height:64px;border-radius:12px">
+        <div class="info">
+          <b id="myRankName">油そば見習い</b>
+          <div class="muted">累計来店 <span id="myVisits">0</span>回</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>📜 ポイント履歴</h2>
+      <div id="txList" class="muted">まだ履歴がありません</div>
+    </div>
+    <p class="muted" style="font-size:10px;padding:0 4px">⚠️ 不正行為（位置情報の偽装・複数アカウントの利用など）が確認された場合、ポイントの没収およびアカウント停止の対象となります。ポイントの有効期限や交換内容は予告なく変更される場合があります。</p>
+  </main>
+</section>
+
+<!-- 大当たり動画オーバーレイ -->
+<div id="videoOverlay" style="position:fixed;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:60">
+  <video id="gachaVideo" src="assets/gacha_gold.mp4" style="width:100%;max-width:480px" playsinline></video>
+</div>
+
+<nav>
+  <button data-page="home" class="on"><span class="ic">🏠</span>ホーム</button>
+  <button data-page="roulette"><span class="ic">🎡</span>ルーレット</button>
+  <button data-page="gacha"><span class="ic">🏮</span>ガチャ</button>
+  <button data-page="pay"><span class="ic">💴</span>つかう</button>
+  <button data-page="mypage"><span class="ic">👤</span>マイページ</button>
+</nav>
+
+<script>
+const C = window.KAKI_CONFIG;
+const store = {
+  get s() { try { return JSON.parse(localStorage.getItem("kakiapp") || "{}"); } catch { return {}; } },
+  set(patch) { localStorage.setItem("kakiapp", JSON.stringify(Object.assign(this.s, patch))); render(); },
+};
+const today = () => new Date().toISOString().slice(0, 10);
+
+function logTx(label, points) {
+  const s = store.s;
+  const tx = s.tx || [];
+  tx.unshift({ d: new Date().toISOString().slice(0, 16).replace("T", " "), label, points });
+  store.set({ tx: tx.slice(0, 100) });
+}
+
+function distM(lat1, lng1, lat2, lng2) {
+  const R = 6371000, r = Math.PI / 180;
+  const a = Math.sin((lat2 - lat1) * r / 2) ** 2 +
+    Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin((lng2 - lng1) * r / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function currentRank(visits) {
+  let r = C.ranks[0], next = null;
+  for (const x of C.ranks) { if (visits >= x.minVisits) r = x; }
+  next = C.ranks[C.ranks.indexOf(r) + 1] || null;
+  return { r, next };
+}
+
+function render() {
+  const s = store.s;
+  document.getElementById("bal").textContent = s.points || 0;
+  const visits = (s.visits || []).length;
+  document.getElementById("visitCount").textContent = visits;
+  const { r, next } = currentRank(visits);
+  document.getElementById("rankName").textContent = r.name;
+  document.getElementById("nextLeft").textContent = next ? (next.minVisits - visits) : "—（最高ランク）";
+  const base = r.minVisits, cap = next ? next.minVisits : visits || 1;
+  document.getElementById("rankBar").style.width = Math.min(100, Math.round(((visits - base) / Math.max(1, cap - base)) * 100)) + "%";
+  document.getElementById("btnSpin").disabled = s.rouletteDate === today();
+  document.getElementById("rouletteMsg").textContent = s.rouletteDate === today() ? "今日はもう回しました。また明日！" : "";
+  const qrOk = s.qrDate === today() && s.gachaDate !== today();
+  document.getElementById("btnGacha").disabled = !qrOk;
+  document.getElementById("gachaMsg").textContent =
+    s.gachaDate === today() ? "今日の来店ガチャは回済みです。ごちそうさまでした！" :
+    qrOk ? "チェックインOK！ガチャを回せます" : "お店に来たら📍チェックインで回せます";
+  // マイページ
+  document.getElementById("myVisits").textContent = visits;
+  document.getElementById("myRankName").textContent = r.name;
+  document.getElementById("myBadge").src = r.badge;
+  const tx = s.tx || [];
+  document.getElementById("txList").innerHTML = tx.length
+    ? tx.map(t => `<div class="itemrow"><span>${t.d}　${t.label}</span><span class="pt">${t.points > 0 ? "+" : ""}${t.points}P</span></div>`).join("")
+    : "まだ履歴がありません";
+}
+
+function show(page) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("on"));
+  document.getElementById("page-" + page).classList.add("on");
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.page === page));
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => show(b.dataset.page));
+document.getElementById("btnGoRoulette").onclick = () => show("roulette");
+
+function celebrate(points, sub) {
+  document.getElementById("ovBig").textContent = "+" + points + "P";
+  document.getElementById("ovSub").textContent = sub;
+  document.getElementById("overlay").classList.add("show");
+}
+document.getElementById("ovClose").onclick = () => document.getElementById("overlay").classList.remove("show");
+
+/* ルーレット盤（SVGで生成・configのマス構成） */
+const segs = C.roulette.segments;
+(function drawWheel() {
+  const svg = document.getElementById("wheel");
+  const n = segs.length, cx = 100, cy = 100, R = 96;
+  let d = "";
+  for (let i = 0; i < n; i++) {
+    const a0 = (i / n) * 2 * Math.PI - Math.PI / 2, a1 = ((i + 1) / n) * 2 * Math.PI - Math.PI / 2;
+    const x0 = cx + R * Math.cos(a0), y0 = cy + R * Math.sin(a0);
+    const x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
+    const fill = i % 2 ? "#faf3e0" : "#d43f2f";
+    d += `<path d="M${cx},${cy} L${x0.toFixed(1)},${y0.toFixed(1)} A${R},${R} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)} Z" fill="${fill}" stroke="#172a58" stroke-width="1.5"/>`;
+    const am = (a0 + a1) / 2, tx = cx + R * 0.62 * Math.cos(am), ty = cy + R * 0.62 * Math.sin(am);
+    const tc = i % 2 ? "#172a58" : "#fff";
+    d += `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" font-size="15" font-weight="700" fill="${tc}" text-anchor="middle" dominant-baseline="middle">${segs[i]}P</text>`;
+  }
+  d += `<circle cx="${cx}" cy="${cy}" r="14" fill="#172a58"/>`;
+  svg.innerHTML = d;
+})();
+
+let wheelTurn = 0;
+document.getElementById("btnSpin").onclick = () => {
+  const i = Math.floor(Math.random() * segs.length);
+  const n = segs.length;
+  const target = 360 * 6 + (360 - (i + 0.5) * (360 / n));
+  wheelTurn += target - (wheelTurn % 360);
+  document.getElementById("wheel").style.transform = `rotate(${wheelTurn}deg)`;
+  document.getElementById("btnSpin").disabled = true;
+  setTimeout(() => {
+    const p = segs[i];
+    store.set({ points: (store.s.points || 0) + p, rouletteDate: today() });
+    logTx("毎日ルーレット", p);
+    celebrate(p, "毎日ルーレット");
+  }, 4200);
+};
+
+/* 来店ガチャ */
+function checkin() {
+  if (store.s.gachaDate === today()) { alert("今日の来店ガチャは回済みです"); return; }
+  store.set({ qrDate: today() });
+  const visits = store.s.visits || [];
+  if (!visits.includes(today())) { visits.push(today()); store.set({ visits }); }
+  show("gacha");
+}
+document.getElementById("btnMockQR").onclick = checkin;
+
+/* GPSで来店判定（店から半径内なら成功） */
+function geoCheckin() {
+  if (store.s.gachaDate === today()) { alert("今日の来店ガチャは回済みです"); return; }
+  if (C.devSkipGeo) { checkin(); return; }
+  if (!navigator.geolocation) { alert("この端末では位置情報が使えません。お店の方にお知らせください。"); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude, longitude } = pos.coords;
+    const near = C.stores.find(st => distM(latitude, longitude, st.lat, st.lng) <= st.radius);
+    if (near) {
+      checkin();
+    } else {
+      alert("お店の近くにいることが確認できませんでした。店内でもう一度試すか、レジのスタッフにお声がけください。");
+    }
+  }, () => {
+    alert("位置情報が取得できませんでした。設定で位置情報を許可するか、レジのスタッフにお声がけください。");
+  }, { enableHighAccuracy: true, timeout: 10000 });
+}
+document.getElementById("btnGeoCheckin").onclick = geoCheckin;
+document.getElementById("btnGeoCheckin2").onclick = geoCheckin;
+
+/* QRからの起動（固定QR: index.html?store=nagaoka で開いたらGPS判定へ誘導） */
+(function qrEntry() {
+  const sid = new URLSearchParams(location.search).get("store");
+  if (sid) { show("gacha"); }
+})();
+document.getElementById("btnGacha").onclick = () => {
+  const roll = Math.random();
+  let acc = 0, hit = C.visitGacha.table[0];
+  for (const row of C.visitGacha.table) { acc += row.rate; if (roll < acc) { hit = row; break; } }
+  store.set({ points: (store.s.points || 0) + hit.points, gachaDate: today() });
+  logTx("来店ガチャ", hit.points);
+  if (hit.points >= 50) {
+    const ov = document.getElementById("videoOverlay"), v = document.getElementById("gachaVideo");
+    ov.style.display = "flex"; v.currentTime = 0; v.play();
+    v.onended = () => { ov.style.display = "none"; celebrate(hit.points, "🎉 大当たり！！"); };
+    ov.onclick = () => { v.pause(); ov.style.display = "none"; celebrate(hit.points, "🎉 大当たり！！"); };
+  } else {
+    celebrate(hit.points, "来店ガチャ");
+  }
+};
+
+/* つかう（PayPay方式） */
+let pay = 0;
+const padKeys = [1,2,3,4,5,6,7,8,9,"C",0,"⌫"];
+const numpad = document.getElementById("numpad");
+padKeys.forEach(k => {
+  const b = document.createElement("button");
+  b.textContent = k;
+  b.onclick = () => {
+    if (k === "C") pay = 0;
+    else if (k === "⌫") pay = Math.floor(pay / 10);
+    else pay = Math.min(999999, pay * 10 + k);
+    document.getElementById("payAmt").textContent = pay;
+  };
+  numpad.appendChild(b);
+});
+document.getElementById("catalog").innerHTML = C.itemCatalog
+  .map(x => `<div class="itemrow"><span>${x.name}</span><span class="pt">${x.points}P</span></div>`).join("");
+document.getElementById("btnPayShow").onclick = () => {
+  if (!pay) { alert("使うポイント数を入力してください"); return; }
+  if (pay > (store.s.points || 0)) { alert("ポイントが足りません（残高 " + (store.s.points || 0) + "P）"); return; }
+  document.getElementById("payAmt2").textContent = pay;
+  document.getElementById("payInput").style.display = "none";
+  document.getElementById("payConfirm").style.display = "block";
+};
+document.getElementById("btnPayCancel").onclick = () => {
+  document.getElementById("payInput").style.display = "block";
+  document.getElementById("payConfirm").style.display = "none";
+};
+document.getElementById("btnStaffOk").onclick = () => {
+  store.set({ points: (store.s.points || 0) - pay });
+  logTx("お店で使用", -pay);
+  alert(pay + "P を使用しました。ありがとうございました！");
+  pay = 0; document.getElementById("payAmt").textContent = 0;
+  document.getElementById("btnPayCancel").onclick();
+  show("home");
+};
+
+/* ログボ（1日1回） */
+(function loginBonus() {
+  const s = store.s;
+  if (s.loginDate !== today()) {
+    store.set({ points: (s.points || 0) + C.loginBonus.points, loginDate: today() });
+    logTx("ログインボーナス", C.loginBonus.points);
+  }
+})();
+
+render();
+</script>
+</body>
+</html>
