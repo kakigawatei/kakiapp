@@ -6,7 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "build": "node build-www.js",
-    "sync": "node build-www.js && npx cap sync"
+    "sync": "node build-www.js && npx cap sync && node scripts/patch-podfile.js && cd ios/App && pod install"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.0",
