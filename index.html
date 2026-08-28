@@ -37,6 +37,27 @@
   button.primary:disabled { background: #ccc; }
   button.ghost { width: 100%; padding: 12px; border: 2px solid var(--navy); border-radius: 12px; background: transparent; color: var(--navy); font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px; }
 
+
+  /* ログイン画面 */
+  #gate { position: fixed; inset: 0; background: var(--cream); z-index: 200; display: none; align-items: center; justify-content: center; padding: 24px 20px; overflow-y: auto; }
+  #gate .box { width: 100%; max-width: 360px; }
+  #gate .logo { text-align: center; margin-bottom: 18px; }
+  #gate .logo img { width: 72px; height: 72px; border-radius: 18px; }
+  #gate h2 { font-size: 19px; color: var(--navy); text-align: center; margin: 10px 0 4px; }
+  #gate .lead { font-size: 12px; color: #7a7266; text-align: center; line-height: 1.7; margin-bottom: 18px; }
+  #gate label { display: block; font-size: 12px; color: var(--navy); font-weight: 700; margin: 12px 0 4px; }
+  #gate input { width: 100%; padding: 13px 14px; border: 1px solid #ded4b8; border-radius: 11px; background: #fff; font-size: 16px; color: var(--ink); }
+  #gate input:focus { outline: 2px solid var(--navy); outline-offset: -1px; }
+  #gate .sep { display: flex; align-items: center; gap: 10px; color: #b3a892; font-size: 11px; margin: 18px 0; }
+  #gate .sep::before, #gate .sep::after { content: ""; flex: 1; height: 1px; background: #e2d8bd; }
+  .btn-google { width: 100%; padding: 13px; border: 1px solid #ded4b8; border-radius: 12px; background: #fff; color: #3c4043; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px; }
+  .btn-google svg { width: 18px; height: 18px; }
+  #gate .link { background: none; border: none; color: var(--navy); font-size: 12px; text-decoration: underline; cursor: pointer; padding: 6px; }
+  #gate .links { display: flex; justify-content: space-between; margin-top: 12px; }
+  #gMsg { color: var(--red); font-size: 12.5px; line-height: 1.6; margin-top: 12px; min-height: 1em; }
+  #gBusy { display: none; text-align: center; color: #7a7266; font-size: 12px; margin-top: 12px; }
+  #gate .note { font-size: 10.5px; color: #9c9384; line-height: 1.7; margin-top: 18px; }
+
   /* ルーレット */
   .wheelwrap { position: relative; width: 240px; margin: 8px auto; }
   .pointer { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-top: 18px solid var(--navy); z-index: 2; }
@@ -85,6 +106,58 @@
 <link rel="stylesheet" href="kintsugi-repair.css">
 </head>
 <body>
+
+<!-- ログイン画面（未ログインの間だけ全面に出る） -->
+<div id="gate">
+  <div class="box">
+    <div class="logo"><img src="assets/icon.png" alt=""></div>
+
+    <div id="gSignin">
+      <h2>柿川亭アプリ</h2>
+      <p class="lead">ログインすると、貯めたポイントがサーバーに保存されます。<br>機種変更しても引き継げます。</p>
+      <button class="btn-google" id="gGoogle"><svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.8-6.8C35.6 2.4 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.2C12.4 13.7 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.2-.4-4.7H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.2 5.6c4.2-3.9 6.6-9.6 6.6-16.8z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.8-2.9-.8-4.6s.3-3.2.8-4.6l-7.9-6.2C1 16.4 0 20.1 0 24s1 7.6 2.6 10.8l7.9-6.2z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.2-5.6c-2 1.4-4.6 2.2-8.7 2.2-6.3 0-11.6-4.2-13.5-9.9l-7.9 6.2C6.5 42.6 14.6 48 24 48z"/></svg> Googleでログイン</button>
+      <div class="sep">または メールアドレスで</div>
+      <label for="gEmail">メールアドレス</label>
+      <input id="gEmail" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com">
+      <label for="gPass">パスワード</label>
+      <input id="gPass" type="password" autocomplete="current-password" placeholder="6文字以上">
+      <div style="margin-top:16px"><button class="primary" id="gDoSignin">ログイン</button></div>
+      <div class="links">
+        <button class="link" id="gToSignup">新規登録はこちら</button>
+        <button class="link" id="gReset">パスワードを忘れた</button>
+      </div>
+      <p class="note">※ おひとり1アカウントです。複数アカウントでのポイント取得は停止の対象になります。</p>
+    </div>
+
+    <div id="gSignup" style="display:none">
+      <h2>新規登録</h2>
+      <p class="lead">登録したメールアドレスに確認メールが届きます。<br>リンクを開くとポイントが貯められます。</p>
+      <button class="btn-google" id="gGoogle2"><svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.8-6.8C35.6 2.4 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.2C12.4 13.7 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.2-.4-4.7H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.2 5.6c4.2-3.9 6.6-9.6 6.6-16.8z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.8-2.9-.8-4.6s.3-3.2.8-4.6l-7.9-6.2C1 16.4 0 20.1 0 24s1 7.6 2.6 10.8l7.9-6.2z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.2-5.6c-2 1.4-4.6 2.2-8.7 2.2-6.3 0-11.6-4.2-13.5-9.9l-7.9 6.2C6.5 42.6 14.6 48 24 48z"/></svg> Googleで登録（かんたん）</button>
+      <div class="sep">または メールアドレスで</div>
+      <label for="gEmail2">メールアドレス</label>
+      <input id="gEmail2" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com">
+      <label for="gPass2">パスワード</label>
+      <input id="gPass2" type="password" autocomplete="new-password" placeholder="6文字以上">
+      <div style="margin-top:16px"><button class="primary" id="gDoSignup">登録する</button></div>
+      <div class="links"><button class="link" id="gToSignin">ログインに戻る</button></div>
+    </div>
+
+    <div id="gVerify" style="display:none">
+      <h2>確認メールを送りました</h2>
+      <p class="lead"><b id="gVerifyMail"></b> 宛のメールを開いて、<br>中のリンクをタップしてください。<br>そのあとこの画面に戻って「確認しました」を押します。</p>
+      <button class="primary" id="gVerified">確認しました</button>
+      <div class="links">
+        <button class="link" id="gResend">メールを再送する</button>
+        <button class="link" id="gCancel">別のアドレスで登録</button>
+      </div>
+      <p class="note">※ メールが届かないときは迷惑メールフォルダをご確認ください。</p>
+    </div>
+
+    <div id="gMsg"></div>
+    <div id="gBusy">処理中…</div>
+  </div>
+</div>
+
 <header>
   <h1>柿川亭アプリ</h1>
   <div class="balance"><span id="bal">0</span><small>P</small></div>
@@ -204,6 +277,11 @@
       <h2>📜 ポイント履歴</h2>
       <div id="txList" class="muted">まだ履歴がありません</div>
     </div>
+    <div class="card">
+      <h2>👤 アカウント</h2>
+      <div class="muted" id="acctMail" style="word-break:break-all">—</div>
+      <button class="ghost" onclick="window.kakiSignOut()">ログアウト</button>
+    </div>
     <p class="muted" style="font-size:10px;padding:0 4px">⚠️ 不正行為（位置情報の偽装・複数アカウントの利用など）が確認された場合、ポイントの没収およびアカウント停止の対象となります。ポイントの有効期限や交換内容は予告なく変更される場合があります。</p>
   </main>
 </section>
@@ -231,7 +309,7 @@
 const C = window.KAKI_CONFIG;
 const store = {
   get s() { try { return JSON.parse(localStorage.getItem("kakiapp") || "{}"); } catch { return {}; } },
-  set(patch) { localStorage.setItem("kakiapp", JSON.stringify(Object.assign(this.s, patch))); render(); },
+  set(patch) { localStorage.setItem("kakiapp", JSON.stringify(Object.assign(this.s, patch))); render(); if (window.cloudPush) window.cloudPush(); },
 };
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -365,11 +443,6 @@ function geoCheckin() {
 document.getElementById("btnGeoCheckin").onclick = geoCheckin;
 document.getElementById("btnGeoCheckin2").onclick = geoCheckin;
 
-/* QRからの起動（固定QR: index.html?store=nagaoka で開いたらGPS判定へ誘導） */
-(function qrEntry() {
-  const sid = new URLSearchParams(location.search).get("store");
-  if (sid) { show("gacha"); }
-})();
 document.getElementById("btnGacha").onclick = () => {
   const btn = document.getElementById("btnGacha");
   if (btn.disabled) return;
@@ -456,7 +529,6 @@ document.querySelector("header h1").addEventListener("click", () => {
     alert(on ? "開発モードON" : "開発モードOFF");
   }
 });
-if (store.s.devMode) document.getElementById("devPanel").style.display = "block";
 document.getElementById("devReset").onclick = () => {
   const s2 = store.s;
   delete s2.rouletteDate; delete s2.gachaDate; delete s2.qrDate; delete s2.loginDate;
@@ -469,21 +541,32 @@ document.getElementById("devGeo").onclick = (e) => {
   store.set({ devSkipGeo: on });
   e.target.textContent = "GPS判定スキップ: " + (on ? "ON" : "OFF");
 };
-if (store.s.devSkipGeo) document.getElementById("devGeo").textContent = "GPS判定スキップ: ON";
 document.getElementById("devWipe").onclick = () => {
   if (confirm("ポイント・履歴・来店記録をすべて消します。いい？")) { localStorage.removeItem("kakiapp"); location.reload(); }
 };
 
-/* ログボ（1日1回） */
-(function loginBonus() {
+/* ここから下は auth.js（ログイン完了）から呼ばれる。
+   先に走らせるとクラウドのデータで上書きされて消えるので順番を守ること */
+window.kakiGetState = () => store.s;
+window.kakiSetState = (o) => { localStorage.setItem("kakiapp", JSON.stringify(o || {})); render(); };
+window.kakiStart = function () {
+  if (store.s.devMode) document.getElementById("devPanel").style.display = "block";
+  if (store.s.devSkipGeo) document.getElementById("devGeo").textContent = "GPS判定スキップ: ON";
+
+  /* QRからの起動（固定QR: index.html?store=nagaoka で開いたらGPS判定へ誘導） */
+  if (new URLSearchParams(location.search).get("store")) show("gacha");
+
+  /* ログボ（1日1回） */
   const s = store.s;
   if (s.loginDate !== today()) {
     store.set({ points: (s.points || 0) + C.loginBonus.points, loginDate: today() });
     logTx("ログインボーナス", C.loginBonus.points);
   }
-})();
+  render();
+};
 
 render();
 </script>
+<script type="module" src="auth.js"></script>
 </body>
 </html>
