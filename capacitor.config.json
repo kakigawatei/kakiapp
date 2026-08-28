@@ -1,0 +1,20 @@
+{
+  "appId": "com.kakigawatei.app",
+  "appName": "柿川亭アプリ",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": true,
+      "providers": [
+        "google.com",
+        "apple.com"
+      ]
+    }
+  }
+}

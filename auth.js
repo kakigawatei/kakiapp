@@ -5,8 +5,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  sendEmailVerification, sendPasswordResetEmail, signOut, GoogleAuthProvider,
-  signInWithPopup, signInWithRedirect, getRedirectResult, setPersistence, browserLocalPersistence
+  sendEmailVerification, sendPasswordResetEmail, signOut, GoogleAuthProvider, OAuthProvider,
+  signInWithPopup, signInWithRedirect, getRedirectResult, signInWithCredential,
+  setPersistence, browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
@@ -22,6 +23,18 @@ setPersistence(auth, browserLocalPersistence).catch(() => {});
 
 /* クラウドに保存する項目。devMode などの端末設定は同期しない */
 const KEYS = ["points", "visits", "tx", "rouletteDate", "gachaDate", "qrDate", "loginDate"];
+
+/* iOS/Androidのアプリ版か（＝Capacitorで包まれて動いているか）。
+   アプリ版のWebViewではポップアップが開けないので、ログインは
+   ネイティブのGoogle/Appleの画面を呼び出して資格情報だけ受け取る方式に切り替える。 */
+const nativeAuth = () => {
+  const c = window.Capacitor;
+  return (c && c.isNativePlatform && c.isNativePlatform() && c.Plugins && c.Plugins.FirebaseAuthentication) || null;
+};
+const isIOSApp = () => {
+  const c = window.Capacitor;
+  return !!(c && c.getPlatform && c.getPlatform() === "ios");
+};
 
 let uid = null, ready = false, timer = null;
 
@@ -100,15 +113,50 @@ $("gToSignin").onclick = () => { msg(""); showGate("gSignin"); };
 async function googleLogin() {
   msg(""); busy(true);
   try {
-    await signInWithPopup(auth, new GoogleAuthProvider());
+    const native = nativeAuth();
+    if (native) {
+      const r = await native.signInWithGoogle({ skipNativeAuth: true });
+      const idToken = r.credential && r.credential.idToken;
+      if (!idToken) throw new Error("no-credential");
+      await signInWithCredential(auth, GoogleAuthProvider.credential(idToken));
+    } else {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+    }
   } catch (e) {
-    if (String(e.code).includes("popup")) {
+    if (!nativeAuth() && String(e.code).includes("popup")) {
       try { await signInWithRedirect(auth, new GoogleAuthProvider()); return; } catch (e2) { msg(jaError(e2)); }
     } else msg(jaError(e));
   } finally { busy(false); }
 }
 $("gGoogle").onclick = googleLogin;
 $("gGoogle2").onclick = googleLogin;
+
+/* Appleでログイン。iOSアプリ版では必須（Googleログインを載せたアプリに
+   Appleログインが無いと、App Storeの審査でリジェクトされるため）。 */
+async function appleLogin() {
+  msg(""); busy(true);
+  try {
+    const native = nativeAuth();
+    if (native) {
+      const r = await native.signInWithApple({ skipNativeAuth: true });
+      const c = r.credential || {};
+      if (!c.idToken) throw new Error("no-credential");
+      await signInWithCredential(auth,
+        new OAuthProvider("apple.com").credential({ idToken: c.idToken, rawNonce: c.nonce }));
+    } else {
+      await signInWithPopup(auth, new OAuthProvider("apple.com"));
+    }
+  } catch (e) { msg(jaError(e)); } finally { busy(false); }
+}
+$("gApple").onclick = appleLogin;
+$("gApple2").onclick = appleLogin;
+
+/* Appleボタンは iOSアプリ版だけに出す（Web版は規約の対象外で、
+   Firebase側のApple設定も要らないため、出すと押せないボタンになる） */
+if (isIOSApp()) {
+  $("gApple").style.display = "flex";
+  $("gApple2").style.display = "flex";
+}
 
 $("gDoSignin").onclick = async () => {
   msg(""); busy(true);

@@ -1,2 +1,17 @@
 kintsugi-out/
 node_modules/
+www/
+
+# Capacitorのネイティブプロジェクトは中身を残す（Info.plistの設定や署名設定を失わないため）。
+# ただし依存物とビルド生成物は除く。
+ios/App/Pods/
+ios/App/build/
+ios/App/Podfile.lock
+ios/App/output/
+ios/capacitor-cordova-ios-plugins/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/src/main/assets/public/
+ios/App/App/public/
