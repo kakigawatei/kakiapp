@@ -1,0 +1,59 @@
+# Androidの配布用ファイル（AAB）をGitHub上で組み立てる。
+#
+# なぜクラウドで組むか：MacにもWindowsにもAndroid Studio（約10GB）が入っておらず、
+# Macは空き容量にも余裕がないため。ここで組めば手元には何も入れなくてよい。
+#
+# 使い方：GitHubのActionsタブ →「Android AAB をビルド」→ Run workflow。
+# 完成物は実行結果ページの Artifacts からダウンロードできる。
+#
+# 🟥 署名はまだ入れていない（未署名のAABが出る）。
+#    Google Play Console にアップロードするには署名が要るので、
+#    デベロッパー登録が済んで鍵（キーストア）を作ったら、
+#    android/app/build.gradle に signingConfig を足してここで使う。
+
+name: Android AAB をビルド
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: 依存をインストール
+        run: npm ci
+
+      - name: www を作って Android に反映
+        run: |
+          node build-www.js
+          npx cap sync android
+
+      - name: AAB を組み立てる（未署名）
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon
+
+      - name: 動作確認用のAPKも作る
+        run: |
+          cd android
+          ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kakiapp-android
+          path: |
+            android/app/build/outputs/bundle/release/*.aab
+            android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
