@@ -1,0 +1,39 @@
+require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'
+
+platform :ios, '13.0'
+use_frameworks!
+
+# workaround to avoid Xcode caching of Pods that requires
+# Product -> Clean Build Folder after new Cordova plugins installed
+# Requires CocoaPods 1.6 or newer
+install! 'cocoapods', :disable_input_output_paths => true
+
+def capacitor_pods
+  pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
+  pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
+  pod 'CapacitorGeolocation', :path => '../../node_modules/@capacitor/geolocation'
+  pod 'CapacitorFirebaseAuthentication', :path => '../../node_modules/@capacitor-firebase/authentication', :subspecs => ['Google']
+end
+
+target 'App' do
+  capacitor_pods
+  # Googleログイン用。CapacitorFirebaseAuthentication の Google サブスペックと同じ中身を、
+  # ここ（cap sync が触らない場所）に書いている。
+  # GoogleSignIn 7.1 は GTMSessionFetcher 3.x を要求するので、FirebaseAuth も
+  # それに合う 11.4.0 で揃える（新しい FirebaseAuth は 4.x を引いてきて衝突する）
+  pod 'FirebaseAuth', '11.4.0'
+  pod 'GoogleSignIn', '7.1.0'
+end
+
+post_install do |installer|
+  assertDeploymentTarget(installer)
+  # プラグインの Google ログイン用コードは、このフラグが立っていないとコンパイルされない
+  installer.pods_project.targets.each do |t|
+    next unless t.name == 'CapacitorFirebaseAuthentication'
+    t.build_configurations.each do |c|
+      flags = c.build_settings['OTHER_SWIFT_FLAGS'] || '$(inherited)'
+      flags = flags.join(' ') if flags.is_a?(Array)
+      c.build_settings['OTHER_SWIFT_FLAGS'] = flags + ' -DRGCFA_INCLUDE_GOOGLE' unless flags.include?('RGCFA_INCLUDE_GOOGLE')
+    end
+  end
+end
