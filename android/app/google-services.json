@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "206563791731",
+    "project_id": "kakigawatei-franchise",
+    "storage_bucket": "kakigawatei-franchise.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:206563791731:android:9ebe4bf5f488d5cec32b06",
+        "android_client_info": {
+          "package_name": "com.kakigawatei.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "206563791731-ct4tih5vr42o9hk0qdm0b8rjs66177kk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQ8hyhNAg_Mz208C5YxlRkodVbUD9CtYA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "206563791731-ct4tih5vr42o9hk0qdm0b8rjs66177kk.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "206563791731-tqjoiiuud802bigukcs59sbqpltbo7ct.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.kakigawatei.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
