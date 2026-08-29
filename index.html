@@ -198,7 +198,7 @@
       <h2>🏮 来店ガチャ</h2>
       <p class="muted">お店に来たら1日1回回せます（10〜100P・ハズレなし）</p>
       <button class="primary" id="btnGeoCheckin" style="margin-top:6px">📍 お店にいるのでチェックイン</button>
-      <button class="ghost" id="btnMockQR">（開発用）来店したことにする</button>
+      <button class="ghost" id="btnMockQR" style="display:none">（開発用）来店したことにする</button>
     </div>
   </main>
 </section>
@@ -539,6 +539,7 @@ document.querySelector("header h1").addEventListener("click", () => {
     const on = !(store.s.devMode);
     store.set({ devMode: on });
     document.getElementById("devPanel").style.display = on ? "block" : "none";
+    document.getElementById("btnMockQR").style.display = on ? "block" : "none";
     alert(on ? "開発モードON" : "開発モードOFF");
   }
 });
@@ -565,6 +566,7 @@ window.kakiSetState = (o) => { localStorage.setItem("kakiapp", JSON.stringify(o 
 window.kakiStart = function () {
   if (store.s.devMode) document.getElementById("devPanel").style.display = "block";
   if (store.s.devSkipGeo) document.getElementById("devGeo").textContent = "GPS判定スキップ: ON";
+  document.getElementById("btnMockQR").style.display = store.s.devMode ? "block" : "none";
 
   /* QRからの起動（固定QR: index.html?store=nagaoka で開いたらGPS判定へ誘導） */
   if (new URLSearchParams(location.search).get("store")) show("gacha");
