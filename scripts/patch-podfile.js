@@ -33,6 +33,10 @@ if (!s.includes("pod 'FirebaseAuth'")) {
   );
 }
 
+// ③ 対応OSの下限を15.0に保つ
+//    cap sync が 13.0 で書き戻すため。2027年春からAppleが15.0以上を必須にする。
+s = s.replace("platform :ios, '13.0'", "platform :ios, '15.0'");
+
 if (s === before) { console.log("Podfile は手当て済みでした"); process.exit(0); }
 fs.writeFileSync(PODFILE, s);
 console.log("Podfile を手当てしました（Googleサブスペック / FirebaseAuth 固定）");
