@@ -5,11 +5,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  sendEmailVerification, sendPasswordResetEmail, signOut, GoogleAuthProvider, OAuthProvider,
-  signInWithPopup, signInWithRedirect, getRedirectResult, signInWithCredential,
+  sendEmailVerification, sendPasswordResetEmail, signOut,
+  EmailAuthProvider, reauthenticateWithCredential, deleteUser,
   setPersistence, browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const app = initializeApp({
   apiKey: "AIzaSyDtDZIEQtBzjujnpTDcXt1QeEU2r-wbg74",
@@ -24,17 +24,6 @@ setPersistence(auth, browserLocalPersistence).catch(() => {});
 /* クラウドに保存する項目。devMode などの端末設定は同期しない */
 const KEYS = ["points", "visits", "tx", "rouletteDate", "gachaDate", "qrDate", "loginDate"];
 
-/* iOS/Androidのアプリ版か（＝Capacitorで包まれて動いているか）。
-   アプリ版のWebViewではポップアップが開けないので、ログインは
-   ネイティブのGoogle/Appleの画面を呼び出して資格情報だけ受け取る方式に切り替える。 */
-const nativeAuth = () => {
-  const c = window.Capacitor;
-  return (c && c.isNativePlatform && c.isNativePlatform() && c.Plugins && c.Plugins.FirebaseAuthentication) || null;
-};
-const isIOSApp = () => {
-  const c = window.Capacitor;
-  return !!(c && c.getPlatform && c.getPlatform() === "ios");
-};
 
 let uid = null, ready = false, timer = null;
 
@@ -110,53 +99,6 @@ window.cloudPush = function () {
 $("gToSignup").onclick = () => { msg(""); showGate("gSignup"); };
 $("gToSignin").onclick = () => { msg(""); showGate("gSignin"); };
 
-async function googleLogin() {
-  msg(""); busy(true);
-  try {
-    const native = nativeAuth();
-    if (native) {
-      const r = await native.signInWithGoogle({ skipNativeAuth: true });
-      const idToken = r.credential && r.credential.idToken;
-      if (!idToken) throw new Error("no-credential");
-      await signInWithCredential(auth, GoogleAuthProvider.credential(idToken));
-    } else {
-      await signInWithPopup(auth, new GoogleAuthProvider());
-    }
-  } catch (e) {
-    if (!nativeAuth() && String(e.code).includes("popup")) {
-      try { await signInWithRedirect(auth, new GoogleAuthProvider()); return; } catch (e2) { msg(jaError(e2)); }
-    } else msg(jaError(e));
-  } finally { busy(false); }
-}
-$("gGoogle").onclick = googleLogin;
-$("gGoogle2").onclick = googleLogin;
-
-/* Appleでログイン。iOSアプリ版では必須（Googleログインを載せたアプリに
-   Appleログインが無いと、App Storeの審査でリジェクトされるため）。 */
-async function appleLogin() {
-  msg(""); busy(true);
-  try {
-    const native = nativeAuth();
-    if (native) {
-      const r = await native.signInWithApple({ skipNativeAuth: true });
-      const c = r.credential || {};
-      if (!c.idToken) throw new Error("no-credential");
-      await signInWithCredential(auth,
-        new OAuthProvider("apple.com").credential({ idToken: c.idToken, rawNonce: c.nonce }));
-    } else {
-      await signInWithPopup(auth, new OAuthProvider("apple.com"));
-    }
-  } catch (e) { msg(jaError(e)); } finally { busy(false); }
-}
-$("gApple").onclick = appleLogin;
-$("gApple2").onclick = appleLogin;
-
-/* Appleボタンは iOSアプリ版だけに出す（Web版は規約の対象外で、
-   Firebase側のApple設定も要らないため、出すと押せないボタンになる） */
-if (isIOSApp()) {
-  $("gApple").style.display = "flex";
-  $("gApple2").style.display = "flex";
-}
 
 $("gDoSignin").onclick = async () => {
   msg(""); busy(true);
@@ -204,8 +146,37 @@ window.kakiSignOut = function () {
   signOut(auth).then(() => { localStorage.removeItem("kakiapp"); location.reload(); });
 };
 
+
+/* アカウント削除（App Store ガイドライン 5.1.1(v) 対応）。
+   確認→（必要ならパスワード再認証）→Firestoreのデータ削除→Authの本体削除。 */
+window.kakiDeleteAccount = async function () {
+  const u = auth.currentUser;
+  if (!u) return;
+  if (!confirm("アカウントを削除します。\n\n貯めたポイント・来店記録・履歴はすべて消え、元に戻せません。\nよろしいですか？")) return;
+  if (!confirm("最終確認です。本当に削除しますか？")) return;
+  try {
+    try { await deleteDoc(doc(db, "kakiapp_users", u.uid)); }
+    catch (e) { await setDoc(doc(db, "kakiapp_users", u.uid), { deleted: true, points: 0, tx: [], updatedAt: new Date().toISOString() }); }
+    try {
+      await deleteUser(u);
+    } catch (e) {
+      if (String(e && e.code).includes("requires-recent-login")) {
+        const pw = prompt("安全のため、パスワードをもう一度入力してください。");
+        if (!pw) return;
+        await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, pw));
+        await deleteUser(auth.currentUser);
+      } else { throw e; }
+    }
+    ready = false;
+    localStorage.removeItem("kakiapp");
+    alert("アカウントを削除しました。ご利用ありがとうございました。");
+    location.reload();
+  } catch (e) {
+    alert("削除できませんでした。" + jaError(e));
+  }
+};
+
 /* ---- 入口 ---- */
-getRedirectResult(auth).catch(() => {});
 
 onAuthStateChanged(auth, async (u) => {
   if (!u) { ready = false; uid = null; showGate("gSignin"); return; }
