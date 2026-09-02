@@ -140,40 +140,58 @@ $("gVerified").onclick = async () => {
 
 $("gCancel").onclick = () => signOut(auth);
 
-window.kakiSignOut = function () {
-  if (!confirm("ログアウトします。ポイントはサーバーに保存されているので、ログインし直せば戻ります。")) return;
-  ready = false;
-  signOut(auth).then(() => { localStorage.removeItem("kakiapp"); location.reload(); });
+/* ログアウト／アカウント削除。
+   🟥 ネイティブの confirm/alert/prompt は iOSアプリ(WKWebView)で固まって画面ごと操作不能になるため使わない。
+   index.html の画面内ダイアログ(kakiConfirm / kakiPrompt / kakiAlert) を使う。二重押しは acting で止める */
+let acting = false;
+
+window.kakiSignOut = async function () {
+  if (acting) return;
+  acting = true;
+  try {
+    const ok = await window.kakiConfirm("ログアウトします。\nポイントはサーバーに保存されているので、ログインし直せば戻ります。", { okText: "ログアウト" });
+    if (!ok) return;
+    ready = false;
+    try { await signOut(auth); } catch (e) { console.error(e); }
+    localStorage.removeItem("kakiapp");
+    location.reload();
+  } finally { acting = false; }
 };
 
-
 /* アカウント削除（App Store ガイドライン 5.1.1(v) 対応）。
-   確認→（必要ならパスワード再認証）→Firestoreのデータ削除→Authの本体削除。 */
+   確認2回→（必要ならパスワード再認証）→Firestoreのデータ削除→Authの本体削除。 */
 window.kakiDeleteAccount = async function () {
-  const u = auth.currentUser;
-  if (!u) return;
-  if (!confirm("アカウントを削除します。\n\n貯めたポイント・来店記録・履歴はすべて消え、元に戻せません。\nよろしいですか？")) return;
-  if (!confirm("最終確認です。本当に削除しますか？")) return;
+  if (acting) return;
+  acting = true;
   try {
-    try { await deleteDoc(doc(db, "kakiapp_users", u.uid)); }
-    catch (e) { await setDoc(doc(db, "kakiapp_users", u.uid), { deleted: true, points: 0, tx: [], updatedAt: new Date().toISOString() }); }
+    const u = auth.currentUser;
+    if (!u) return;
+    const ok1 = await window.kakiConfirm("アカウントを削除します。\n\n貯めたポイント・来店記録・履歴はすべて消え、元に戻せません。\nよろしいですか？", { okText: "削除する", danger: true });
+    if (!ok1) return;
+    const ok2 = await window.kakiConfirm("最終確認です。本当に削除しますか？", { okText: "本当に削除する", danger: true });
+    if (!ok2) return;
     try {
-      await deleteUser(u);
+      try { await deleteDoc(doc(db, "kakiapp_users", u.uid)); }
+      catch (e) { await setDoc(doc(db, "kakiapp_users", u.uid), { deleted: true, points: 0, tx: [], updatedAt: new Date().toISOString() }); }
+      try {
+        await deleteUser(u);
+      } catch (e) {
+        if (String(e && e.code).includes("requires-recent-login")) {
+          const pw = await window.kakiPrompt("安全のため、パスワードをもう一度入力してください。", { password: true, okText: "確認" });
+          if (!pw) return;
+          await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, pw));
+          await deleteUser(auth.currentUser);
+        } else { throw e; }
+      }
+      ready = false;
+      localStorage.removeItem("kakiapp");
+      await window.kakiAlert("アカウントを削除しました。ご利用ありがとうございました。");
+      location.reload();
     } catch (e) {
-      if (String(e && e.code).includes("requires-recent-login")) {
-        const pw = prompt("安全のため、パスワードをもう一度入力してください。");
-        if (!pw) return;
-        await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, pw));
-        await deleteUser(auth.currentUser);
-      } else { throw e; }
+      console.error(e);
+      await window.kakiAlert("削除できませんでした。" + jaError(e));
     }
-    ready = false;
-    localStorage.removeItem("kakiapp");
-    alert("アカウントを削除しました。ご利用ありがとうございました。");
-    location.reload();
-  } catch (e) {
-    alert("削除できませんでした。" + jaError(e));
-  }
+  } finally { acting = false; }
 };
 
 /* ---- 入口 ---- */

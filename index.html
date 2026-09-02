@@ -103,6 +103,18 @@
   .itemrow { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; }
   .itemrow:last-child { border-bottom: none; }
   .pt { font-weight: 700; color: var(--red); }
+
+  /* 画面内ダイアログ（ネイティブの alert/confirm はiOSアプリで固まるので使わない） */
+  #kdlg { position: fixed; inset: 0; background: rgba(23,42,88,.55); display: none; align-items: center; justify-content: center; z-index: 300; padding: 24px; }
+  #kdlg.show { display: flex; }
+  .kdlg-box { background: #fff; border-radius: 16px; padding: 20px 18px 14px; width: 100%; max-width: 340px; box-shadow: 0 8px 30px rgba(0,0,0,.25); }
+  #kdlgMsg { font-size: 15px; line-height: 1.7; color: var(--ink); white-space: pre-line; word-break: break-word; }
+  #kdlgInput { display: none; width: 100%; margin-top: 12px; padding: 12px; border: 1px solid #ded4b8; border-radius: 10px; font-size: 16px; color: var(--ink); background: #fff; }
+  .kdlg-btns { display: flex; gap: 8px; margin-top: 16px; }
+  .kdlg-btns button { flex: 1; padding: 12px; border-radius: 10px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; }
+  #kdlgNg { background: #f1ebd8; color: var(--navy); }
+  #kdlgOk { background: var(--navy); color: #fff; }
+  #kdlgOk.danger { background: #c0392b; }
 </style>
 <link rel="stylesheet" href="kintsugi-repair.css">
 </head>
@@ -297,6 +309,15 @@
   <video id="gachaVideo" src="assets/gacha_gold.mp4" style="width:100%;max-width:480px" playsinline></video>
 </div>
 
+<!-- 画面内ダイアログ（alert/confirm/prompt の代わり） -->
+<div id="kdlg" role="dialog" aria-modal="true">
+  <div class="kdlg-box">
+    <div id="kdlgMsg"></div>
+    <input id="kdlgInput" autocomplete="off" autocapitalize="off">
+    <div class="kdlg-btns"><button id="kdlgNg" type="button">キャンセル</button><button id="kdlgOk" type="button">OK</button></div>
+  </div>
+</div>
+
 <nav>
   <button data-page="home" class="on"><span class="ic">🏠</span>ホーム</button>
   <button data-page="roulette"><span class="ic">🎡</span>ルーレット</button>
@@ -306,6 +327,36 @@
 </nav>
 
 <script>
+/* 画面内ダイアログ。iOSアプリ(WKWebView)ではネイティブの alert/confirm/prompt が
+   固まって画面ごと操作不能になることがあるため、全部これに置き換える。
+   kakiAlert / kakiConfirm / kakiPrompt は Promise を返す。window.alert も差し替える */
+(function () {
+  const box = document.getElementById("kdlg"), msgEl = document.getElementById("kdlgMsg"),
+        inp = document.getElementById("kdlgInput"), okB = document.getElementById("kdlgOk"), ngB = document.getElementById("kdlgNg");
+  let queue = Promise.resolve();
+  function open(o) {
+    return new Promise(res => {
+      msgEl.textContent = o.msg;
+      inp.style.display = o.input ? "block" : "none";
+      inp.value = ""; inp.type = o.password ? "password" : "text";
+      ngB.style.display = o.cancel ? "block" : "none";
+      okB.textContent = o.okText || "OK";
+      okB.className = o.danger ? "danger" : "";
+      box.classList.add("show");
+      const done = v => { box.classList.remove("show"); okB.onclick = ngB.onclick = null; inp.onkeydown = null; res(v); };
+      okB.onclick = () => done(o.input ? inp.value : true);
+      ngB.onclick = () => done(o.input ? null : false);
+      if (o.input) { inp.onkeydown = e => { if (e.key === "Enter") okB.onclick(); }; setTimeout(() => inp.focus(), 60); }
+    });
+  }
+  /* 連続で呼ばれても順番に1つずつ出す */
+  function q(o) { const p = queue.then(() => open(o)); queue = p.catch(() => {}); return p; }
+  window.kakiAlert = (m, okText) => q({ msg: String(m), okText });
+  window.kakiConfirm = (m, o) => q(Object.assign({ msg: String(m), cancel: true }, o || {}));
+  window.kakiPrompt = (m, o) => q(Object.assign({ msg: String(m), cancel: true, input: true }, o || {}));
+  window.alert = m => { window.kakiAlert(m); };
+})();
+
 const C = window.KAKI_CONFIG;
 const store = {
   get s() { try { return JSON.parse(localStorage.getItem("kakiapp") || "{}"); } catch { return {}; } },
@@ -553,8 +604,8 @@ document.getElementById("devGeo").onclick = (e) => {
   store.set({ devSkipGeo: on });
   e.target.textContent = "GPS判定スキップ: " + (on ? "ON" : "OFF");
 };
-document.getElementById("devWipe").onclick = () => {
-  if (confirm("ポイント・履歴・来店記録をすべて消します。いい？")) { localStorage.removeItem("kakiapp"); location.reload(); }
+document.getElementById("devWipe").onclick = async () => {
+  if (await kakiConfirm("ポイント・履歴・来店記録をすべて消します。いい？", { okText: "消す", danger: true })) { localStorage.removeItem("kakiapp"); location.reload(); }
 };
 
 /* ここから下は auth.js（ログイン完了）から呼ばれる。
