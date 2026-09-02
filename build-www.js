@@ -4,7 +4,7 @@ const fs = require("fs"), path = require("path");
 
 const ROOT = __dirname;
 const OUT = path.join(ROOT, "www");
-const FILES = ["index.html", "auth.js", "config.js"];
+const FILES = ["index.html", "auth.js", "config.js", "kintsugi-repair.css"];
 const DIRS = ["assets"];
 
 fs.rmSync(OUT, { recursive: true, force: true });

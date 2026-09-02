@@ -9,7 +9,7 @@ import {
   EmailAuthProvider, reauthenticateWithCredential, deleteUser,
   setPersistence, browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const app = initializeApp({
   apiKey: "AIzaSyDtDZIEQtBzjujnpTDcXt1QeEU2r-wbg74",
@@ -17,8 +17,15 @@ const app = initializeApp({
   projectId: "kakigawatei-franchise",
 });
 const auth = getAuth(app);
-const db = getFirestore(app);
+/* iOSアプリ(WKWebView)ではFirestoreの通常接続(WebChannel)が張れず「offline」のまま固まることがある
+   → 接続方式を自動判定させる。Web版には影響なし */
+const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
 auth.languageCode = "ja";
+
+/* ネットワーク待ちで画面が固まらないように、全部に制限時間を付ける */
+const withTimeout = (p, ms, label) => Promise.race([
+  p, new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error("timeout: " + label), { code: "timeout/" + label })), ms))
+]);
 setPersistence(auth, browserLocalPersistence).catch(() => {});
 
 /* クラウドに保存する項目。devMode などの端末設定は同期しない */
@@ -33,7 +40,7 @@ const gate = () => $("gate");
 function showGate(view) {
   gate().style.display = "flex";
   document.body.style.overflow = "hidden";
-  ["gSignin", "gSignup", "gVerify"].forEach(v => $(v).style.display = v === view ? "block" : "none");
+  ["gSignin", "gSignup", "gVerify", "gLoading"].forEach(v => $(v).style.display = v === view ? "block" : "none");
 }
 function hideGate() {
   gate().style.display = "none";
@@ -54,7 +61,7 @@ function jaError(e) {
   if (c.includes("wrong-password") || c.includes("invalid-credential")) return "メールアドレスかパスワードが違います。";
   if (c.includes("user-not-found")) return "登録が見つかりません。新規登録してください。";
   if (c.includes("too-many-requests")) return "試行が多すぎます。しばらく待ってからお試しください。";
-  if (c.includes("network")) return "通信できませんでした。電波の良い場所でお試しください。";
+  if (c.includes("network") || c.includes("timeout") || c.includes("unavailable")) return "サーバーに接続できませんでした。電波の良い場所でもう一度お試しください。";
   if (c.includes("popup-blocked") || c.includes("popup-closed")) return "ログイン画面が開けませんでした。もう一度お試しください。";
   if (c.includes("unauthorized-domain")) return "このドメインが未許可です（設定を確認してください）。";
   return "うまくいきませんでした。もう一度お試しください。";
@@ -62,7 +69,7 @@ function jaError(e) {
 
 /* ---- 同期 ---- */
 async function pull(u) {
-  const snap = await getDoc(doc(db, "kakiapp_users", u.uid));
+  const snap = await withTimeout(getDoc(doc(db, "kakiapp_users", u.uid)), 12000, "getDoc");
   const cur = window.kakiGetState();
   if (snap.exists()) {
     /* クラウドが正。端末に何が入っていても上書きする＝機種変更してもポイントが戻る */
@@ -86,7 +93,7 @@ async function write() {
     updatedAt: new Date().toISOString(),
   };
   KEYS.forEach(k => { if (s[k] !== undefined) out[k] = s[k]; });
-  await setDoc(doc(db, "kakiapp_users", uid), out, { merge: true });
+  await withTimeout(setDoc(doc(db, "kakiapp_users", uid), out, { merge: true }), 15000, "setDoc");
 }
 
 window.cloudPush = function () {
@@ -152,7 +159,7 @@ window.kakiSignOut = async function () {
     const ok = await window.kakiConfirm("ログアウトします。\nポイントはサーバーに保存されているので、ログインし直せば戻ります。", { okText: "ログアウト" });
     if (!ok) return;
     ready = false;
-    try { await signOut(auth); } catch (e) { console.error(e); }
+    try { await withTimeout(signOut(auth), 5000, "signOut"); } catch (e) { console.error(e); }
     localStorage.removeItem("kakiapp");
     location.reload();
   } finally { acting = false; }
@@ -171,16 +178,21 @@ window.kakiDeleteAccount = async function () {
     const ok2 = await window.kakiConfirm("最終確認です。本当に削除しますか？", { okText: "本当に削除する", danger: true });
     if (!ok2) return;
     try {
-      try { await deleteDoc(doc(db, "kakiapp_users", u.uid)); }
-      catch (e) { await setDoc(doc(db, "kakiapp_users", u.uid), { deleted: true, points: 0, tx: [], updatedAt: new Date().toISOString() }); }
+      /* データ削除。Firestoreに繋がらなくても本体(Auth)の削除には進む（残った空docは無害） */
+      ready = false;
+      try { await withTimeout(deleteDoc(doc(db, "kakiapp_users", u.uid)), 8000, "deleteDoc"); }
+      catch (e) {
+        console.error(e);
+        try { await withTimeout(setDoc(doc(db, "kakiapp_users", u.uid), { deleted: true, points: 0, tx: [], updatedAt: new Date().toISOString() }), 4000, "setDoc"); } catch (e2) { console.error(e2); }
+      }
       try {
-        await deleteUser(u);
+        await withTimeout(deleteUser(u), 15000, "deleteUser");
       } catch (e) {
         if (String(e && e.code).includes("requires-recent-login")) {
           const pw = await window.kakiPrompt("安全のため、パスワードをもう一度入力してください。", { password: true, okText: "確認" });
-          if (!pw) return;
-          await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, pw));
-          await deleteUser(auth.currentUser);
+          if (!pw) { ready = true; return; }
+          await withTimeout(reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, pw)), 15000, "reauth");
+          await withTimeout(deleteUser(auth.currentUser), 15000, "deleteUser");
         } else { throw e; }
       }
       ready = false;
@@ -189,6 +201,7 @@ window.kakiDeleteAccount = async function () {
       location.reload();
     } catch (e) {
       console.error(e);
+      ready = true;
       await window.kakiAlert("削除できませんでした。" + jaError(e));
     }
   } finally { acting = false; }
@@ -207,6 +220,10 @@ onAuthStateChanged(auth, async (u) => {
   }
 
   uid = u.uid;
+  /* 読み込み中は本体を触らせない（裏で見えていると「0P」の古い画面を操作できてしまう） */
+  showGate("gLoading");
+  $("gLoadMsg").textContent = "ポイントを読み込んでいます…";
+  $("gRetry").style.display = "none";
   busy(true);
   try {
     await pull(u);
@@ -215,7 +232,10 @@ onAuthStateChanged(auth, async (u) => {
     window.kakiStart();
     $("acctMail").textContent = u.email || u.displayName || "";
   } catch (e) {
-    msg("データの読み込みに失敗しました。電波の良い場所で開き直してください。");
     console.error(e);
+    $("gLoadMsg").textContent = "サーバーに接続できませんでした。電波の良い場所で「もう一度」を押してください。";
+    $("gRetry").style.display = "inline-block";
   } finally { busy(false); }
 });
+$("gRetry").onclick = () => location.reload();
+$("gLoadSignOut").onclick = async () => { try { await withTimeout(signOut(auth), 5000, "signOut"); } catch (e) {} localStorage.removeItem("kakiapp"); location.reload(); };

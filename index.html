@@ -14,7 +14,7 @@
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; background: var(--cream); color: var(--ink); padding-bottom: 76px; }
 
-  header { padding: 14px 16px 8px; display: flex; align-items: center; justify-content: space-between; }
+  header { padding: calc(14px + env(safe-area-inset-top)) 16px 8px; display: flex; align-items: center; justify-content: space-between; }
   header h1 { font-size: 18px; color: var(--navy); letter-spacing: .04em; }
   .balance { background: var(--navy); color: #fff; border-radius: 999px; padding: 6px 14px; font-weight: 700; }
   .balance small { opacity: .7; font-weight: 400; margin-left: 2px; }
@@ -164,6 +164,13 @@
       <p class="note">※ メールが届かないときは迷惑メールフォルダをご確認ください。</p>
     </div>
 
+    <div id="gLoading" style="display:none;text-align:center">
+      <h2>柿川亭アプリ</h2>
+      <p class="lead" id="gLoadMsg">ポイントを読み込んでいます…</p>
+      <button class="primary" id="gRetry" style="display:none;width:auto;padding:12px 28px">もう一度</button>
+      <div class="links" style="justify-content:center"><button class="link" id="gLoadSignOut">別のアカウントでログイン</button></div>
+    </div>
+
     <div id="gMsg"></div>
     <div id="gBusy">処理中…</div>
   </div>
@@ -180,6 +187,7 @@
     <button id="devReset" style="padding:8px 10px;border-radius:8px;border:1px solid #d43f8f;background:#fff;font-size:12px">今日の制限リセット</button>
     <button id="devGeo" style="padding:8px 10px;border-radius:8px;border:1px solid #d43f8f;background:#fff;font-size:12px">GPS判定スキップ: OFF</button>
     <button id="devWipe" style="padding:8px 10px;border-radius:8px;border:1px solid #d43f8f;background:#fff;font-size:12px">全データ初期化</button>
+    <button id="devErrs" style="padding:8px 10px;border-radius:8px;border:1px solid #d43f8f;background:#fff;font-size:12px">エラーを見る</button>
   </div>
 </div>
 
@@ -327,6 +335,16 @@
 </nav>
 
 <script>
+/* 端末で起きたエラーを溜めておく（開発モードの「エラーを見る」で表示・不具合の切り分け用） */
+window.__errs = [];
+(function () {
+  const push = (kind, msg) => { try { window.__errs.push(new Date().toLocaleTimeString("ja-JP") + " " + kind + ": " + String(msg).slice(0, 300)); if (window.__errs.length > 30) window.__errs.shift(); } catch (e) {} };
+  window.addEventListener("error", e => push("error", (e.message || "") + " @" + (e.filename || "").split("/").pop() + ":" + e.lineno));
+  window.addEventListener("unhandledrejection", e => push("promise", e.reason && (e.reason.code || e.reason.message || e.reason)));
+  const ce = console.error.bind(console);
+  console.error = (...a) => { push("console", a.map(x => x && (x.code || x.message) || x).join(" ")); ce(...a); };
+})();
+
 /* 画面内ダイアログ。iOSアプリ(WKWebView)ではネイティブの alert/confirm/prompt が
    固まって画面ごと操作不能になることがあるため、全部これに置き換える。
    kakiAlert / kakiConfirm / kakiPrompt は Promise を返す。window.alert も差し替える */
@@ -603,6 +621,11 @@ document.getElementById("devGeo").onclick = (e) => {
   const on = !(store.s.devSkipGeo);
   store.set({ devSkipGeo: on });
   e.target.textContent = "GPS判定スキップ: " + (on ? "ON" : "OFF");
+};
+document.getElementById("devErrs").onclick = () => {
+  const e = window.__errs || [];
+  const ua = navigator.userAgent.slice(0, 80);
+  kakiAlert((e.length ? e.join("\n") : "エラーなし") + "\n\nauth: " + (typeof window.kakiSignOut) + " / online: " + navigator.onLine + "\n" + ua);
 };
 document.getElementById("devWipe").onclick = async () => {
   if (await kakiConfirm("ポイント・履歴・来店記録をすべて消します。いい？", { okText: "消す", danger: true })) { localStorage.removeItem("kakiapp"); location.reload(); }
