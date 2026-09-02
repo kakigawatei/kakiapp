@@ -4,10 +4,10 @@
    本体(index.html)とは window.kakiGetState / kakiSetState / kakiStart / cloudPush で繋ぐ */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import {
-  getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  getAuth, initializeAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
   sendEmailVerification, sendPasswordResetEmail, signOut,
   EmailAuthProvider, reauthenticateWithCredential, deleteUser,
-  setPersistence, browserLocalPersistence
+  setPersistence, browserLocalPersistence, indexedDBLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { initializeFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
@@ -16,7 +16,12 @@ const app = initializeApp({
   authDomain: "kakigawatei-franchise.firebaseapp.com",
   projectId: "kakigawatei-franchise",
 });
-const auth = getAuth(app);
+/* 🟥 iOS/Androidアプリ(Capacitor)では getAuth() が使えない（ポップアップ用の初期化がWKWebViewで止まり、
+   onAuthStateChanged が一度も呼ばれない＝ログイン画面が出ずメール欄が「—」のまま。1.0(4)〜(6)で実際に起きた）
+   → アプリ版は initializeAuth＋indexedDB保存で初期化する（@capacitor-firebase の推奨）。Web版は従来どおり getAuth */
+const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
+  || location.search.includes("nativeauth=1");   // ← Chromeでアプリ版の経路を試すためのフラグ
+const auth = isNativeApp ? initializeAuth(app, { persistence: indexedDBLocalPersistence }) : getAuth(app);
 /* iOSアプリ(WKWebView)ではFirestoreの通常接続(WebChannel)が張れず「offline」のまま固まることがある
    → 接続方式を自動判定させる。Web版には影響なし */
 const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
@@ -26,7 +31,7 @@ auth.languageCode = "ja";
 const withTimeout = (p, ms, label) => Promise.race([
   p, new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error("timeout: " + label), { code: "timeout/" + label })), ms))
 ]);
-setPersistence(auth, browserLocalPersistence).catch(() => {});
+if (!isNativeApp) setPersistence(auth, browserLocalPersistence).catch(() => {});
 
 /* クラウドに保存する項目。devMode などの端末設定は同期しない */
 const KEYS = ["points", "visits", "tx", "rouletteDate", "gachaDate", "qrDate", "loginDate"];
@@ -209,7 +214,18 @@ window.kakiDeleteAccount = async function () {
 
 /* ---- 入口 ---- */
 
+/* 見張り: 認証の初期化が黙って止まったら、裏の画面を触らせずに知らせる（原因調査用） */
+let authFired = false;
+setTimeout(() => {
+  if (authFired) return;
+  console.error("auth init timeout (onAuthStateChanged not fired in 10s) native=" + isNativeApp);
+  showGate("gLoading");
+  $("gLoadMsg").textContent = "ログイン機能の起動に時間がかかっています。電波の良い場所で「もう一度」を押してください。";
+  $("gRetry").style.display = "inline-block";
+}, 10000);
+
 onAuthStateChanged(auth, async (u) => {
+  authFired = true;
   if (!u) { ready = false; uid = null; showGate("gSignin"); return; }
 
   const byPassword = u.providerData.some(p => p.providerId === "password");

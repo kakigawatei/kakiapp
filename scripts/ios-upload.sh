@@ -27,6 +27,7 @@ PLIST=/tmp/kakiapp_export.plist
 if [ -f /tmp/.kc_pw ]; then
   PW="$(cat /tmp/.kc_pw)"; rm -f /tmp/.kc_pw
   security unlock-keychain -p "$PW" "$KC" || { echo "UNLOCK_FAILED"; exit 2; }
+  security set-keychain-settings "$KC"   # 自動ロック(タイムアウト)を外す＝次回からパスワード不要にする
   security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$PW" "$KC" >/dev/null 2>&1 || true
   unset PW
 fi
