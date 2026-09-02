@@ -22,6 +22,18 @@ python scripts/asc_api.py encrypt <ver> # 輸出コンプライアンス「対�
 - 内部テストグループ「岡雅俊」は **全ビルド自動配信**（hasAccessToAllBuilds）。追加操作は不要で、VALID になった時点で iPhone の TestFlight に出る
 - 審査の再提出は App Store Connect のウェブ（Neo のブラウザで可）
 
+## 4. 審査への提出・再提出（API・2026-09-02 実証）
+```
+python scripts/asc_submit.py status                 # version / build / submission / 添付 の状態
+python scripts/asc_attach.py <動画やスクショ>        # App Review 添付（予約→分割PUT→MD5でcommit）
+python scripts/asc_submit.py notes <メモ.txt>        # 審査メモ差し替え（雛形: appstore/審査メモ_再提出_2026-09-02.txt）
+python scripts/asc_submit.py create                 # 新しい reviewSubmission を作って version 1.0 を追加
+python scripts/asc_submit.py submit <submissionId>  # 提出（masaのOK後にだけ）
+```
+- ビルドの差し替えは `PATCH /v1/appStoreVersions/{VID}/relationships/build`（asc_submit.py の VID＝a56a1340-…）
+- 🟥 **却下された submission は再提出できない**（UIの「App Reviewに再提出」が灰色・APIは「Version is not ready」）。正解＝旧 submission を `canceled:true` → CANCELING→COMPLETE（数十秒）→ 新 submission に version を item 追加 → `submitted:true`
+- 承認後のリリースは release type MANUAL＝ masa が ASC で「リリース」を押す
+
 ## 認証まわり（秘密はリポジトリに入れない）
 - App Store Connect API キー: **Admin ロール必須**（App Manager だと `Cloud signing permission error`）。
   - Key ID `5HAPG3KN7F` / Issuer ID `b7b0b3ae-1c10-42d1-bc0c-685adaf9c799`

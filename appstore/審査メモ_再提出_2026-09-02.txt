@@ -1,0 +1,22 @@
+[Resubmission: build 1.0 (7) — fixes for the two issues raised on 2026-08-31]
+
+1) Guideline 2.1(a) — Sign in with Google / Apple did not complete on iPad.
+   Both third-party sign-in buttons have been removed. The app now offers email/password sign-in only.
+   Additionally, Firebase Auth is now initialized with the native-app path (initializeAuth + IndexedDB persistence), so the sign-in screen appears reliably on iPhone and iPad.
+
+2) Guideline 5.1.1(v) — Account deletion.
+   Added "アカウントを削除する" (Delete account) inside the app:
+   My Page tab (bottom right "マイページ") → "アカウント" section → red button "アカウントを削除する" → two confirmation dialogs → the account (Firebase Auth user) and all of the user's data (Firestore document) are deleted → the app returns to the sign-in screen.
+   No support contact is required; deletion is completed in-app immediately.
+   Screen recording of the full deletion flow (sign-in → My Page → delete → 2 confirmations → sign-in screen): see the attached video kakiapp_delete_demo.mp4 (41 s).
+
+Test account (email/password): kakigawatei+appreview@gmail.com / （パスワードは appstore/申請メモ.md 参照）
+Please do NOT delete this test account; to test deletion, please create a new account with the in-app "新規登録" (sign-up) — any email address works and the email verification link is sent immediately.
+
+Location check for the visit gacha: the "来店ガチャ" only works within 150 m of the restaurant (Nagaoka, Niigata). To bypass the location check for review, tap the app title "柿川亭アプリ" 7 times to open the developer panel and turn on "GPS判定スキップ".
+
+------ 日本語 ------
+2026-08-31 のご指摘 2点への対応（ビルド 1.0 (7)）
+1) 2.1(a): Google/Apple ログインを撤去し、メール／パスワードのみにしました。あわせて iPhone/iPad でログイン画面が確実に表示されるよう認証の初期化方法を修正しました。
+2) 5.1.1(v): マイページ → アカウント →「アカウントを削除する」を追加。確認2回で Firebase Auth のユーザーと Firestore のデータを削除し、ログイン画面に戻ります。操作動画は添付の kakiapp_delete_demo.mp4（41秒）をご覧ください。
+テスト用アカウントは削除しないでください。削除の確認は「新規登録」で作った新しいアカウントでお願いします。
