@@ -14,7 +14,8 @@
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; background: var(--cream); color: var(--ink); padding-bottom: 76px; }
 
-  header { padding: calc(14px + env(safe-area-inset-top)) 16px 8px; display: flex; align-items: center; justify-content: space-between; }
+  /* スクロールしても上に残す（2026-09-03 masa指示）。下に薄く影を出して、絵が下を通っても文字が沈まないようにする */
+  header { position: sticky; top: 0; z-index: 40; padding: calc(14px + env(safe-area-inset-top)) 16px 10px; display: flex; align-items: center; justify-content: space-between; background: var(--cream); box-shadow: 0 2px 10px rgba(20,20,15,.06); }
   header h1 { font-size: 18px; color: var(--navy); letter-spacing: .04em; }
   .balance { background: var(--navy); color: #fff; border-radius: 999px; padding: 6px 14px; font-weight: 700; }
   .balance small { opacity: .7; font-weight: 400; margin-left: 2px; }
@@ -39,6 +40,25 @@
 
 
   /* ログイン画面 */
+
+  /* 称号カード（起動直後の全画面）＝このアプリの主役。残高ではなく身分を先に見せる */
+  #shogo { position: fixed; inset: 0; z-index: 190; display: none;
+           flex-direction: column; align-items: center; justify-content: center;
+           background: var(--cream); padding: 32px 24px; text-align: center; }
+  #shogo .cap { font-size: 13px; letter-spacing: .22em; color: #9c9384; margin-bottom: 14px; }
+  #shogo .badge2 { width: 132px; height: 132px; border-radius: 50%; object-fit: cover;
+                   background: #fff; box-shadow: 0 10px 0 rgba(20,20,15,.08); margin-bottom: 18px; }
+  #shogo .name { font-size: 54px; font-weight: 900; color: var(--navy); line-height: 1.1;
+                 letter-spacing: .02em; }
+  #shogo .sub { margin-top: 16px; font-size: 13px; color: #7a7266; line-height: 1.9; }
+  #shogo .go { margin-top: 34px; width: 100%; max-width: 300px; padding: 15px;
+               border: none; border-radius: 999px; background: var(--navy); color: #fff;
+               font-size: 16px; font-weight: 700; }
+  #shogo.up .name { animation: shogoPop .5s ease-out; }
+  #shogo .up-cap { display: none; font-size: 20px; font-weight: 900; color: #d43f8f;
+                   letter-spacing: .3em; margin-bottom: 10px; }
+  #shogo.up .up-cap { display: block; }
+  @keyframes shogoPop { 0% { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.12) } 100% { transform: scale(1) } }
   #gate { position: fixed; inset: 0; background: var(--cream); z-index: 200; display: none; align-items: center; justify-content: center; padding: 24px 20px; overflow-y: auto; }
   #gate .box { width: 100%; max-width: 360px; }
   #gate .logo { text-align: center; margin-bottom: 18px; }
@@ -149,6 +169,10 @@
       <input id="gEmail2" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com">
       <label for="gPass2">パスワード</label>
       <input id="gPass2" type="password" autocomplete="new-password" placeholder="6文字以上">
+      <label style="display:flex;align-items:flex-start;gap:9px;margin-top:16px;font-size:12px;color:#5c5647;line-height:1.6;cursor:pointer">
+        <input type="checkbox" id="gOptIn" checked style="width:19px;height:19px;margin-top:1px;flex:none">
+        <span>柿川亭からのお得な情報（新メニュー・限定クーポン）をメールで受け取る<br><span style="color:#9c9384">※あとから止められます</span></span>
+      </label>
       <div style="margin-top:16px"><button class="primary" id="gDoSignup">登録する</button></div>
       <div class="links"><button class="link" id="gToSignin">ログインに戻る</button></div>
     </div>
@@ -174,6 +198,17 @@
     <div id="gMsg"></div>
     <div id="gBusy">処理中…</div>
   </div>
+</div>
+
+
+<!-- 称号カード（起動直後） -->
+<div id="shogo">
+  <div class="up-cap">昇格</div>
+  <div class="cap">あなたの称号は</div>
+  <img class="badge2" id="shogoBadge" src="assets/badge_bronze.png" alt="">
+  <div class="name" id="shogoName">油そば見習い</div>
+  <div class="sub" id="shogoSub"></div>
+  <button class="go" id="shogoGo">はじめる</button>
 </div>
 
 <header>
@@ -290,6 +325,13 @@
           <div class="muted">累計来店 <span id="myVisits">0</span>回</div>
         </div>
       </div>
+    </div>
+    <div class="card">
+      <h2>✉️ お知らせメール</h2>
+      <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;color:#5c5647;line-height:1.6;cursor:pointer">
+        <input type="checkbox" id="myOptIn" style="width:19px;height:19px;margin-top:1px;flex:none">
+        <span>お得な情報（新メニュー・限定クーポン）をメールで受け取る</span>
+      </label>
     </div>
     <div class="card">
       <h2>📜 ポイント履歴</h2>
@@ -424,6 +466,8 @@ function render() {
   document.getElementById("myVisits").textContent = visits;
   document.getElementById("myRankName").textContent = r.name;
   document.getElementById("myBadge").src = r.badge;
+  const oi = document.getElementById("myOptIn");
+  if (oi) oi.checked = store.s.mailOptIn !== false;
   const tx = s.tx || [];
   document.getElementById("txList").innerHTML = tx.length
     ? tx.map(t => `<div class="itemrow"><span>${t.d}　${t.label}</span><span class="pt">${t.points > 0 ? "+" : ""}${t.points}P</span></div>`).join("")
@@ -466,6 +510,33 @@ const segs = C.roulette.segments;
   svg.innerHTML = d;
 })();
 
+
+/* 演出動画を流す共通の道具（2026-09-03）。
+   絵は fal/GPT Image 2、動きは fal/H3 Max Turbo で作った。
+   タップで飛ばせるようにしてある（毎日使うものなので、飛ばせないと苦痛になる） */
+function playFx(src, done) {
+  const ov = document.getElementById("videoOverlay");
+  const v = document.getElementById("gachaVideo");
+  let fired = false;
+  const finish = () => {
+    if (fired) return;
+    fired = true;
+    try { v.pause(); } catch (e) {}
+    ov.style.display = "none";
+    ov.onclick = null;
+    v.onended = null;
+    done();
+  };
+  if (v.getAttribute("src") !== src) v.setAttribute("src", src);
+  ov.style.display = "flex";
+  try { v.currentTime = 0; } catch (e) {}
+  const pr = v.play();
+  if (pr && pr.catch) pr.catch(finish);   /* 再生できない端末では素通しする */
+  v.onended = finish;
+  ov.onclick = finish;
+  setTimeout(finish, 7000);               /* 保険。固まったら7秒で閉じる */
+}
+
 let wheelTurn = 0;
 document.getElementById("btnSpin").onclick = () => {
   const i = Math.floor(Math.random() * segs.length);
@@ -474,20 +545,29 @@ document.getElementById("btnSpin").onclick = () => {
   wheelTurn += target - (wheelTurn % 360);
   document.getElementById("wheel").style.transform = `rotate(${wheelTurn}deg)`;
   document.getElementById("btnSpin").disabled = true;
-  setTimeout(() => {
+  playFx("assets/roulette.mp4", () => {
     const p = segs[i];
     store.set({ points: (store.s.points || 0) + p, rouletteDate: today() });
     logTx("毎日ルーレット", p);
     celebrate(p, "毎日ルーレット");
-  }, 4200);
+  });
 };
 
 /* 来店ガチャ */
-function checkin() {
+function checkin(storeId) {
   if (store.s.gachaDate === today()) { alert("今日の来店ガチャは回済みです"); return; }
   store.set({ qrDate: today() });
   const visits = store.s.visits || [];
-  if (!visits.includes(today())) { visits.push(today()); store.set({ visits }); }
+  const isNew = !visits.includes(today());
+  if (isNew) { visits.push(today()); store.set({ visits }); }
+  /* どの店に来たかを別で数える（2026-09-03）。
+     visits の形は変えない＝既存ユーザーのデータを壊さないため。
+     これが無いと「仙台に行ったことある人だけに送る」ができない */
+  if (isNew && storeId) {
+    const sv = Object.assign({}, store.s.storeVisits || {});
+    sv[storeId] = (sv[storeId] || 0) + 1;
+    store.set({ storeVisits: sv, lastStore: storeId, lastStoreAt: today() });
+  }
   show("gacha");
 }
 document.getElementById("btnMockQR").onclick = checkin;
@@ -495,13 +575,14 @@ document.getElementById("btnMockQR").onclick = checkin;
 /* GPSで来店判定（店から半径内なら成功） */
 function geoCheckin() {
   if (store.s.gachaDate === today()) { alert("今日の来店ガチャは回済みです"); return; }
-  if (C.devSkipGeo || store.s.devSkipGeo) { checkin(); return; }
+  const qrStore = new URLSearchParams(location.search).get("store");
+  if (C.devSkipGeo || store.s.devSkipGeo) { checkin(qrStore || "nagaoka"); return; }
   if (!navigator.geolocation) { alert("この端末では位置情報が使えません。お店の方にお知らせください。"); return; }
   getPosition().then(pos => {
     const { latitude, longitude } = pos.coords;
     const near = C.stores.find(st => distM(latitude, longitude, st.lat, st.lng) <= st.radius);
     if (near) {
-      checkin();
+      checkin(near.id);
     } else {
       alert("お店の近くにいることが確認できませんでした。店内でもう一度試すか、レジのスタッフにお声がけください。");
     }
@@ -538,22 +619,11 @@ document.getElementById("btnGacha").onclick = () => {
   setTimeout(() => {
     img.classList.remove("gshake");
     if (hit.points >= 50) {
-      // ② 大当たり: 金カプセル動画
-      const ov = document.getElementById("videoOverlay"), v = document.getElementById("gachaVideo");
-      ov.style.display = "flex"; v.currentTime = 0; v.play();
-      v.onended = () => { ov.style.display = "none"; celebrate(hit.points, "🎉 大当たり！！"); };
-      ov.onclick = () => { v.pause(); ov.style.display = "none"; celebrate(hit.points, "🎉 大当たり！！"); };
+      // ② 大当たり: 金のカプセルから光があふれる（H3で生成）
+      playFx("assets/gacha_gold.mp4", () => celebrate(hit.points, "🎉 大当たり！！"));
     } else {
-      // ② 通常: カプセルが落ちてくる → タップで開封
-      const ov = document.getElementById("capOverlay"), cap = document.getElementById("capsuleEl");
-      cap.classList.remove("open");
-      ov.classList.add("show");
-      const openIt = () => {
-        cap.classList.add("open");
-        setTimeout(() => { ov.classList.remove("show"); celebrate(hit.points, "来店ガチャ"); }, 450);
-        ov.removeEventListener("click", openIt);
-      };
-      ov.addEventListener("click", openIt);
+      // ② 通常: ガチャ機が揺れてカプセルが落ちる（H3で生成）
+      playFx("assets/gacha_normal.mp4", () => celebrate(hit.points, "来店ガチャ"));
     }
   }, 1900);
 };
@@ -610,6 +680,11 @@ document.querySelector("header h1").addEventListener("click", () => {
     alert(on ? "開発モードON" : "開発モードOFF");
   }
 });
+/* お知らせメールの受け取りを切り替える（いつでも止められるようにしておく） */
+document.getElementById("myOptIn").onchange = (e) => {
+  store.set({ mailOptIn: e.target.checked, mailOptInAt: new Date().toISOString() });
+};
+
 document.getElementById("devReset").onclick = () => {
   const s2 = store.s;
   delete s2.rouletteDate; delete s2.gachaDate; delete s2.qrDate; delete s2.loginDate;
@@ -631,6 +706,56 @@ document.getElementById("devWipe").onclick = async () => {
   if (await kakiConfirm("ポイント・履歴・来店記録をすべて消します。いい？", { okText: "消す", danger: true })) { localStorage.removeItem("kakiapp"); location.reload(); }
 };
 
+
+/* ── 称号ファースト（2026-09-03 masa指示）──
+   「QRから入ったら、まず"あなたの称号は◯◯です"から始まってポイントが出る」形にする。
+   初回は「無名」から始めて、その場で最初の称号が付く。昇格した回は「昇格」を挟む。
+   データの作りは変えていないので、既存の来店数・ポイントはそのまま残る。 */
+const NONAME = { id: "none", name: "無名", badge: "assets/badge_bronze.png" };
+
+function shogoShow(rank, opts) {
+  opts = opts || {};
+  const el = document.getElementById("shogo");
+  document.getElementById("shogoBadge").src = rank.badge;
+  document.getElementById("shogoName").textContent = rank.name;
+  document.getElementById("shogoSub").innerHTML = opts.sub || "";
+  document.getElementById("shogoGo").textContent = opts.btn || "はじめる";
+  el.classList.toggle("up", !!opts.up);
+  el.style.display = "flex";
+  document.body.style.overflow = "hidden";
+  return new Promise((resolve) => {
+    document.getElementById("shogoGo").onclick = () => {
+      el.style.display = "none";
+      el.classList.remove("up");
+      document.body.style.overflow = "";
+      resolve();
+    };
+  });
+}
+
+async function shogoOpen() {
+  const s = store.s;
+  const visits = (s.visits || []).length;
+  const { r, next } = currentRank(visits);
+  const left = next ? (next.minVisits - visits) : null;
+  const sub = left !== null
+    ? "累計来店 " + visits + "回<br>次の称号まで あと" + left + "回"
+    : "累計来店 " + visits + "回<br>最高位です";
+
+  /* 初回＝まだ1度も来ていない人。「無名」から始めて、その場で1段上げる */
+  if (!s.shogoInit && visits === 0) {
+    await shogoShow(NONAME, { sub: "まだ一度も暖簾をくぐっていません", btn: "称号を受け取る" });
+    store.set({ shogoInit: true, lastRank: r.id });
+    await shogoShow(r, { sub: sub, up: true, btn: "はじめる" });
+    return;
+  }
+
+  /* 2回目以降。前回から称号が上がっていたら「昇格」を出す */
+  const up = s.lastRank && s.lastRank !== r.id;
+  if (s.lastRank !== r.id) store.set({ lastRank: r.id });
+  await shogoShow(r, { sub: sub, up: up });
+}
+
 /* ここから下は auth.js（ログイン完了）から呼ばれる。
    先に走らせるとクラウドのデータで上書きされて消えるので順番を守ること */
 window.kakiGetState = () => store.s;
@@ -650,6 +775,7 @@ window.kakiStart = function () {
     logTx("ログインボーナス", C.loginBonus.points);
   }
   render();
+  shogoOpen();
 };
 
 render();

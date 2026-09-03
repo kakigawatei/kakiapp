@@ -32,6 +32,7 @@ window.KAKI_CONFIG = {
   // 来店判定（GPS）: 店舗リスト。新店はここに1行足す。半径はメートル
   stores: [
     { id: "nagaoka", name: "柿川亭 長岡本店", lat: 37.443615, lng: 138.849167, radius: 150 },  // 南町1-10-16（公式サイト住所・国土地理院ジオコーダ）
+    { id: "sendai", name: "柿川亭 仙台連坊店", lat: 38.251450, lng: 140.889099, radius: 80 },  // 仙台市若林区連坊小路81 熊谷ビル103（公式サイト住所・国土地理院ジオコーダ 2026-09-03）
   ],
   // 開発用: trueにするとGPS判定を常に成功させる
   devSkipGeo: false,
@@ -42,5 +43,7 @@ window.KAKI_CONFIG = {
     { id: "silver", name: "常連", minVisits: 5, badge: "assets/badge_silver.png" },
     { id: "gold", name: "猛者", minVisits: 15, badge: "assets/badge_gold.png" },
     { id: "rainbow", name: "油神", minVisits: 40, badge: "assets/badge_rainbow.png" },
+    { id: "king", name: "伝説の油神", minVisits: 100, badge: "assets/badge_king.png" },   // 2026-09-03 masa「伝説の〇〇／至高の〇〇がいい」
+    { id: "founder", name: "血液が米油", minVisits: 200, badge: "assets/badge_founder.png" },  // masa案 2026-09-03
   ],
 };

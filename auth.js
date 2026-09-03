@@ -34,7 +34,9 @@ const withTimeout = (p, ms, label) => Promise.race([
 if (!isNativeApp) setPersistence(auth, browserLocalPersistence).catch(() => {});
 
 /* クラウドに保存する項目。devMode などの端末設定は同期しない */
-const KEYS = ["points", "visits", "tx", "rouletteDate", "gachaDate", "qrDate", "loginDate"];
+const KEYS = ["points", "visits", "tx", "rouletteDate", "gachaDate", "qrDate", "loginDate",
+  "mailOptIn", "mailOptInAt",   /* 宣伝メールの同意（特定電子メール法）2026-09-03 */
+  "storeVisits", "lastStore", "lastStoreAt"];  /* どの店に来たか。送り分けに使う 2026-09-03 */
 
 
 let uid = null, ready = false, timer = null;
@@ -124,6 +126,12 @@ $("gDoSignup").onclick = async () => {
   try {
     const cred = await createUserWithEmailAndPassword(auth, $("gEmail2").value.trim(), $("gPass2").value);
     await sendEmailVerification(cred.user);
+    /* 宣伝メールの同意を、押した瞬間の状態で記録する（同意日時も残す） */
+    const ok = !!($("gOptIn") && $("gOptIn").checked);
+    const st = window.kakiGetState ? window.kakiGetState() : {};
+    st.mailOptIn = ok;
+    st.mailOptInAt = new Date().toISOString();
+    if (window.kakiSetState) window.kakiSetState(st);
   } catch (e) { msg(jaError(e)); } finally { busy(false); }
 };
 
