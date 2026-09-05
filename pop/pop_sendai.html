@@ -8,7 +8,9 @@ body{font-family:"Yu Gothic","YuGothic","Hiragino Sans","Noto Sans JP",sans-seri
 .page{width:210mm;height:297mm;page-break-after:always;position:relative;overflow:hidden;background:#fff}
 .page:last-child{page-break-after:auto}
 .logo{position:absolute;object-fit:contain}
-.big{position:absolute;left:50%;transform:translateX(-50%);font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;font-weight:900;white-space:nowrap;letter-spacing:-.06em;line-height:1;color:var(--ink);z-index:0}
+.bl,.br{position:absolute;font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;font-weight:900;white-space:nowrap;line-height:1;color:var(--ink);z-index:0}
+.bl{writing-mode:vertical-rl;letter-spacing:-.08em}
+.br{letter-spacing:0}
 .bowl{z-index:1}
 .bowl{position:absolute;object-fit:contain;filter:drop-shadow(0 6mm 8mm rgba(0,0,0,.16))}
 .h{position:absolute;font-weight:900;letter-spacing:.02em;line-height:1.15}
@@ -26,8 +28,9 @@ body{font-family:"Yu Gothic","YuGothic","Hiragino Sans","Noto Sans JP",sans-seri
 .st{position:absolute;font-size:8pt;letter-spacing:.2em;font-weight:800;color:var(--gray)}
 /* ---------- ① レジ横 A4 ---------- */
 .a4 .logo{left:50%;top:14mm;width:78mm;height:52mm;transform:translateX(-50%)}
-.a4 .bowl{left:50%;top:86mm;width:126mm;height:94mm;transform:translateX(-50%)}
-.a4 .big{top:58mm;font-size:102mm}
+.a4 .bowl{left:50%;top:84mm;width:128mm;height:96mm;transform:translateX(-50%)}
+.a4 .bl{left:-18mm;top:34mm;font-size:80mm}
+.a4 .br{right:-30mm;top:64mm;font-size:124mm}
 .a4 .h{left:14mm;top:184mm;font-size:36pt;white-space:nowrap}
 .a4 .sub{left:14mm;top:206mm;font-size:14pt}
 .a4 .qr{right:14mm;top:186mm;width:42mm;height:42mm;padding:2.2mm}
@@ -40,14 +43,15 @@ body{font-family:"Yu Gothic","YuGothic","Hiragino Sans","Noto Sans JP",sans-seri
 .tent{display:flex;flex-direction:column}
 .face{width:210mm;height:148.5mm;position:relative;overflow:hidden;background:#fff}
 .face.top{transform:rotate(180deg);border-bottom:0.2mm dashed #bbb}
-.face .logo{left:12mm;top:10mm;width:56mm;height:38mm}
-.face .bowl{right:10mm;top:18mm;width:92mm;height:70mm}
-.face .big{left:auto;right:-14mm;transform:none;top:4mm;font-size:74mm}
-.face .h{left:12mm;top:62mm;font-size:24pt;white-space:nowrap}
-.face .sub{left:12mm;top:78mm;font-size:11pt}
-.face .qr{left:12mm;top:98mm;width:34mm;height:34mm;padding:1.8mm}
-.face .qrc{left:50mm;top:108mm;width:70mm;text-align:left}
-.face .st{right:12mm;bottom:7mm}
+.face .logo{left:50%;top:5mm;width:48mm;height:30mm;transform:translateX(-50%)}
+.face .bowl{left:50%;top:32mm;width:96mm;height:72mm;transform:translateX(-50%)}
+.face .bl{left:-10mm;top:4mm;font-size:54mm}
+.face .br{right:-20mm;top:18mm;font-size:84mm}
+.face .h{left:12mm;top:106mm;font-size:22pt;white-space:nowrap}
+.face .sub{left:12mm;top:118mm;font-size:10.5pt}
+.face .qr{right:12mm;top:100mm;width:32mm;height:32mm;padding:1.6mm}
+.face .qrc{right:48mm;top:112mm;width:60mm;text-align:right}
+.face .st{left:12mm;bottom:6mm}
 /* 中面 */
 .in .t{position:absolute;left:12mm;top:12mm;font-size:20pt;font-weight:900;letter-spacing:.04em}
 .in .t span{color:var(--red)}
@@ -63,20 +67,21 @@ body{font-family:"Yu Gothic","YuGothic","Hiragino Sans","Noto Sans JP",sans-seri
 /* ---------- ③ 名刺サイズ 10面 ---------- */
 .cards{padding:10mm 9.5mm;display:grid;grid-template-columns:repeat(2,91mm);grid-auto-rows:55mm;justify-content:center;align-content:start}
 .card{width:91mm;height:55mm;position:relative;overflow:hidden;border:0.2mm dashed #bbb;background:#fff}
-.card .logo{left:4mm;top:3mm;width:30mm;height:20mm}
-.card .bowl{left:6mm;top:23mm;width:38mm;height:28mm;filter:drop-shadow(0 1.5mm 2mm rgba(0,0,0,.16))}
-.card .big{left:-5mm;transform:none;top:15mm;font-size:32mm}
-.card .h{left:49mm;top:8mm;font-size:10pt;white-space:nowrap}
-.card .sub{left:49mm;top:16mm;font-size:6.8pt;line-height:1.5}
-.card .qr{right:5mm;top:24mm;width:24mm;height:24mm;padding:1mm;border-width:0.4mm}
-.card .qrc{left:49mm;top:30mm;width:30mm;font-size:6pt;line-height:1.5}
+.card .logo{left:15mm;top:1.5mm;width:24mm;height:12mm}
+.card .bowl{left:8mm;top:16mm;width:34mm;height:28mm;filter:drop-shadow(0 1.5mm 2mm rgba(0,0,0,.16))}
+.card .bl{left:-4mm;top:3mm;font-size:20mm}
+.card .br{left:27mm;top:13mm;font-size:32mm}
+.card .h{left:58mm;top:5mm;font-size:8.5pt;white-space:nowrap}
+.card .sub{left:58mm;top:12mm;width:30mm;font-size:6.5pt;line-height:1.45}
+.card .qr{right:4mm;top:30mm;width:21mm;height:21mm;padding:0.9mm;border-width:0.4mm}
+.card .qrc{left:58mm;top:23mm;width:30mm;font-size:5.5pt;line-height:1.4}
 .card .st{left:4mm;bottom:2.5mm;font-size:5.5pt}
 </style></head>
 <body>
 
 <!-- ① レジ横 A4 -->
 <div class="page a4">
-  <div class="big">ポイ活</div>
+  <div class="bl">ポイ</div><div class="br">活</div>
   <img class="logo" src="logo.png" alt="">
   <img class="bowl" src="fal/bowl_cutout.png" alt="">
   <div class="h">ポイ活、始めました。</div>
@@ -95,7 +100,7 @@ body{font-family:"Yu Gothic","YuGothic","Hiragino Sans","Noto Sans JP",sans-seri
 <!-- ② 卓上 A5 二つ折り（山折り） -->
 <div class="page tent">
   <div class="face top">
-    <div class="big">ポイ活</div>
+    <div class="bl">ポイ</div><div class="br">活</div>
     <img class="logo" src="logo.png" alt="">
     <img class="bowl" src="fal/bowl_cutout.png" alt="">
     <div class="h">ポイ活、始めました。</div>
@@ -117,16 +122,16 @@ body{font-family:"Yu Gothic","YuGothic","Hiragino Sans","Noto Sans JP",sans-seri
 
 <!-- ③ 名刺サイズカード 10面 -->
 <div class="page cards">
-  <div class="card"><div class="big">ポイ活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ　<span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料<br>iPhone／Android</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
-<div class="card"><div class="big">ポイ活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ　<span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料<br>iPhone／Android</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
-<div class="card"><div class="big">ポイ活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ　<span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料<br>iPhone／Android</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
-<div class="card"><div class="big">ポイ活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ　<span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料<br>iPhone／Android</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
-<div class="card"><div class="big">ポイ活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ　<span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料<br>iPhone／Android</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
-<div class="card"><div class="big">ポイ活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ　<span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料<br>iPhone／Android</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
-<div class="card"><div class="big">ポイ活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ　<span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料<br>iPhone／Android</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
-<div class="card"><div class="big">ポイ活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ　<span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料<br>iPhone／Android</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
-<div class="card"><div class="big">ポイ活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ　<span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料<br>iPhone／Android</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
-<div class="card"><div class="big">ポイ活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ　<span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料<br>iPhone／Android</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
+  <div class="card"><div class="bl">ポイ</div><div class="br">活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ<br><span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
+<div class="card"><div class="bl">ポイ</div><div class="br">活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ<br><span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
+<div class="card"><div class="bl">ポイ</div><div class="br">活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ<br><span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
+<div class="card"><div class="bl">ポイ</div><div class="br">活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ<br><span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
+<div class="card"><div class="bl">ポイ</div><div class="br">活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ<br><span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
+<div class="card"><div class="bl">ポイ</div><div class="br">活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ<br><span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
+<div class="card"><div class="bl">ポイ</div><div class="br">活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ<br><span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
+<div class="card"><div class="bl">ポイ</div><div class="br">活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ<br><span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
+<div class="card"><div class="bl">ポイ</div><div class="br">活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ<br><span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
+<div class="card"><div class="bl">ポイ</div><div class="br">活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ<br><span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 仙台連坊店</div></div>
 </div>
 
 </body></html>
