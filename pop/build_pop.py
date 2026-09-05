@@ -14,6 +14,7 @@ CARD = ('<div class="card"><div class="bh">ポイ活</div><img class="logo" src=
         '<div class="h">ポイ活、始めました。</div>'
         '<div class="sub">柿川亭アプリ</div>'
         '<div class="qrc">QRでアプリを入れる　無料</div>'
+        '<div class="haji">始めました。</div>'
         '<div class="qr"><img src="qr_get_400.png" alt=""></div>'
         '<div class="st">柿川亭 {store}</div></div>')
 
