@@ -104,9 +104,9 @@
   #gate .note { font-size: 10.5px; color: var(--gray); line-height: 1.7; margin-top: 18px; }
 
   /* ルーレット */
-  .wheelwrap { position: relative; width: 260px; margin: 8px auto; }
-  .pointer { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-top: 18px solid #a63a2a; z-index: 2; }
-  svg.wheel { width: 260px; height: 260px; transition: transform 4s cubic-bezier(.15,.75,.25,1); }
+  .wheelwrap { position: relative; width: 280px; margin: 8px auto; }
+  .pointer { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-top: 18px solid #b01e1e; z-index: 2; }
+  svg.wheel { width: 280px; height: 280px; transition: transform 4s cubic-bezier(.15,.75,.25,1); }
 
   /* 演出オーバーレイ */
   #overlay { position: fixed; inset: 0; background: rgba(43,36,29,.9); display: none; align-items: center; justify-content: center; z-index: 50; flex-direction: column; gap: 14px; }
@@ -294,12 +294,12 @@
 <section class="page" id="page-roulette">
   <main>
     <div class="card" style="text-align:center">
-      <h2>毎日ルーレット</h2>
+      <h2 style="color:#1f2f5a">毎日ルーレット</h2>
       <div class="wheelwrap">
         <div class="pointer"></div>
         <svg class="wheel" id="wheel" viewBox="0 0 200 200"></svg>
       </div>
-      <button class="primary" id="btnSpin">回す！</button>
+      <button class="primary" id="btnSpin" style="background:#b01e1e;font-size:20px;padding:18px">回す！</button>
       <p class="muted" id="rouletteMsg" style="margin-top:8px"></p>
     </div>
   </main>
@@ -557,13 +557,14 @@ const segs = C.roulette.segments;
     const a0 = (i / n) * 2 * Math.PI - Math.PI / 2, a1 = ((i + 1) / n) * 2 * Math.PI - Math.PI / 2;
     const x0 = cx + R * Math.cos(a0), y0 = cy + R * Math.sin(a0);
     const x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
-    const fill = (segs[i] === Math.max(...segs)) ? "#c4913c" : (i % 2 ? "#f4efe6" : "#a63a2a");
-    d += `<path d="M${cx},${cy} L${x0.toFixed(1)},${y0.toFixed(1)} A${R},${R} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)} Z" fill="${fill}" stroke="#3a2a20" stroke-width="2"/>`;
+    const PAL = ["#b01e1e", "#f3ebdd", "#e8731c", "#e5a31c", "#b01e1e", "#f3ebdd", "#2b6f8f", "#e5a31c"];   /* masaのルーレット参考（2026-09-06） */
+    const fill = PAL[i % PAL.length];
+    d += `<path d="M${cx},${cy} L${x0.toFixed(1)},${y0.toFixed(1)} A${R},${R} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)} Z" fill="${fill}" stroke="#fff" stroke-width="2"/>`;
     const am = (a0 + a1) / 2, tx = cx + R * 0.62 * Math.cos(am), ty = cy + R * 0.62 * Math.sin(am);
-    const tc = (segs[i] === Math.max(...segs)) ? "#fff" : (i % 2 ? "#2b241d" : "#fff");
+    const tc = (fill === "#f3ebdd") ? "#2b241d" : "#fff";
     d += `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" font-size="15" font-weight="700" fill="${tc}" text-anchor="middle" dominant-baseline="middle">${segs[i]}P</text>`;
   }
-  d += `<circle cx="${cx}" cy="${cy}" r="16" fill="#1f2f5a" stroke="#f4efe6" stroke-width="3"/>`;
+  d += `<circle cx="${cx}" cy="${cy}" r="98" fill="none" stroke="#1f2f5a" stroke-width="3"/><circle cx="${cx}" cy="${cy}" r="15" fill="#1f2f5a"/>`;
   svg.innerHTML = d;
 })();
 
