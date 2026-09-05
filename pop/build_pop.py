@@ -12,9 +12,9 @@ tpl = io.open(TEMPLATE, encoding="utf-8").read()
 
 CARD = ('<div class="card"><div class="bh">ポイ活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt="">'
         '<div class="h">ポイ活、始めました。</div>'
-        '<div class="sub">柿川亭アプリ</div>'
+        '<div class="sub">柿川亭</div>'
         '<div class="qrc">QRでアプリを入れる　無料</div>'
-        '<div class="haji">始めました。</div>'
+        '<div class="haji">アプリ始めました。</div>'
         '<div class="qr"><img src="qr_get_400.png" alt=""></div>'
         '<div class="st">柿川亭 {store}</div></div>')
 
