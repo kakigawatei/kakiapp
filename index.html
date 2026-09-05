@@ -297,7 +297,7 @@
       </div>
     </div>
     <div class="card staff" id="payConfirm" style="display:none">
-      <p style="font-size:12px;letter-spacing:.2em;color:#ffe9a8">引換券（券売機の前で）</p>
+      <p style="font-size:12px;letter-spacing:.2em;color:#ffe9a8">引換券（見せて注文）</p>
       <div id="rdName" style="font-size:22px;font-weight:800;margin:6px 0 2px">油そば 並盛</div>
       <div class="amt"><span id="payAmt2">0</span>P</div>
       <div style="background:#fff;color:var(--navy);border-radius:12px;padding:10px 12px;margin:10px 0">
@@ -306,8 +306,8 @@
         <div style="font-size:12px;margin-top:4px"><span id="rdAt">--:--</span> 発行　のこり <b id="rdLeft">10:00</b></div>
       </div>
       <ol style="text-align:left;font-size:13px;line-height:1.6;margin:0 0 10px;padding-left:20px">
-        <li>券売機の <b>「アプリ引換」</b> ボタンを押して食券を出す</li>
-        <li>いつも通り食券を渡す（この画面は見せるだけでOK）</li>
+        <li>食券は買わずに、この画面をスタッフに見せる</li>
+        <li>「アプリで並盛」のように口頭で注文する</li>
       </ol>
       <p class="muted" style="font-size:11px;color:#cfd6e6;margin:0 0 12px">ポイントはもう引かれています。同じ番号は1回だけ使えます。</p>
       <button class="ghost" id="btnPayCancel" style="border-color:#fff;color:#fff">閉じる</button>
@@ -686,12 +686,12 @@ document.getElementById("btnPayShow").onclick = async () => {
   if (!pay) { alert("使うポイント数を入力するか、メニューをタップしてください"); return; }
   if (pay > (store.s.points || 0)) { alert("ポイントが足りません（残高 " + (store.s.points || 0) + "P）"); return; }
   const nm = payName && C.itemCatalog.some(x => x.points === pay && x.name === payName) ? payName : (pay + "P分");
-  const ok = await kakiConfirm("券売機の前で押してください。\n" + pay + "P を使って「" + nm + "」と交換します。取り消せません。", { okText: "交換する" });
+  const ok = await kakiConfirm("注文するときに押してください。\n" + pay + "P を使って「" + nm + "」と交換します。取り消せません。", { okText: "交換する" });
   if (!ok) return;
   const at = Date.now();
   const code = String(1000 + (at % 9000));
   store.set({ points: (store.s.points || 0) - pay, redeem: { code, name: nm, pts: pay, at } });
-  logTx("券売機で交換 " + nm + "（" + code + "）", -pay);
+  logTx("お店で交換 " + nm + "（" + code + "）", -pay);
   pay = 0; payName = ""; document.getElementById("payAmt").textContent = 0;
   showRedeem(store.s.redeem);
 };
