@@ -3,72 +3,42 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>柿川亭アプリ｜ダウンロード</title>
-<meta name="description" content="柿川亭アプリ：来店ポイント・毎日の来店ガチャ・称号。iPhoneはApp Store、AndroidはWeb版（ホーム画面に追加）で使えます。">
+<title>柿川亭 ポイ活 アプリ始めました。</title>
+<meta name="description" content="柿川亭のポイ活アプリ。iPhoneはApp Store、AndroidはWeb版。">
 <link rel="icon" href="../assets/icon.png">
 <style>
-:root{--ink:#1d1a16;--bg:#fbf7ef;--acc:#c8102e;--sub:#6b6259;--line:#e6ddd0}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:'Hiragino Sans','Yu Gothic','Noto Sans JP',sans-serif;line-height:1.6}
-.wrap{max-width:520px;margin:0 auto;padding:28px 20px 60px}
-.top{display:flex;align-items:center;gap:14px}
-.top img{width:72px;height:72px;border-radius:18px;box-shadow:0 4px 14px rgba(0,0,0,.15)}
-h1{font-size:22px;margin:0;letter-spacing:.02em} .tag{color:var(--sub);font-size:13px;margin-top:2px}
-.hero{margin:18px 0 8px;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#fff}
-.hero img{display:block;width:100%}
-.big{font-size:26px;font-weight:900;line-height:1.25;margin:18px 0 6px;letter-spacing:.01em}
-.big em{font-style:normal;color:var(--acc)}
-.lead{color:var(--sub);font-size:14px;margin:0 0 18px}
-.btn{display:block;text-align:center;background:var(--ink);color:#fff;text-decoration:none;font-weight:800;font-size:18px;padding:16px 18px;border-radius:14px;margin:10px 0;box-shadow:0 6px 16px rgba(0,0,0,.18)}
-.btn.sub{background:#fff;color:var(--ink);border:2px solid var(--ink);box-shadow:none}
-.note{font-size:13px;color:var(--sub);margin:6px 0 0}
-.steps{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:14px 0}
-.steps h2{font-size:15px;margin:0 0 8px} .steps ol{margin:0;padding-left:20px} .steps li{margin:4px 0;font-size:14px}
-.pts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:16px 0}
-.pt{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 8px;text-align:center}
-.pt b{display:block;font-size:20px;color:var(--acc)} .pt span{font-size:12px;color:var(--sub)}
-.rank{font-size:13px;color:var(--sub);margin:4px 0 0} .rank b{color:var(--ink)}
-.hide{display:none}
-footer{margin-top:28px;font-size:12px;color:var(--sub);text-align:center}
-footer a{color:var(--sub)}
+  :root{--ink:#111;--gray:#6b6b6b}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#fff;color:var(--ink)}
+  body{font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:520px;margin:0 auto;padding:18px 0 40px;overflow:hidden}
+  .hero{display:block;width:100%;max-width:100%;height:auto}
+  /* ---- ボタン ---- */
+  .act{padding:22px 18px 0}
+  .btn{display:block;text-align:center;background:#111;color:#fff;text-decoration:none;font-weight:900;font-size:19px;letter-spacing:.04em;padding:18px 16px;border-radius:14px}
+  .btn.sub{background:#fff;color:#111;border:2px solid #111;margin-top:10px}
+  .hint{margin-top:12px;font-size:13px;color:var(--gray);line-height:1.6;text-align:center}
+  .hide{display:none}
+  footer{margin-top:34px;padding:0 18px;font-size:11px;color:var(--gray);text-align:center;line-height:1.7}
+  footer a{color:var(--gray)}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><img src="../assets/icon.png" alt=""><div><h1>柿川亭アプリ</h1><div class="tag">新潟油そば 柿川亭 公式</div></div></div>
-  <div class="hero"><img src="../assets/hero.png" alt=""></div>
+  <img class="hero" src="card.png" alt="柿川亭 ポイ活 アプリ始めました。">
 
-  <div class="big">来るたび、<em>油神</em>に近づく。</div>
-  <p class="lead">来店でポイント、毎日1回の来店ガチャ、食べた回数で上がる称号。貯めたポイントは油そば1杯やトッピングに。</p>
-
-  <div class="pts">
-    <div class="pt"><b>1P＝1円</b><span>850Pで油そば並盛</span></div>
-    <div class="pt"><b>毎日1回</b><span>来店ガチャ（ハズレなし）</span></div>
-    <div class="pt"><b>称号</b><span>見習い→常連→猛者→油神</span></div>
-  </div>
-
-  <div id="ios">
-    <a class="btn" href="https://apps.apple.com/jp/app/id6806443112">App Storeで入手（iPhone）</a>
-    <p class="note">無料。インストール後、来店時に位置情報を許可するとポイントが付きます。</p>
-  </div>
-
-  <div id="android">
-    <a class="btn" href="../?src=qr">Web版アプリを開く（Android）</a>
-    <div class="steps">
-      <h2>ホーム画面に追加すると、アプリとして使えます</h2>
-      <ol>
-        <li>上のボタンでWeb版を開く（Chrome）</li>
-        <li>右上の「⋮」→「ホーム画面に追加」（または「アプリをインストール」）</li>
-        <li>ホーム画面の「柿川亭」アイコンから開く</li>
-      </ol>
+  <div class="act">
+    <div id="ios">
+      <a class="btn" href="https://apps.apple.com/jp/app/id6806443112">App Storeで入手</a>
     </div>
-    <p class="note">Google Play版は準備中です。Web版と同じアカウント・ポイントが引き継がれます。</p>
-  </div>
-
-  <div id="pc" class="hide">
-    <a class="btn" href="https://apps.apple.com/jp/app/id6806443112">iPhone：App Storeで入手</a>
-    <a class="btn sub" href="../?src=qr">Android：Web版を開く</a>
-    <p class="note">スマホでこのページのQRを読むと、機種に合わせて自動で振り分けます。</p>
+    <div id="android">
+      <a class="btn" href="../?src=qr">Web版アプリを開く</a>
+      <p class="hint">開いたら Chromeの「⋮」→「ホーム画面に追加」でアプリになります</p>
+    </div>
+    <div id="pc" class="hide">
+      <a class="btn" href="https://apps.apple.com/jp/app/id6806443112">iPhone：App Storeで入手</a>
+      <a class="btn sub" href="../?src=qr">Android：Web版を開く</a>
+    </div>
   </div>
 
   <footer>株式会社バウ／新潟油そば 柿川亭（長岡本店・仙台連坊店）<br><a href="../privacy.html">プライバシーポリシー</a></footer>
