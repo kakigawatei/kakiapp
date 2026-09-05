@@ -13,7 +13,7 @@
   /* 床(4.5)に届かせるための派生1色。#888/#999 の明度だけを下げたもので、色相は動かしていない */
   --muted: #666666;
   /* 薄い罫・溝を1本の役割色に統合（もとは #E8DFC6 / #EEE4C8 / #DDDDDD / #EEEEEE / #CCCCCC の5色） */
-  --line: #e6dccb;   /* 2026-09-06 参考デザインの薄い罫 */
+  --line: #111111;   /* 2026-09-06 POPと同じ墨の罫 */
 }
 
 /* ── ① 破れ: 低コントラスト（9群 → 0） ───────────────────────────── */
@@ -55,14 +55,14 @@ svg.wheel text { font-size: 12px; }                   /* 15 → 12（盤は240px
 .staff p { font-size: 14px !important; }
 
 /* ── ④ 乱れ: 角丸 7種 → 3種（999px=丸/ピル・14px=面/カード・12px=小/釦） ── */
-/* .hero の角丸も本体に任せる */
+.hero { border-radius: 14px; }                        /* 16px → 14px */
 .numpad button { border-radius: 12px; }               /* 10px → 12px */
 .rankline .badge { border-radius: 999px; }            /* 50% → 999px（同じ円） */
 .bar { border-radius: 999px; }                        /* 4px → 999px（溝はピル） */
 
 /* ── ⑤ 乱れ: 似て非なる色 4組 → 0 ─────────────────────────────── */
-/* .hero の下敷き色は本体CSS（写真背景）に任せる（2026-09-06） */
-.bar { background: #ece4d6; }
+.hero { background: var(--cream); }                   /* #F6ECD2 → #FAF3E0（絵で完全に覆われる下敷き） */
+.bar { background: #eeeeee; }                          /* 溝は薄いグレー（罫が墨になったため） */
 .numpad button { border-color: var(--line); }         /* #DDDDDD → 同上 */
 .itemrow { border-bottom-color: var(--line); }        /* #EEEEEE → 同上 */
 #payInput .card { border-color: var(--line) !important; } /* style属性の #DDDDDD → 同上 */
@@ -70,8 +70,8 @@ svg.wheel text { font-size: 12px; }                   /* 15 → 12（盤は240px
 /* ── ⑥ 型紙 dual-cta の格下げ（CSSだけ・DOMと行き先は変えない） ──── */
 /* ガチャ画面は「いま押せるチェックイン」が細い白抜き、「押せないガチャ」が一番大きい塗り＝主従が逆だった */
 #page-gacha #btnGeoCheckin2 {
-  background: var(--red);
-  border-color: var(--red);
+  background: #111;
+  border-color: #111;
   color: #fff;
 }
 #page-gacha #btnGacha:disabled {
