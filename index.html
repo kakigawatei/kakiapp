@@ -292,16 +292,25 @@
       <div class="numpad" id="numpad"></div>
       <button class="primary" id="btnPayShow" style="margin-top:10px">この金額で使う</button>
       <div class="card" style="box-shadow:none;border:1px dashed #ddd;margin-top:12px">
-        <h2>交換の目安</h2>
+        <h2>タップで選ぶ</h2>
         <div id="catalog"></div>
       </div>
     </div>
     <div class="card staff" id="payConfirm" style="display:none">
-      <p>この画面をスタッフに見せてください</p>
+      <p style="font-size:12px;letter-spacing:.2em;color:#ffe9a8">引換券（券売機の前で）</p>
+      <div id="rdName" style="font-size:22px;font-weight:800;margin:6px 0 2px">油そば 並盛</div>
       <div class="amt"><span id="payAmt2">0</span>P</div>
-      <p style="margin:8px 0 14px;font-size:13px">スタッフ確認ボタン ↓</p>
-      <button class="primary" id="btnStaffOk" style="background:#fff;color:var(--navy)">✅ 使用を確認しました（スタッフ）</button>
-      <button class="ghost" id="btnPayCancel" style="border-color:#fff;color:#fff">もどる</button>
+      <div style="background:#fff;color:var(--navy);border-radius:12px;padding:10px 12px;margin:10px 0">
+        <div style="font-size:11px;letter-spacing:.2em">引換番号</div>
+        <div id="rdCode" style="font-size:40px;font-weight:900;letter-spacing:.12em;line-height:1.1">0000</div>
+        <div style="font-size:12px;margin-top:4px"><span id="rdAt">--:--</span> 発行　のこり <b id="rdLeft">10:00</b></div>
+      </div>
+      <ol style="text-align:left;font-size:13px;line-height:1.6;margin:0 0 10px;padding-left:20px">
+        <li>券売機の <b>「アプリ引換」</b> ボタンを押して食券を出す</li>
+        <li>いつも通り食券を渡す（この画面は見せるだけでOK）</li>
+      </ol>
+      <p class="muted" style="font-size:11px;color:#cfd6e6;margin:0 0 12px">ポイントはもう引かれています。同じ番号は1回だけ使えます。</p>
+      <button class="ghost" id="btnPayCancel" style="border-color:#fff;color:#fff">閉じる</button>
     </div>
   </main>
 </section>
@@ -584,10 +593,10 @@ function geoCheckin() {
     if (near) {
       checkin(near.id);
     } else {
-      alert("お店の近くにいることが確認できませんでした。店内でもう一度試すか、レジのスタッフにお声がけください。");
+      alert("お店の近くにいることが確認できませんでした。店内で位置情報をONにしてもう一度お試しください。");
     }
   }).catch(() => {
-    alert("位置情報が取得できませんでした。設定で位置情報を許可するか、レジのスタッフにお声がけください。");
+    alert("位置情報が取得できませんでした。設定で位置情報を許可してからもう一度お試しください。");
   });
 }
 
@@ -644,25 +653,56 @@ padKeys.forEach(k => {
   numpad.appendChild(b);
 });
 document.getElementById("catalog").innerHTML = C.itemCatalog
-  .map(x => `<div class="itemrow"><span>${x.name}</span><span class="pt">${x.points}P</span></div>`).join("");
-document.getElementById("btnPayShow").onclick = () => {
-  if (!pay) { alert("使うポイント数を入力してください"); return; }
-  if (pay > (store.s.points || 0)) { alert("ポイントが足りません（残高 " + (store.s.points || 0) + "P）"); return; }
-  document.getElementById("payAmt2").textContent = pay;
+  .map(x => `<div class="itemrow" data-pts="${x.points}" data-name="${x.name}" style="cursor:pointer"><span>${x.name}</span><span class="pt">${x.points}P</span></div>`).join("");
+let payName = "";
+document.querySelectorAll("#catalog .itemrow").forEach(el => {
+  el.onclick = () => { pay = +el.dataset.pts; payName = el.dataset.name; document.getElementById("payAmt").textContent = pay; };
+});
+/* 引換券（セルフ引換・スタッフ操作なし）: 発行から10分だけ表示。閉じても10分以内なら「つかう」で再表示 */
+let rdTimer = null;
+function pad2(n) { return (n < 10 ? "0" : "") + n; }
+function showRedeem(r) {
+  document.getElementById("rdName").textContent = r.name || (r.pts + "P分");
+  document.getElementById("payAmt2").textContent = r.pts;
+  document.getElementById("rdCode").textContent = r.code;
+  const at = new Date(r.at);
+  document.getElementById("rdAt").textContent = pad2(at.getHours()) + ":" + pad2(at.getMinutes());
   document.getElementById("payInput").style.display = "none";
   document.getElementById("payConfirm").style.display = "block";
-};
-document.getElementById("btnPayCancel").onclick = () => {
+  clearInterval(rdTimer);
+  const tick = () => {
+    const left = Math.max(0, 600 - Math.floor((Date.now() - r.at) / 1000));
+    document.getElementById("rdLeft").textContent = Math.floor(left / 60) + ":" + pad2(left % 60);
+    if (left <= 0) { clearInterval(rdTimer); store.set({ redeem: null }); hideRedeem(); }
+  };
+  tick(); rdTimer = setInterval(tick, 1000);
+}
+function hideRedeem() {
+  clearInterval(rdTimer);
   document.getElementById("payInput").style.display = "block";
   document.getElementById("payConfirm").style.display = "none";
+}
+document.getElementById("btnPayShow").onclick = async () => {
+  if (!pay) { alert("使うポイント数を入力するか、メニューをタップしてください"); return; }
+  if (pay > (store.s.points || 0)) { alert("ポイントが足りません（残高 " + (store.s.points || 0) + "P）"); return; }
+  const nm = payName && C.itemCatalog.some(x => x.points === pay && x.name === payName) ? payName : (pay + "P分");
+  const ok = await kakiConfirm("券売機の前で押してください。\n" + pay + "P を使って「" + nm + "」と交換します。取り消せません。", { okText: "交換する" });
+  if (!ok) return;
+  const at = Date.now();
+  const code = String(1000 + (at % 9000));
+  store.set({ points: (store.s.points || 0) - pay, redeem: { code, name: nm, pts: pay, at } });
+  logTx("券売機で交換 " + nm + "（" + code + "）", -pay);
+  pay = 0; payName = ""; document.getElementById("payAmt").textContent = 0;
+  showRedeem(store.s.redeem);
 };
-document.getElementById("btnStaffOk").onclick = () => {
-  store.set({ points: (store.s.points || 0) - pay });
-  logTx("お店で使用", -pay);
-  alert(pay + "P を使用しました。ありがとうございました！");
-  pay = 0; document.getElementById("payAmt").textContent = 0;
-  document.getElementById("btnPayCancel").onclick();
-  show("home");
+document.getElementById("btnPayCancel").onclick = () => { hideRedeem(); show("home"); };
+const _showOrig = show;
+show = function (page) {
+  _showOrig(page);
+  if (page === "pay") {
+    const r = store.s.redeem;
+    if (r && Date.now() - r.at < 600000) showRedeem(r); else hideRedeem();
+  }
 };
 
 /* 開発モード: タイトルを7回タップで出現 */
