@@ -511,6 +511,7 @@ function render() {
   const base = r.minVisits, cap = next ? next.minVisits : visits || 1;
   document.getElementById("rankBar").style.width = Math.min(100, Math.round(((visits - base) / Math.max(1, cap - base)) * 100)) + "%";
   try { document.getElementById("rankNum").textContent = next ? (visits + " / " + cap) : ""; } catch (e) {}
+  try { var rb = document.getElementById("rankBadge"); if (r && r.badge) rb.innerHTML = '<img src="' + r.badge + '" alt="">'; } catch (e) {}
   document.getElementById("btnSpin").disabled = s.rouletteDate === today();
   document.getElementById("rouletteMsg").textContent = s.rouletteDate === today() ? "今日はもう回しました。また明日！" : "";
   const qrOk = s.qrDate === today() && s.gachaDate !== today();
