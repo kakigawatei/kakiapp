@@ -21,11 +21,9 @@
   .balance { background: #111; color: #fff; border-radius: 999px; padding: 6px 14px; font-weight: 900; }
   .balance small { opacity: .7; font-weight: 400; margin-left: 2px; }
 
-  .hero { position: relative; margin: 0 0 8px; aspect-ratio: 91/44; overflow: hidden; background: #fff; }
-  .hero .bh { position: absolute; left: 50%; top: 4%; transform: translateX(-50%); font-size: 36vw; font-weight: 900; letter-spacing: -.04em; line-height: 1; white-space: nowrap; color: #111; }
-  .hero .bowl { position: absolute; left: 16%; top: 30%; width: 38%; filter: drop-shadow(0 6px 10px rgba(0,0,0,.16)); }
-  .hero .haji { position: absolute; right: 5%; bottom: 4%; font-size: 4.8vw; font-weight: 900; letter-spacing: .06em; text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 5px #fff; }
-  @media (min-width: 520px) { .hero .bh { font-size: 187px } .hero .haji { font-size: 25px } }
+  .hero { position: relative; margin: 0 0 6px; aspect-ratio: 91/40; overflow: hidden; background: #fff; }
+  .hero .logo { position: absolute; left: 5%; top: 10%; width: 26%; }
+  .hero .bowl { position: absolute; right: 6%; top: 6%; width: 52%; filter: drop-shadow(0 6px 10px rgba(0,0,0,.16)); }
 
   main { padding: 0 16px; }
   .card { background: var(--card); border: 2px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
@@ -234,7 +232,7 @@
 
 <!-- ホーム -->
 <section class="page on" id="page-home">
-  <div class="hero"><div class="bh">ポイ活</div><img class="bowl" src="assets/bowl_photo.png" alt=""></div>
+  <div class="hero"><img class="logo" src="pop/logo.png" alt="新潟油そば 柿川亭"><img class="bowl" src="assets/bowl_photo.png" alt=""></div>
   <main>
     <div class="card">
       <div class="rankline">
