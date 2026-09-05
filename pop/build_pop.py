@@ -10,7 +10,7 @@ TEMPLATE = "pop_v3.html"
 
 tpl = io.open(TEMPLATE, encoding="utf-8").read()
 
-CARD = ('<div class="card"><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt="">'
+CARD = ('<div class="card"><div class="big">ポイ活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt="">'
         '<div class="h">ポイ活、始めました。</div>'
         '<div class="sub">柿川亭アプリ　<span class="p">850P</span>で油そば一杯</div>'
         '<div class="qrc">QRでアプリを入れる　無料<br>iPhone／Android</div>'
@@ -21,6 +21,7 @@ for key, name in STORES.items():
     html = tpl.replace("{{STORE}}", name).replace("<!--CARDS-->", "\n".join([CARD.format(store=name)] * 10))
     fn = f"pop_{key}.html"
     io.open(fn, "w", encoding="utf-8").write(html)
+    if os.environ.get("MAC_RENDER"): continue
     here = os.getcwd()
     subprocess.run([EDGE, "--headless=new", "--disable-gpu", "--no-pdf-header-footer",
                     f"--print-to-pdf={here}\\pop_{key}.pdf", f"file:///{here}/{fn}"],
