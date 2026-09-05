@@ -1,0 +1,80 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>柿川亭アプリ カード 91×55</title><style>
+@page{size:91mm 55mm;margin:0}
+:root{--red:#ff1717;--ink:#111;--gray:#6b6b6b;--line:#111}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Yu Gothic","YuGothic","Hiragino Sans","Noto Sans JP",sans-serif;color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{width:210mm;height:297mm;page-break-after:always;position:relative;overflow:hidden;background:#fff}
+.page:last-child{page-break-after:auto}
+.logo{position:absolute;object-fit:contain}
+.bl,.br{position:absolute;font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;font-weight:900;white-space:nowrap;line-height:1;color:var(--ink);z-index:0}
+.bl{writing-mode:vertical-rl;letter-spacing:-.08em}
+.br{letter-spacing:0;transform-origin:top left}
+.bowl{z-index:1}
+.bowl{position:absolute;object-fit:contain;filter:drop-shadow(0 6mm 8mm rgba(0,0,0,.16))}
+.h{position:absolute;font-weight:900;letter-spacing:.02em;line-height:1.15}
+.sub{position:absolute;font-weight:800;line-height:1.5}
+.sub .p{color:var(--red)}
+.qr{position:absolute;background:#fff;border:0.6mm solid var(--line)}
+.qr img{display:block;width:100%;height:100%}
+.qrc{position:absolute;font-size:7.5pt;font-weight:800;letter-spacing:.08em;line-height:1.6}
+.qrc small{display:block;font-weight:400;color:var(--gray);letter-spacing:.02em}
+.rule{position:absolute;border-top:0.6mm solid var(--line)}
+.how{position:absolute;display:flex;gap:6mm}
+.how div{flex:1;font-size:9.5pt;line-height:1.7}
+.how b{display:block;font-size:11pt;font-weight:900;margin-bottom:1mm}
+.how b span{color:var(--red)}
+.st{position:absolute;font-size:8pt;letter-spacing:.2em;font-weight:800;color:var(--gray)}
+/* ---------- ① レジ横 A4 ---------- */
+.a4 .logo{left:50%;top:14mm;width:78mm;height:52mm;transform:translateX(-50%)}
+.a4 .bowl{left:50%;top:84mm;width:128mm;height:96mm;transform:translateX(-50%)}
+.a4 .bl{left:-18mm;top:34mm;font-size:80mm}
+.a4 .br{right:-30mm;top:34mm;font-size:124mm;transform:scaleY(1.24)}
+.a4 .h{left:14mm;top:184mm;font-size:36pt;white-space:nowrap}
+.a4 .sub{left:14mm;top:206mm;font-size:14pt}
+.a4 .qr{right:14mm;top:186mm;width:42mm;height:42mm;padding:2.2mm}
+.a4 .qrc{right:14mm;top:230mm;width:42mm;text-align:center}
+.a4 .rule{left:14mm;right:14mm;top:246mm}
+.a4 .how{left:14mm;right:14mm;top:251mm}
+.a4 .st{left:14mm;bottom:9mm}
+.a4 .free{position:absolute;right:14mm;bottom:9mm;font-size:8pt;letter-spacing:.2em;font-weight:800}
+/* ---------- ② 卓上 A5 二つ折り ---------- */
+.tent{display:flex;flex-direction:column}
+.face{width:210mm;height:148.5mm;position:relative;overflow:hidden;background:#fff}
+.face.top{transform:rotate(180deg);border-bottom:0.2mm dashed #bbb}
+.face .logo{left:50%;top:5mm;width:48mm;height:30mm;transform:translateX(-50%)}
+.face .bowl{left:50%;top:32mm;width:96mm;height:72mm;transform:translateX(-50%)}
+.face .bl{left:-10mm;top:4mm;font-size:54mm}
+.face .br{right:-20mm;top:4mm;font-size:84mm;transform:scaleY(1.235)}
+.face .h{left:12mm;top:106mm;font-size:22pt;white-space:nowrap}
+.face .sub{left:12mm;top:118mm;font-size:10.5pt}
+.face .qr{right:12mm;top:100mm;width:32mm;height:32mm;padding:1.6mm}
+.face .qrc{right:48mm;top:112mm;width:60mm;text-align:right}
+.face .st{left:12mm;bottom:6mm}
+/* 中面 */
+.in .t{position:absolute;left:12mm;top:12mm;font-size:20pt;font-weight:900;letter-spacing:.04em}
+.in .t span{color:var(--red)}
+.in .steps{position:absolute;left:12mm;right:12mm;top:30mm;display:flex;flex-direction:column}
+.in .step{display:flex;gap:6mm;align-items:flex-start;padding:5mm 0;border-top:0.5mm solid var(--line)}
+.in .step .n{flex:0 0 14mm;height:14mm;border-radius:50%;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12pt;font-weight:900}
+.in .step .n.r{background:var(--red)}
+.in .step h3{font-size:15pt;font-weight:900;letter-spacing:.03em}
+.in .step h3 span{color:var(--red)}
+.in .step p{font-size:10pt;line-height:1.8;margin-top:1mm;max-width:150mm}
+.in .foot{position:absolute;left:12mm;bottom:7mm;font-size:7.5pt;color:var(--gray);line-height:1.7;width:150mm}
+.in .st{right:12mm;bottom:7mm}
+/* ---------- ③ 名刺サイズ 10面 ---------- */
+.cards{padding:10mm 9.5mm;display:grid;grid-template-columns:repeat(2,91mm);grid-auto-rows:55mm;justify-content:center;align-content:start}
+.card{width:91mm;height:55mm;position:relative;overflow:hidden;border:0.2mm dashed #bbb;background:#fff}
+.card .logo{left:15mm;top:1.5mm;width:24mm;height:12mm}
+.card .bowl{left:8mm;top:16mm;width:34mm;height:28mm;filter:drop-shadow(0 1.5mm 2mm rgba(0,0,0,.16))}
+.card .bl{left:-4mm;top:3mm;font-size:20mm}
+.card .br{left:27mm;top:3mm;font-size:32mm;transform:scaleY(1.2)}
+.card .h{left:58mm;top:5mm;font-size:8.5pt;white-space:nowrap}
+.card .sub{left:58mm;top:12mm;width:30mm;font-size:6.5pt;line-height:1.45}
+.card .qr{right:4mm;top:30mm;width:21mm;height:21mm;padding:0.9mm;border-width:0.4mm}
+.card .qrc{left:58mm;top:23mm;width:30mm;font-size:5.5pt;line-height:1.4}
+.card .st{left:4mm;bottom:2.5mm;font-size:5.5pt}
+
+.card{border:none}
+body{width:91mm;height:55mm;overflow:hidden}
+</style></head><body><div class="card"><div class="bl">ポイ</div><div class="br">活</div><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt=""><div class="h">ポイ活、始めました。</div><div class="sub">柿川亭アプリ<br><span class="p">850P</span>で油そば一杯</div><div class="qrc">QRでアプリを入れる　無料</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="st">柿川亭 長岡本店</div></div></body></html>
