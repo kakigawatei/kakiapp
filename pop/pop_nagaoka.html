@@ -10,7 +10,7 @@ body{font-family:"Yu Gothic","YuGothic","Hiragino Sans","Noto Sans JP",sans-seri
 .logo{position:absolute;object-fit:contain}
 .bl,.br{position:absolute;font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;font-weight:900;white-space:nowrap;line-height:1;color:var(--ink);z-index:0}
 .bl{writing-mode:vertical-rl;letter-spacing:-.08em}
-.br{letter-spacing:0}
+.br{letter-spacing:0;transform-origin:top left}
 .bowl{z-index:1}
 .bowl{position:absolute;object-fit:contain;filter:drop-shadow(0 6mm 8mm rgba(0,0,0,.16))}
 .h{position:absolute;font-weight:900;letter-spacing:.02em;line-height:1.15}
@@ -30,7 +30,7 @@ body{font-family:"Yu Gothic","YuGothic","Hiragino Sans","Noto Sans JP",sans-seri
 .a4 .logo{left:50%;top:14mm;width:78mm;height:52mm;transform:translateX(-50%)}
 .a4 .bowl{left:50%;top:84mm;width:128mm;height:96mm;transform:translateX(-50%)}
 .a4 .bl{left:-18mm;top:34mm;font-size:80mm}
-.a4 .br{right:-30mm;top:64mm;font-size:124mm}
+.a4 .br{right:-30mm;top:34mm;font-size:124mm;transform:scaleY(1.24)}
 .a4 .h{left:14mm;top:184mm;font-size:36pt;white-space:nowrap}
 .a4 .sub{left:14mm;top:206mm;font-size:14pt}
 .a4 .qr{right:14mm;top:186mm;width:42mm;height:42mm;padding:2.2mm}
@@ -46,7 +46,7 @@ body{font-family:"Yu Gothic","YuGothic","Hiragino Sans","Noto Sans JP",sans-seri
 .face .logo{left:50%;top:5mm;width:48mm;height:30mm;transform:translateX(-50%)}
 .face .bowl{left:50%;top:32mm;width:96mm;height:72mm;transform:translateX(-50%)}
 .face .bl{left:-10mm;top:4mm;font-size:54mm}
-.face .br{right:-20mm;top:18mm;font-size:84mm}
+.face .br{right:-20mm;top:4mm;font-size:84mm;transform:scaleY(1.235)}
 .face .h{left:12mm;top:106mm;font-size:22pt;white-space:nowrap}
 .face .sub{left:12mm;top:118mm;font-size:10.5pt}
 .face .qr{right:12mm;top:100mm;width:32mm;height:32mm;padding:1.6mm}
@@ -70,7 +70,7 @@ body{font-family:"Yu Gothic","YuGothic","Hiragino Sans","Noto Sans JP",sans-seri
 .card .logo{left:15mm;top:1.5mm;width:24mm;height:12mm}
 .card .bowl{left:8mm;top:16mm;width:34mm;height:28mm;filter:drop-shadow(0 1.5mm 2mm rgba(0,0,0,.16))}
 .card .bl{left:-4mm;top:3mm;font-size:20mm}
-.card .br{left:27mm;top:13mm;font-size:32mm}
+.card .br{left:27mm;top:3mm;font-size:32mm;transform:scaleY(1.2)}
 .card .h{left:58mm;top:5mm;font-size:8.5pt;white-space:nowrap}
 .card .sub{left:58mm;top:12mm;width:30mm;font-size:6.5pt;line-height:1.45}
 .card .qr{right:4mm;top:30mm;width:21mm;height:21mm;padding:0.9mm;border-width:0.4mm}
