@@ -84,7 +84,7 @@ svg.wheel text { font-size: 12px; }                   /* 15 → 12（盤は240px
 /* 幅1280では hero が1248×1250になり、最初の画面が丼だけで残高も釦も1枚目に入らなかった。
    スマホ幅(390/768)の見え方は1pxも変わらない。 */
 @media (min-width: 520px) {
-  html { background: var(--cream); }
+  html { background: #fff; }
   body {
     max-width: 480px;
     margin-inline: auto;
