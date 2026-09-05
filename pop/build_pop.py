@@ -6,15 +6,15 @@ import io, os, subprocess, sys
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 EDGE = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 STORES = {"nagaoka": "長岡本店", "sendai": "仙台連坊店"}
-TEMPLATE = "pop_v2.html"
+TEMPLATE = "pop_v3.html"
 
 tpl = io.open(TEMPLATE, encoding="utf-8").read()
 
-CARD = ('<div class="card paper"><div class="sun"></div><img class="hero" src="../assets/hero.png" alt="">'
-        '<div class="tv"><span class="ln">来るたび、</span><span class="ln"><span class="aka">油神</span>に近づく。</span></div>'
-        '<div class="lab g">柿川亭アプリ</div>'
+CARD = ('<div class="card"><img class="logo" src="logo.png" alt=""><img class="bowl" src="fal/bowl_cutout.png" alt="">'
+        '<div class="h">ポイ活、始めました。</div>'
+        '<div class="sub">柿川亭アプリ　<span class="p">850P</span>で油そば一杯</div>'
+        '<div class="qrc">QRでアプリを入れる　無料<br>iPhone／Android</div>'
         '<div class="qr"><img src="qr_get_400.png" alt=""></div>'
-        '<div class="qrc g">無料　iPhone／Android</div>'
         '<div class="st">柿川亭 {store}</div></div>')
 
 for key, name in STORES.items():
