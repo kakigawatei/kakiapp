@@ -2,120 +2,142 @@
 <html lang="ja"><head><meta charset="utf-8"><title>柿川亭アプリ POP（長岡本店）</title>
 <style>
 @page{size:A4;margin:0}
-*{box-sizing:border-box}
-body{margin:0;font-family:'Hiragino Sans','Yu Gothic','Noto Sans JP',sans-serif;color:#1d1a16;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.page{width:210mm;height:297mm;page-break-after:always;position:relative;overflow:hidden;background:#fbf7ef}
+:root{--sumi:#16181d;--kinari:#f2ecdd;--shu:#d7301f}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Yu Mincho","YuMincho","Hiragino Mincho ProN",serif;color:var(--sumi);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.g{font-family:"Yu Gothic","YuGothic","Hiragino Sans",sans-serif}
+.page{width:210mm;height:297mm;page-break-after:always;position:relative;overflow:hidden;background:var(--kinari)}
 .page:last-child{page-break-after:auto}
-/* ---------- 共通 ---------- */
-.kicker{font-size:11pt;letter-spacing:.35em;font-weight:800;color:#c8102e}
-.h{font-weight:900;line-height:1.08;letter-spacing:-.01em}
-.h em{font-style:normal;color:#c8102e}
-.sub{font-weight:700;color:#3a342d}
-.qr{background:#fff;padding:3mm;border:1.2mm solid #1d1a16;border-radius:4mm;display:inline-block}
-.qr img{display:block}
-.store{position:absolute;font-weight:800;letter-spacing:.1em;color:#6b6259}
-.rank{display:flex;gap:3mm;align-items:center;font-weight:900}
-.rank span{background:#1d1a16;color:#fff;padding:1.5mm 3.5mm;border-radius:99mm;font-size:12pt}
-.rank span.gold{background:#c8102e}
-.rank i{font-style:normal;color:#9a9086}
-.pts{display:flex;gap:4mm}
-.pt{flex:1;background:#fff;border:0.6mm solid #1d1a16;border-radius:4mm;padding:4mm 3mm;text-align:center}
-.pt b{display:block;font-size:22pt;font-weight:900;color:#c8102e;line-height:1.1}
-.pt span{font-size:10.5pt;font-weight:700;color:#3a342d}
-.foot{font-size:9pt;color:#6b6259;line-height:1.5}
-.cut{position:absolute;border:0.2mm dashed #b8afa3}
-/* ---------- ① レジ横 A4 縦 ---------- */
-.a4{padding:16mm 16mm 12mm}
-.a4 .h{font-size:44pt;margin:6mm 0 4mm}
-.a4 .sub{font-size:15pt;margin:0 0 8mm}
-.a4 .row{display:flex;gap:14mm;align-items:center;margin-top:12mm}
-.a4 .hero{width:76mm;height:76mm;flex:0 0 76mm;border-radius:50%;object-fit:cover;box-shadow:0 6mm 14mm rgba(0,0,0,.14)}
-.a4 .pts{margin:10mm 0 8mm}
-.a4 .qrrow{display:flex;flex-direction:column;gap:4mm;align-items:flex-start;flex:1 1 auto;min-width:0}
-.a4 .qrrow .txt{font-size:14pt;font-weight:900;line-height:1.4;width:100%}
-.a4 .qrrow .txt small{display:block;font-size:10pt;font-weight:700;color:#6b6259;margin-top:2mm}
-/* ---------- ② 卓上 A5 二つ折り（A4横に2面：外／中）---------- */
+/* 紙のざらつき */
+.paper::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:9;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.09 0 0 0 0 0.09 0 0 0 0 0.11 0 0 0 0.07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+/* 部品 */
+.sun{position:absolute;border-radius:50%;background:var(--shu)}
+.hero{position:absolute;object-fit:cover;border-radius:50%}
+.tv{position:absolute;writing-mode:vertical-rl;font-weight:800;letter-spacing:.12em;line-height:1.06;text-shadow:1mm 1mm 0 var(--kinari)}
+.tv .aka{color:var(--shu)}
+.tv .ln{display:block}
+.hanko{position:absolute;border:0.8mm solid var(--shu);color:var(--shu);border-radius:2mm;writing-mode:vertical-rl;display:flex;align-items:center;justify-content:center;font-weight:800;letter-spacing:.16em;transform:rotate(4deg);background:rgba(242,236,221,.7);line-height:1.3}
+.qr{position:absolute;background:#fff;border:0.9mm solid var(--sumi);box-shadow:1.6mm 1.6mm 0 var(--sumi)}
+.qr img{display:block;width:100%;height:100%}
+.obi{position:absolute;left:0;right:0;bottom:0;background:var(--sumi);color:var(--kinari);display:flex;align-items:center;justify-content:space-between;letter-spacing:.28em;font-weight:800}
+.tab{display:inline-flex;align-items:center;gap:1.2mm;background:var(--sumi);color:var(--kinari);letter-spacing:.2em;font-weight:800}
+.tab.aka{background:var(--shu)}
+.tab small{font-weight:400;letter-spacing:.1em;opacity:.85}
+.kana{letter-spacing:.24em;color:#5c584c}
+.price{font-weight:800;color:var(--shu);line-height:1}
+/* ---------- ① レジ横 A4 ---------- */
+.a4 .sun{width:160mm;height:160mm;left:-36mm;top:88mm}
+.a4 .hero{width:96mm;height:96mm;left:8mm;top:120mm}
+.a4 .tv{right:14mm;top:16mm;height:180mm;font-size:54pt}
+.a4 .hanko{left:14mm;top:13mm;width:26mm;height:26mm;font-size:9.5pt}
+.a4 .p{position:absolute;left:14mm;top:46mm}
+.a4 .p .price{font-size:44pt}
+.a4 .p .price span{font-size:15pt;color:var(--sumi);font-weight:800;letter-spacing:.06em;margin-left:2mm}
+.a4 .p .kana{font-size:9pt;margin-top:3mm}
+.a4 .say{position:absolute;left:129mm;top:98mm;height:150mm;writing-mode:vertical-rl;font-size:11pt;letter-spacing:.26em;line-height:2.1}
+.a4 .qr{right:14mm;top:196mm;width:46mm;height:46mm;padding:2.6mm}
+.a4 .qrc{position:absolute;right:14mm;top:246mm;width:60mm;text-align:right;font-size:7pt;letter-spacing:.2em;font-weight:800;line-height:1.7}
+.a4 .ranks{position:absolute;left:14mm;top:252mm;display:flex;gap:2mm;align-items:center;font-size:9.5pt}
+.a4 .ranks .tab{padding:1.6mm 2.6mm}
+.a4 .ranks i{font-style:normal;color:#8a8474}
+.a4 .obi{height:24mm;padding:0 14mm;font-size:9.5pt;white-space:nowrap}
+.a4 .obi .st{font-family:"Yu Mincho","Hiragino Mincho ProN",serif;font-weight:800;letter-spacing:.3em;font-size:10.5pt}
+/* ---------- ② 卓上 A5 二つ折り（A4に外／中）---------- */
 .tent{display:flex;flex-direction:column}
-.tent .face{width:210mm;height:148.5mm;padding:12mm 14mm;position:relative}
-.tent .face.top{transform:rotate(180deg);border-bottom:0.2mm dashed #b8afa3}
-.tent .h{font-size:34pt;margin:4mm 0 3mm}
-.tent .sub{font-size:12pt;margin:0 0 5mm}
-.tent .pts{margin:5mm 0}
-.tent .qrrow{display:flex;gap:6mm;align-items:center;margin-top:4mm}
-.tent .qrrow .txt{font-size:12pt;font-weight:900;line-height:1.35}
-.tent .qrrow .txt small{display:block;font-size:9pt;font-weight:700;color:#6b6259}
-.tent .hero{position:absolute;right:12mm;top:12mm;width:48mm;height:48mm;border-radius:50%;object-fit:cover}
-/* ---------- ③ 名刺サイズ カード（91×55mm）10面 ---------- */
-.cards{padding:10mm 9.5mm;display:grid;grid-template-columns:repeat(2,91mm);grid-auto-rows:55mm;gap:0;justify-content:center;align-content:start}
-.card{width:91mm;height:55mm;border:0.2mm dashed #b8afa3;padding:4mm 5mm;display:flex;gap:4mm;align-items:center;background:#fbf7ef}
-.card .qr{padding:1.5mm;border-width:0.8mm;border-radius:2.5mm}
-.card .h{font-size:12pt;white-space:nowrap}
-.card .sub{font-size:7.8pt;margin-top:1.5mm;line-height:1.35}
-.card .st{font-size:7.5pt;color:#6b6259;margin-top:2mm;letter-spacing:.08em}
+.face{width:210mm;height:148.5mm;position:relative;overflow:hidden}
+.face.top{transform:rotate(180deg);border-bottom:0.2mm dashed #b8afa3}
+.face .sun{width:112mm;height:112mm;left:-24mm;top:30mm}
+.face .hero{width:68mm;height:68mm;left:4mm;top:52mm}
+.face .tv{right:12mm;top:10mm;height:124mm;font-size:36pt}
+.face .hanko{left:12mm;top:9mm;width:20mm;height:20mm;font-size:7.5pt}
+.face .p{position:absolute;left:96mm;top:13mm}
+.face .p .price{font-size:30pt}
+.face .p .price span{font-size:11pt;color:var(--sumi);font-weight:800;letter-spacing:.06em;margin-left:1.5mm}
+.face .p .kana{font-size:7.5pt;margin-top:2mm}
+.face .qr{left:112mm;top:96mm;width:36mm;height:36mm;padding:2mm}
+.face .qrc{position:absolute;left:152mm;top:112mm;font-size:7pt;letter-spacing:.14em;font-weight:800;line-height:1.7}
+.face .st{position:absolute;left:12mm;bottom:6mm;font-size:8pt;letter-spacing:.3em;font-weight:800}
+/* 中面＝品書き */
+.in .h{position:absolute;right:12mm;top:10mm;height:132mm;writing-mode:vertical-rl;font-size:18pt;font-weight:800;letter-spacing:.28em}
+.in .rows{position:absolute;left:12mm;top:10mm;width:150mm}
+.in .row{display:flex;gap:5mm;align-items:flex-start;border-top:0.9mm solid var(--sumi);padding:4mm 0 4.5mm}
+.in .row:first-child{border-top:none;padding-top:1mm}
+.in .no{flex:0 0 auto;writing-mode:vertical-rl;background:var(--sumi);color:var(--kinari);padding:3mm 1.6mm;font-size:8.5pt;letter-spacing:.2em;font-weight:800}
+.in .row h3{font-size:19pt;font-weight:800;letter-spacing:.08em;line-height:1.2}
+.in .row h3 em{font-style:normal;color:var(--shu)}
+.in .row p{font-size:9.5pt;line-height:1.9;margin-top:1.5mm;max-width:34em}
+.in .foot{position:absolute;left:12mm;bottom:6mm;width:130mm;font-size:7pt;letter-spacing:.12em;color:#5c584c;line-height:1.7}
+.in .st{position:absolute;left:auto;right:12mm;bottom:6mm;font-size:8pt;letter-spacing:.3em;font-weight:800}
+/* ---------- ③ 名刺サイズ 10面 ---------- */
+.cards{padding:10mm 9.5mm;display:grid;grid-template-columns:repeat(2,91mm);grid-auto-rows:55mm;justify-content:center;align-content:start}
+.card{width:91mm;height:55mm;position:relative;overflow:hidden;border:0.2mm dashed #b8afa3;background:var(--kinari)}
+.card .sun{width:42mm;height:42mm;left:-9mm;top:7mm}
+.card .hero{width:26mm;height:26mm;left:2mm;top:15mm}
+.card .tv{right:31mm;top:4mm;height:46mm;font-size:12.5pt;text-shadow:none}
+.card .qr{right:5mm;top:14mm;width:26mm;height:26mm;padding:1.2mm;border-width:0.5mm;box-shadow:0.9mm 0.9mm 0 var(--sumi)}
+.card .lab{position:absolute;right:5mm;top:5.5mm;width:26mm;text-align:center;font-size:6.5pt;letter-spacing:.2em;font-weight:800}
+.card .qrc{position:absolute;right:5mm;top:42mm;width:26mm;text-align:center;font-size:5.2pt;letter-spacing:.06em;line-height:1.5}
+.card .st{position:absolute;left:4mm;bottom:3mm;font-size:6pt;letter-spacing:.24em;font-weight:800}
 </style></head>
 <body>
 
 <!-- ① レジ横 A4 -->
-<div class="page a4">
-  <div class="kicker">柿川亭アプリ、できました</div>
-  <div class="h">来るたび、<br><em>油神</em>に近づく。</div>
-  <div class="sub">来店でポイント。毎日1回の来店ガチャ。食べた回数で称号が上がる。</div>
-  <div class="rank"><span>見習い</span><i>→</i><span>常連 5回</span><i>→</i><span>猛者 15回</span><i>→</i><span class="gold">油神 40回</span></div>
-  <div class="pts">
-    <div class="pt"><b>1P＝1円</b><span>850Pで油そば並盛1杯</span></div>
-    <div class="pt"><b>毎日1回</b><span>来店ガチャ・ハズレなし</span></div>
-    <div class="pt"><b>無料</b><span>iPhone／Android</span></div>
+<div class="page paper a4">
+  <div class="sun"></div>
+  <img class="hero" src="../assets/hero.png" alt="">
+  <div class="hanko">アプリ、<br>できました</div>
+  <div class="p">
+    <div class="price">850<span>Pで、油そば一杯。</span></div>
+    <div class="kana">一ポイント＝一円　来店で貯まる　毎日一回の来店ガチャ</div>
   </div>
-  <div class="row">
-    <img class="hero" src="../assets/hero.png" alt="">
-    <div class="qrrow">
-      <div class="qr"><img src="qr_get_400.png" width="170" height="170" alt=""></div>
-      <div class="txt">QRを読んで<br>アプリを入れる<small>iPhoneはApp Store、AndroidはWeb版に自動で案内します。<br>お店で開くだけで、今日の分からポイントが付きます。</small></div>
-    </div>
-  </div>
-  <div class="store" style="left:16mm;bottom:12mm">新潟油そば 柿川亭 長岡本店</div>
-  <div class="foot" style="position:absolute;right:16mm;bottom:12mm;text-align:right">貯める＝お店で開くだけ（位置情報で自動）<br>使う＝食券を買わずに、アプリの引換画面を見せて注文<br>kakigawatei.github.io/kakiapp/get</div>
+  <div class="tv"><span class="ln">来るたび、</span><span class="ln"><span class="aka">油神</span>に近づく。</span></div>
+  <div class="say">来店でポイント。毎日一回のガチャ。<br>食べた回数で、称号が上がる。</div>
+  <div class="qr"><img src="qr_get_400.png" alt=""></div>
+  <div class="qrc g">読んで、入れる。無料<br><span style="font-weight:400;letter-spacing:.04em">iPhone＝App Store／Android＝Web版</span></div>
+  <div class="ranks g"><span class="tab">見習い</span><i>→</i><span class="tab">常連<small>五回</small></span><i>→</i><span class="tab">猛者<small>十五回</small></span><i>→</i><span class="tab aka">油神<small>四十回</small></span></div>
+  <div class="obi g"><span>貯める＝開くだけ　／　使う＝引換画面を見せて注文</span><span class="st">柿川亭 長岡本店</span></div>
 </div>
 
 <!-- ② 卓上 A5 二つ折り（山折り） -->
 <div class="page tent">
-  <div class="face top">
-    <div class="kicker">柿川亭アプリ、できました</div>
-    <div class="h">来るたび、<br><em>油神</em>に近づく。</div>
-    <div class="sub">来店でポイント。毎日1回の来店ガチャ。称号は 見習い→常連→猛者→油神。</div>
+  <div class="face paper top">
+    <div class="sun"></div>
     <img class="hero" src="../assets/hero.png" alt="">
-    <div class="qrrow">
-      <div class="qr"><img src="qr_get_400.png" width="120" height="120" alt=""></div>
-      <div class="txt">QRでアプリを入れる<small>iPhone＝App Store／Android＝Web版。無料。</small></div>
+    <div class="hanko">アプリ、<br>できました</div>
+    <div class="p">
+      <div class="price">850<span>Pで、油そば一杯。</span></div>
+      <div class="kana">来店で貯まる　毎日一回ガチャ</div>
     </div>
-    <div class="store" style="left:14mm;bottom:9mm;font-size:9pt">新潟油そば 柿川亭 長岡本店</div>
+    <div class="tv"><span class="ln">来るたび、</span><span class="ln"><span class="aka">油神</span>に近づく。</span></div>
+    <div class="qr"><img src="qr_get_400.png" alt=""></div>
+    <div class="qrc g">読んで、入れる。<br>無料<br><span style="font-weight:400;letter-spacing:.04em">iPhone＝App Store<br>Android＝Web版</span></div>
+    <div class="st">新潟油そば 柿川亭 長岡本店</div>
   </div>
-  <div class="face">
-    <div class="kicker">ポイントの貯め方・使い方</div>
-    <div class="pts">
-      <div class="pt"><b>来店</b><span>お店に来て開くだけで自動加算（位置情報）</span></div>
-      <div class="pt"><b>ガチャ</b><span>毎日1回。ハズレなしでポイント</span></div>
-      <div class="pt"><b>850P</b><span>油そば並盛1杯と交換。トッピングは50P〜</span></div>
+  <div class="face paper in">
+    <div class="rows">
+      <div class="row"><div class="no">その一</div><div><h3>貯める</h3><p>お店に来て、アプリを開くだけ。位置情報で来店ポイントが自動でつきます。お声がけは要りません。</p></div></div>
+      <div class="row"><div class="no">その二</div><div><h3>まわす</h3><p>毎日一回の来店ガチャ。ハズレなし。食べた回数で称号が 見習い→常連→猛者→<em>油神</em> と上がります。</p></div></div>
+      <div class="row"><div class="no">その三</div><div><h3>つかう <em>850P＝油そば一杯</em></h3><p>食券は買わずに、アプリの「つかう」でメニューをタップ。出てきた引換画面をスタッフに見せて「アプリで並盛」と注文してください。</p></div></div>
     </div>
-    <div class="sub" style="font-size:11pt;margin-top:4mm">つかい方：食券は買わずに、アプリ「つかう」→メニューをタップ→引換画面をスタッフに見せて「アプリで並盛」と注文。</div><div class="sub" style="font-size:11pt;margin-top:2mm">称号が上がると、ランクバッジが変わります。</div>
-    <div class="rank" style="margin-top:3mm"><span>見習い</span><i>→</i><span>常連</span><i>→</i><span>猛者</span><i>→</i><span class="gold">油神</span></div>
-    <div class="foot" style="position:absolute;left:14mm;bottom:9mm">引換画面は10分間有効。ポイントはその場で引かれます。<br>Android版は Web版を「ホーム画面に追加」でアプリとして使えます。</div>
-    <div class="store" style="right:14mm;bottom:9mm;font-size:9pt">柿川亭 長岡本店</div>
+    <div class="h">貯めて、まわして、つかう。</div>
+    <div class="foot g">引換画面は十分間有効。ポイントはその場で引かれます。　Android版はWeb版を「ホーム画面に追加」でアプリとして使えます。</div>
+    <div class="st">柿川亭 長岡本店</div>
   </div>
 </div>
 
 <!-- ③ 名刺サイズカード 10面 -->
 <div class="page cards">
-  <div class="card"><div class="qr"><img src="qr_get_400.png" width="98" height="98" alt=""></div><div><div class="kicker" style="font-size:7pt;letter-spacing:.25em">柿川亭アプリ</div><div class="h">来るたび、<em>油神</em>に近づく。</div><div class="sub">来店でポイント／毎日1回ガチャ／850Pで油そば1杯<br>iPhone＝App Store・Android＝Web版（無料）</div><div class="st">柿川亭 長岡本店</div></div></div>
-<div class="card"><div class="qr"><img src="qr_get_400.png" width="98" height="98" alt=""></div><div><div class="kicker" style="font-size:7pt;letter-spacing:.25em">柿川亭アプリ</div><div class="h">来るたび、<em>油神</em>に近づく。</div><div class="sub">来店でポイント／毎日1回ガチャ／850Pで油そば1杯<br>iPhone＝App Store・Android＝Web版（無料）</div><div class="st">柿川亭 長岡本店</div></div></div>
-<div class="card"><div class="qr"><img src="qr_get_400.png" width="98" height="98" alt=""></div><div><div class="kicker" style="font-size:7pt;letter-spacing:.25em">柿川亭アプリ</div><div class="h">来るたび、<em>油神</em>に近づく。</div><div class="sub">来店でポイント／毎日1回ガチャ／850Pで油そば1杯<br>iPhone＝App Store・Android＝Web版（無料）</div><div class="st">柿川亭 長岡本店</div></div></div>
-<div class="card"><div class="qr"><img src="qr_get_400.png" width="98" height="98" alt=""></div><div><div class="kicker" style="font-size:7pt;letter-spacing:.25em">柿川亭アプリ</div><div class="h">来るたび、<em>油神</em>に近づく。</div><div class="sub">来店でポイント／毎日1回ガチャ／850Pで油そば1杯<br>iPhone＝App Store・Android＝Web版（無料）</div><div class="st">柿川亭 長岡本店</div></div></div>
-<div class="card"><div class="qr"><img src="qr_get_400.png" width="98" height="98" alt=""></div><div><div class="kicker" style="font-size:7pt;letter-spacing:.25em">柿川亭アプリ</div><div class="h">来るたび、<em>油神</em>に近づく。</div><div class="sub">来店でポイント／毎日1回ガチャ／850Pで油そば1杯<br>iPhone＝App Store・Android＝Web版（無料）</div><div class="st">柿川亭 長岡本店</div></div></div>
-<div class="card"><div class="qr"><img src="qr_get_400.png" width="98" height="98" alt=""></div><div><div class="kicker" style="font-size:7pt;letter-spacing:.25em">柿川亭アプリ</div><div class="h">来るたび、<em>油神</em>に近づく。</div><div class="sub">来店でポイント／毎日1回ガチャ／850Pで油そば1杯<br>iPhone＝App Store・Android＝Web版（無料）</div><div class="st">柿川亭 長岡本店</div></div></div>
-<div class="card"><div class="qr"><img src="qr_get_400.png" width="98" height="98" alt=""></div><div><div class="kicker" style="font-size:7pt;letter-spacing:.25em">柿川亭アプリ</div><div class="h">来るたび、<em>油神</em>に近づく。</div><div class="sub">来店でポイント／毎日1回ガチャ／850Pで油そば1杯<br>iPhone＝App Store・Android＝Web版（無料）</div><div class="st">柿川亭 長岡本店</div></div></div>
-<div class="card"><div class="qr"><img src="qr_get_400.png" width="98" height="98" alt=""></div><div><div class="kicker" style="font-size:7pt;letter-spacing:.25em">柿川亭アプリ</div><div class="h">来るたび、<em>油神</em>に近づく。</div><div class="sub">来店でポイント／毎日1回ガチャ／850Pで油そば1杯<br>iPhone＝App Store・Android＝Web版（無料）</div><div class="st">柿川亭 長岡本店</div></div></div>
-<div class="card"><div class="qr"><img src="qr_get_400.png" width="98" height="98" alt=""></div><div><div class="kicker" style="font-size:7pt;letter-spacing:.25em">柿川亭アプリ</div><div class="h">来るたび、<em>油神</em>に近づく。</div><div class="sub">来店でポイント／毎日1回ガチャ／850Pで油そば1杯<br>iPhone＝App Store・Android＝Web版（無料）</div><div class="st">柿川亭 長岡本店</div></div></div>
-<div class="card"><div class="qr"><img src="qr_get_400.png" width="98" height="98" alt=""></div><div><div class="kicker" style="font-size:7pt;letter-spacing:.25em">柿川亭アプリ</div><div class="h">来るたび、<em>油神</em>に近づく。</div><div class="sub">来店でポイント／毎日1回ガチャ／850Pで油そば1杯<br>iPhone＝App Store・Android＝Web版（無料）</div><div class="st">柿川亭 長岡本店</div></div></div>
+  <div class="card paper"><div class="sun"></div><img class="hero" src="../assets/hero.png" alt=""><div class="tv"><span class="ln">来るたび、</span><span class="ln"><span class="aka">油神</span>に近づく。</span></div><div class="lab g">柿川亭アプリ</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="qrc g">無料　iPhone／Android</div><div class="st">柿川亭 長岡本店</div></div>
+<div class="card paper"><div class="sun"></div><img class="hero" src="../assets/hero.png" alt=""><div class="tv"><span class="ln">来るたび、</span><span class="ln"><span class="aka">油神</span>に近づく。</span></div><div class="lab g">柿川亭アプリ</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="qrc g">無料　iPhone／Android</div><div class="st">柿川亭 長岡本店</div></div>
+<div class="card paper"><div class="sun"></div><img class="hero" src="../assets/hero.png" alt=""><div class="tv"><span class="ln">来るたび、</span><span class="ln"><span class="aka">油神</span>に近づく。</span></div><div class="lab g">柿川亭アプリ</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="qrc g">無料　iPhone／Android</div><div class="st">柿川亭 長岡本店</div></div>
+<div class="card paper"><div class="sun"></div><img class="hero" src="../assets/hero.png" alt=""><div class="tv"><span class="ln">来るたび、</span><span class="ln"><span class="aka">油神</span>に近づく。</span></div><div class="lab g">柿川亭アプリ</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="qrc g">無料　iPhone／Android</div><div class="st">柿川亭 長岡本店</div></div>
+<div class="card paper"><div class="sun"></div><img class="hero" src="../assets/hero.png" alt=""><div class="tv"><span class="ln">来るたび、</span><span class="ln"><span class="aka">油神</span>に近づく。</span></div><div class="lab g">柿川亭アプリ</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="qrc g">無料　iPhone／Android</div><div class="st">柿川亭 長岡本店</div></div>
+<div class="card paper"><div class="sun"></div><img class="hero" src="../assets/hero.png" alt=""><div class="tv"><span class="ln">来るたび、</span><span class="ln"><span class="aka">油神</span>に近づく。</span></div><div class="lab g">柿川亭アプリ</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="qrc g">無料　iPhone／Android</div><div class="st">柿川亭 長岡本店</div></div>
+<div class="card paper"><div class="sun"></div><img class="hero" src="../assets/hero.png" alt=""><div class="tv"><span class="ln">来るたび、</span><span class="ln"><span class="aka">油神</span>に近づく。</span></div><div class="lab g">柿川亭アプリ</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="qrc g">無料　iPhone／Android</div><div class="st">柿川亭 長岡本店</div></div>
+<div class="card paper"><div class="sun"></div><img class="hero" src="../assets/hero.png" alt=""><div class="tv"><span class="ln">来るたび、</span><span class="ln"><span class="aka">油神</span>に近づく。</span></div><div class="lab g">柿川亭アプリ</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="qrc g">無料　iPhone／Android</div><div class="st">柿川亭 長岡本店</div></div>
+<div class="card paper"><div class="sun"></div><img class="hero" src="../assets/hero.png" alt=""><div class="tv"><span class="ln">来るたび、</span><span class="ln"><span class="aka">油神</span>に近づく。</span></div><div class="lab g">柿川亭アプリ</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="qrc g">無料　iPhone／Android</div><div class="st">柿川亭 長岡本店</div></div>
+<div class="card paper"><div class="sun"></div><img class="hero" src="../assets/hero.png" alt=""><div class="tv"><span class="ln">来るたび、</span><span class="ln"><span class="aka">油神</span>に近づく。</span></div><div class="lab g">柿川亭アプリ</div><div class="qr"><img src="qr_get_400.png" alt=""></div><div class="qrc g">無料　iPhone／Android</div><div class="st">柿川亭 長岡本店</div></div>
 </div>
 
 </body></html>
