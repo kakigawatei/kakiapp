@@ -1,0 +1,26 @@
+[Version 1.0.1 — build 8]
+
+This is a feature update to version 1.0, which is already live on the App Store.
+
+What changed in this build:
+
+1) Added our second restaurant location (Sendai Renbo). Version 1.0 only recognized the Nagaoka main store, so customers visiting our Sendai restaurant could not earn visit points. Both locations now work.
+
+2) Reworked the opening screen. The app now shows the customer's current rank and total visit count first, instead of the point balance.
+
+3) Expanded the rank system from 4 tiers to 6 tiers, and added an animation when the customer is promoted to a new rank.
+
+4) Replaced the visit-gacha and daily-roulette animations with new ones.
+
+5) The header showing the point balance is now fixed while scrolling.
+
+6) Added an opt-in checkbox for promotional email at sign-up, and a switch on My Page so the customer can turn it off at any time. This is required under Japan's Act on Regulation of Transmission of Specified Electronic Mail.
+
+How to test:
+- Sign in with the demo account below. The account is already email-verified.
+- The rank card appears immediately after sign-in.
+- "毎日ルーレット" (daily roulette) on the Home tab can be spun once per day without any location requirement.
+- The visit gacha requires GPS proximity to one of our restaurants, so it cannot be tested from outside Japan. Please use the daily roulette to confirm the point-earning flow.
+- Account deletion is available at My Page > アカウントを削除する (as reviewed and approved in version 1.0).
+
+Contact: Masatoshi Oka / kakigawatei@gmail.com / +81 80 1196 6019
