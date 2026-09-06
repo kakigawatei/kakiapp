@@ -1,0 +1,19 @@
+[Version 1.0.2 — build 10]
+
+This is a feature and design update to version 1.0.1, which is already live on the App Store.
+
+What changed in this build:
+
+1) Self-service point redemption. Previously the customer had to ask a staff member to redeem points. Now the customer redeems points inside the app ("つかう" tab) and a redemption screen with a code appears; the customer simply shows that screen when ordering. No staff-side app or hardware is involved.
+
+2) Full visual redesign: white background, new icons, redesigned home, roulette, gacha and rank screens. No functional change to point rules.
+
+3) Home screen copy now explains what the app does (earn points per visit, exchange for a bowl).
+
+4) The fraud warning on the gacha screen was consolidated into My Page (it was shown twice before).
+
+How to test:
+- Sign in with the demo account below. The account is already email-verified.
+- Home shows rank and visit count. "つかう" shows the redemption flow; tapping the exchange button opens the redemption screen (points are deducted from the demo account, which is fine).
+- Location check-in requires being at one of our restaurants, so the visit gacha cannot be triggered from outside; the roulette can be played daily from anywhere.
+- Please do not delete the demo account (the "アカウント削除" button on My Page), as reviewers would then be unable to sign in.

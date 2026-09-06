@@ -26,14 +26,15 @@ def status():
     s, at = a.call("GET", f"/v1/appStoreReviewDetails/{RD}/appStoreReviewAttachments?fields[appStoreReviewAttachments]=fileName,assetDeliveryState")
     for x in at.get("data", []): print("attachment:", x["attributes"])
 
-def create():
+def create(vid=None):
+    vid = vid or VID          # 引数でバージョンIDを渡せる（1.0.2 以降は asc_new_version.py が出す NEW_VERSION_ID）
     s, d = a.call("POST", "/v1/reviewSubmissions", {"data": {"type": "reviewSubmissions", "attributes": {"platform": "IOS"},
         "relationships": {"app": {"data": {"type": "apps", "id": a.APP_ID}}}}})
     if s >= 300: print("create failed", s, json.dumps(d, ensure_ascii=False)[:600]); return
     sid = d["data"]["id"]; print("submission created:", sid, d["data"]["attributes"])
     s, d = a.call("POST", "/v1/reviewSubmissionItems", {"data": {"type": "reviewSubmissionItems",
         "relationships": {"reviewSubmission": {"data": {"type": "reviewSubmissions", "id": sid}},
-                          "appStoreVersion": {"data": {"type": "appStoreVersions", "id": VID}}}}})
+                          "appStoreVersion": {"data": {"type": "appStoreVersions", "id": vid}}}}})
     print("item:", s, "" if s < 300 else json.dumps(d, ensure_ascii=False)[:600])
 
 def submit(sid):
@@ -44,5 +45,5 @@ if __name__ == "__main__":
     c = sys.argv[1]
     if c == "notes": notes(sys.argv[2])
     elif c == "status": status()
-    elif c == "create": create()
+    elif c == "create": create(sys.argv[2] if len(sys.argv) > 2 else None)
     elif c == "submit": submit(sys.argv[2])
