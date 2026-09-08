@@ -1,0 +1,14 @@
+[Version 1.0.3 — build 11]
+
+This is a hotfix for 1.0.2, which is currently live.
+
+What was wrong in 1.0.2: after a successful sign-in, the app showed "サーバーに接続できませんでした" (could not connect to server) and never proceeded. The cause was a JavaScript null reference in the page initialization (a hidden developer gesture was still bound to a heading element that the 1.0.2 redesign removed), which prevented the post-login handlers from being registered. No server was actually unreachable.
+
+What changed in this build: the single initialization line is guarded and bound to the header logo instead. No other functional change from 1.0.2.
+
+How to test:
+- Sign in with the demo account below. The account is already email-verified.
+- After sign-in, the Home screen with rank and visit count must appear (in 1.0.2 this is where the error screen appeared).
+- Please do not delete the demo account (the "アカウント削除" button on My Page).
+
+We kindly request an expedited review because 1.0.2 is live and every signed-in customer is blocked at launch.
