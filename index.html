@@ -759,9 +759,9 @@ show = function (page) {
   }
 };
 
-/* 開発モード: タイトルを7回タップで出現 */
+/* 開発モード: ヘッダーのロゴを7回タップで出現（旧: h1。新デザインで h1 が無くなり null で落ちてログイン後の処理ごと止まっていた＝1.0.2の不具合） */
 let devTaps = 0, devTapTimer = null;
-document.querySelector("header h1").addEventListener("click", () => {
+(document.querySelector("header .logo") || document.querySelector("header h1") || document.createElement("span")).addEventListener("click", () => {
   devTaps++;
   clearTimeout(devTapTimer);
   devTapTimer = setTimeout(() => { devTaps = 0; }, 1600);
