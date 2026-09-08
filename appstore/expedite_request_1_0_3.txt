@@ -1,0 +1,18 @@
+[Apple Developer > Contact Us > App Review > Request Expedited Review 用・英文]
+
+App Name: 柿川亭アプリ (Kakigawatei App)
+Apple ID of the app: 6806443112
+Platform: iOS
+Version / build: 1.0.3 (11)
+
+Reason for the request:
+Version 1.0.2 (currently live on the App Store since Sep 8, 2026) has a critical bug: after a successful sign-in, the app shows an error screen ("could not connect to server") and never proceeds to the main screen. Every signed-in customer is blocked at launch; the app is unusable for all existing users.
+
+Root cause: a JavaScript null reference during page initialization (a hidden developer gesture was bound to a heading element that the 1.0.2 redesign removed), which prevented the post-login handlers from being registered. No server was actually unreachable.
+
+Fix in 1.0.3 (11): the single initialization line is guarded and bound to the header logo. No other functional change from 1.0.2. The web version of the same code has already been fixed and verified.
+
+Impact: the app is used daily by restaurant customers to earn and redeem visit points at our shops; customers are currently unable to redeem points in store. We would be grateful for an expedited review of 1.0.3.
+
+Thank you for your consideration.
+株式会社バウ (BAU Co., Ltd.) — Masatoshi Oka
