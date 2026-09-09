@@ -36,6 +36,20 @@
   .hero .copy .s2 { font-family: var(--mincho); font-size: 28px; font-weight: 700; letter-spacing: .04em; margin: 4px 0 8px; }
   .hero .copy .s3 { font-size: 12px; line-height: 1.8; letter-spacing: .04em; }
   main { padding: 0 16px; }
+  /* お知らせパネル（鈴） */
+  #annoPanel { position: fixed; inset: 0; z-index: 60; display: none; background: rgba(40,28,20,.45); }
+  #annoPanel.show { display: block; }
+  #annoPanel .sheet { position: absolute; left: 0; right: 0; bottom: 0; max-height: 78vh; background: var(--bg, #faf7f2); border-radius: 18px 18px 0 0; padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); overflow-y: auto; box-shadow: 0 -8px 24px rgba(58,42,32,.25); }
+  #annoPanel .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  #annoPanel .head h2 { font-family: var(--mincho); font-size: 20px; font-weight: 700; letter-spacing: .04em; }
+  #annoPanel .close { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #efeae2; background: #fff; font-size: 20px; color: var(--ink); }
+  .anno { background: var(--card); border: 1px solid #efeae2; border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+  .anno.unread { border-color: var(--red); }
+  .anno .d { font-size: 11.5px; color: var(--gray); letter-spacing: .04em; }
+  .anno .d .new { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; background: var(--red); color: #fff; font-size: 10px; font-weight: 700; }
+  .anno h3 { font-family: var(--mincho); font-size: 16px; font-weight: 700; margin: 4px 0 6px; letter-spacing: .03em; }
+  .anno p { font-size: 13.5px; line-height: 1.75; color: var(--ink); white-space: pre-wrap; }
+  .anno-empty { text-align: center; color: var(--gray); font-size: 13px; padding: 26px 0; }
   .card { background: var(--card); border: 1px solid #efeae2; border-radius: 16px; padding: 16px; margin-bottom: 14px; box-shadow: 0 3px 12px rgba(58,42,32,.08); }
   .card h2 { font-family: var(--mincho); font-size: 20px; color: var(--ink); margin-bottom: 6px; font-weight: 700; letter-spacing: .04em; }
   .muted { color: var(--gray); font-size: 12.5px; line-height: 1.7; }
@@ -259,6 +273,14 @@
   </div>
 </div>
 
+<!-- お知らせ（鈴） -->
+<div id="annoPanel" aria-hidden="true">
+  <div class="sheet" role="dialog" aria-label="お知らせ">
+    <div class="head"><h2>🔔 お知らせ</h2><button class="close" id="annoClose" aria-label="閉じる">×</button></div>
+    <div id="annoList"><div class="anno-empty">読み込み中…</div></div>
+  </div>
+</div>
+
 <!-- ホーム -->
 <section class="page on" id="page-home">
   <div class="hero" id="hero">
@@ -476,6 +498,53 @@ window.__errs = [];
 })();
 
 const C = window.KAKI_CONFIG;
+
+/* ---------- お知らせ（鈴）: Firestore kakiapp_announcements を REST で取得（SDK不使用・未ログインでも読める） ----------
+ * masa が admin.html か Firebase コンソールで {title, body, date:"YYYY-MM-DD", active} を足すと、
+ * 起動時に取得→未読があれば鈴に赤い点→タップで一覧。既読は端末の localStorage に id で記録。 */
+let ANNO = [];
+const annoReadKey = "kakiapp_anno_read";
+const annoRead = () => { try { return JSON.parse(localStorage.getItem(annoReadKey) || "[]"); } catch { return []; } };
+function annoUnread() { const r = annoRead(); return ANNO.filter(a => !r.includes(a.id)); }
+function annoBell() { document.getElementById("bellDot").style.display = annoUnread().length ? "block" : "none"; }
+function annoRender() {
+  const list = document.getElementById("annoList"), r = annoRead();
+  if (!ANNO.length) { list.innerHTML = '<div class="anno-empty">いまはお知らせはありません</div>'; return; }
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  list.innerHTML = ANNO.map(a => '<div class="anno' + (r.includes(a.id) ? "" : " unread") + '"><div class="d">' + esc(a.date) +
+    (r.includes(a.id) ? "" : '<span class="new">NEW</span>') + '</div><h3>' + esc(a.title) + '</h3><p>' + esc(a.body) + '</p></div>').join("");
+}
+function fetchAnnouncements() {
+  if (navigator.onLine === false) { annoBell(); return; }
+  fetch("https://firestore.googleapis.com/v1/projects/kakigawatei-franchise/databases/(default)/documents/kakiapp_announcements?pageSize=50")
+    .then(r => r.ok ? r.json() : null)
+    .then(j => {
+      if (!j) return;
+      const list = [];
+      (j.documents || []).forEach(d => {
+        const f = d.fields || {};
+        if (f.active && f.active.booleanValue === false) return;
+        list.push({ id: d.name.split("/").pop(), title: (f.title && f.title.stringValue) || "お知らせ",
+                    body: (f.body && f.body.stringValue) || "", date: (f.date && f.date.stringValue) || "" });
+      });
+      list.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+      ANNO = list; annoBell(); annoRender();
+    })
+    .catch(e => console.warn("announcements fetch failed", e));
+}
+document.getElementById("bellBtn").addEventListener("click", () => {
+  annoRender();
+  document.getElementById("annoPanel").classList.add("show");
+  if (!ANNO.length) fetchAnnouncements();
+});
+function annoClose() {
+  /* 閉じたときに全部既読にする（開いている間は NEW を見せたままにする） */
+  try { localStorage.setItem(annoReadKey, JSON.stringify(ANNO.map(a => a.id).slice(0, 200))); } catch {}
+  document.getElementById("annoPanel").classList.remove("show"); annoBell();
+}
+document.getElementById("annoClose").addEventListener("click", annoClose);
+document.getElementById("annoPanel").addEventListener("click", e => { if (e.target.id === "annoPanel") annoClose(); });
+fetchAnnouncements();
 const store = {
   get s() { try { return JSON.parse(localStorage.getItem("kakiapp") || "{}"); } catch { return {}; } },
   set(patch) { localStorage.setItem("kakiapp", JSON.stringify(Object.assign(this.s, patch))); render(); if (window.cloudPush) window.cloudPush(); },

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>お知らせ管理 | 柿川亭アプリ</title>
+<!-- ホーム画面に追加したときのアイコン（🔔お知らせ管理用・水彩） -->
+<link rel="apple-touch-icon" href="assets/admin_icon_180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/admin_icon_192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="assets/admin_icon_512.png">
+<link rel="manifest" href="admin.webmanifest">
+<meta name="theme-color" content="#f6ecd6">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="お知らせ管理">
+<style>
+  :root{
+    --paper:#f6ecd6; --paper-dark:#efe3c6; --card:#fffaf0; --ink:#3a2e1e; --ink-soft:#8a7a5c;
+    --vermillion:#c0392b; --indigo:#2c3e70; --gold:#c8962a; --line:#d9c9a0;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:var(--paper);color:var(--ink);line-height:1.6;
+    padding:calc(14px + env(safe-area-inset-top)) 14px calc(28px + env(safe-area-inset-bottom));}
+  .wrap{max-width:560px;margin:0 auto;}
+  h1{font-size:19px;margin:0 0 4px;color:var(--ink);}
+  .sub{font-size:12.5px;color:var(--ink-soft);margin:0 0 16px;}
+  .card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;
+    padding:16px;margin-bottom:14px;box-shadow:0 3px 10px rgba(0,0,0,.06);}
+  .card h2{font-size:14px;margin:0 0 10px;color:var(--vermillion);font-weight:800;}
+  label{display:block;font-size:12.5px;font-weight:700;color:var(--ink);margin:10px 0 4px;}
+  input[type=text],input[type=date],textarea{width:100%;font:inherit;font-size:15px;
+    padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);}
+  textarea{min-height:110px;resize:vertical;}
+  .row{display:flex;align-items:center;gap:8px;margin-top:12px;}
+  .row input[type=checkbox]{width:18px;height:18px;}
+  .row label{margin:0;}
+  button{font:inherit;font-weight:700;border:none;border-radius:10px;cursor:pointer;padding:11px 18px;font-size:15px;}
+  .btn-primary{background:var(--vermillion);color:#fff;width:100%;margin-top:14px;}
+  .btn-primary:disabled{opacity:.5;}
+  .btn-google{background:#fff;color:#3a2e1e;border:1.5px solid var(--line);display:inline-flex;align-items:center;gap:8px;}
+  .btn-ghost{background:none;color:var(--indigo);text-decoration:underline;padding:4px 6px;font-size:13px;}
+  .btn-del{background:none;color:var(--vermillion);border:1px solid var(--vermillion);padding:6px 12px;font-size:13px;border-radius:8px;}
+  .who{font-size:12.5px;color:var(--ink-soft);}
+  .who b{color:var(--ink);}
+  .uid{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:var(--paper-dark);
+    padding:3px 6px;border-radius:6px;word-break:break-all;user-select:all;}
+  .msg{font-size:13px;padding:10px 12px;border-radius:10px;margin-top:12px;display:none;}
+  .msg.ok{display:block;background:#e6f4ea;color:#1e7a3c;border:1px solid #b7e0c4;}
+  .msg.err{display:block;background:#fbeaea;color:#a3271c;border:1px solid #edb9b3;}
+  .item{border-top:1px dashed var(--line);padding:12px 0;}
+  .item:first-child{border-top:none;}
+  .item-t{font-size:14.5px;font-weight:800;}
+  .item-d{font-size:11px;color:var(--ink-soft);margin:1px 0 5px;}
+  .item-b{font-size:13px;white-space:pre-wrap;word-break:break-word;margin-bottom:8px;}
+  .item-off{opacity:.5;}
+  .badge-off{font-size:10.5px;background:var(--ink-soft);color:#fff;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle;}
+  .hidden{display:none !important;}
+  .note{font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
+  .setup{background:var(--paper-dark);border:1px dashed var(--gold);}
+  .setup ol{margin:6px 0 0;padding-left:20px;font-size:12.5px;}
+  .setup li{margin-bottom:5px;}
+  code{background:#fff;border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:11.5px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔔 お知らせ管理</h1>
+  <p class="sub">柿川亭アプリ ／ ここで投稿すると全ユーザーのアプリに表示されます</p>
+
+  <!-- ログイン前 -->
+  <div class="card" id="login-card">
+    <h2>ログイン</h2>
+    <p class="who">投稿できるのは許可されたアカウントだけです。Googleでログインしてください。</p>
+    <button class="btn-google" id="login-btn" style="margin-top:12px;">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.9 6.1C12.3 13.2 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9.1h12.4c-.5 2.9-2.1 5.3-4.5 6.9l7 5.4c4.1-3.8 6.5-9.4 6.5-16.8z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.7-2.9-.7-4.6s.3-3.2.7-4.6l-7.9-6.1C1 16.4 0 20.1 0 24s1 7.6 2.6 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.3 0 11.6-2.1 15.5-5.7l-7-5.4c-2 1.3-4.5 2.1-8.5 2.1-6.4 0-11.7-3.7-13.5-9.4l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+      Googleでログイン
+    </button>
+    <div class="msg err" id="login-err"></div>
+  </div>
+
+  <!-- ログイン後 -->
+  <div class="hidden" id="app">
+    <div class="card">
+      <p class="who">ログイン中：<b id="who-email"></b> <button class="btn-ghost" id="logout-btn">ログアウト</button></p>
+      <p class="who" style="margin-top:4px;">あなたのUID：<span class="uid" id="who-uid"></span></p>
+      <p class="note">↑このUIDを下の「初回設定」のルールに貼ると、あなただけが投稿できるようになります。</p>
+    </div>
+
+    <div class="card">
+      <h2>お知らせを投稿</h2>
+      <label for="f-title">タイトル</label>
+      <input type="text" id="f-title" placeholder="例：蔵王エリアを追加しました！" maxlength="60">
+      <label for="f-body">本文</label>
+      <textarea id="f-body" placeholder="本文を入力（改行OK）"></textarea>
+      <label for="f-date">日付</label>
+      <input type="date" id="f-date">
+      <div class="row"><input type="checkbox" id="f-active" checked><label for="f-active">今すぐ表示する（オフにすると下書き＝非表示）</label></div>
+      <button class="btn-primary" id="post-btn">投稿する</button>
+      <div class="msg" id="post-msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>投稿済みのお知らせ</h2>
+      <div id="list"><p class="who">読み込み中…</p></div>
+    </div>
+  </div>
+
+  <!-- 初回設定ガイド -->
+  <div class="card setup">
+    <h2 style="color:var(--gold);">初回だけ必要な設定</h2>
+    <ol>
+      <li>Firebaseコンソール → <b>Authentication</b> → 始める → ログイン方法で <b>Google</b> を有効化</li>
+      <li>Authentication → Settings → <b>承認済みドメイン</b> に <code>kakigawatei.github.io</code> を追加</li>
+      <li>このページで「Googleでログイン」→ 表示された<b>UID</b>をコピー</li>
+      <li>Firestore → ルール に、既存ルールを消さず下を追加して公開（<code>あなたのUID</code>は3で取得したもの）：
+        <pre style="white-space:pre-wrap;font-size:11px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px;margin-top:4px;">match /kakiapp_announcements/{doc} {
+  allow read: if true;
+  allow write: if request.auth.uid == "あなたのUID";
+}</pre>
+      </li>
+    </ol>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const app = initializeApp({
+    apiKey: "AIzaSyDtDZIEQtBzjujnpTDcXt1QeEU2r-wbg74",
+    authDomain: "kakigawatei-franchise.firebaseapp.com",
+    projectId: "kakigawatei-franchise"
+  });
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+
+  // 今日の日付を初期値に
+  (function(){ const d=new Date(); const p=(n)=>String(n).padStart(2,"0");
+    $("f-date").value = d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); })();
+
+  function loginErr(e){ $("login-err").textContent = "ログイン失敗："+(e.code||e.message); $("login-err").className="msg err"; $("login-err").style.display="block"; }
+
+  // リダイレクト方式の戻り（モバイル）でエラーがあれば表示
+  getRedirectResult(auth).catch(loginErr);
+
+  $("login-btn").addEventListener("click", async () => {
+    $("login-err").style.display="none";
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch(e){
+      // モバイルやアプリ内ブラウザでpopupが弾かれたら、リダイレクト方式に自動で切り替え
+      var popupFail = ["auth/popup-blocked","auth/cancelled-popup-request","auth/popup-closed-by-user","auth/operation-not-supported-in-this-environment"];
+      if(popupFail.indexOf(e.code) !== -1){
+        try { await signInWithRedirect(auth, provider); }
+        catch(e2){ loginErr(e2); }
+      } else { loginErr(e); }
+    }
+  });
+  $("logout-btn").addEventListener("click", () => signOut(auth));
+
+  onAuthStateChanged(auth, (user) => {
+    if(user){
+      $("login-card").classList.add("hidden");
+      $("app").classList.remove("hidden");
+      $("who-email").textContent = user.email || user.displayName || "(不明)";
+      $("who-uid").textContent = user.uid;
+      loadList();
+    } else {
+      $("app").classList.add("hidden");
+      $("login-card").classList.remove("hidden");
+    }
+  });
+
+  function showMsg(el, text, ok){ el.textContent = text; el.className = "msg " + (ok ? "ok" : "err"); }
+
+  $("post-btn").addEventListener("click", async () => {
+    const title = $("f-title").value.trim();
+    const body  = $("f-body").value.trim();
+    const date  = $("f-date").value.trim();
+    const active = $("f-active").checked;
+    if(!title && !body){ showMsg($("post-msg"),"タイトルか本文を入れてください。",false); return; }
+    $("post-btn").disabled = true;
+    try {
+      await addDoc(collection(db,"kakiapp_announcements"), { title, body, date, active, createdAt: serverTimestamp() });
+      showMsg($("post-msg"), "投稿しました！アプリに表示されます。", true);
+      $("f-title").value=""; $("f-body").value="";
+      loadList();
+    } catch(e){
+      showMsg($("post-msg"), "投稿失敗："+(e.code||e.message)+"（ルール設定がまだかも）", false);
+    } finally { $("post-btn").disabled = false; }
+  });
+
+  async function loadList(){
+    const wrap = $("list");
+    try {
+      const snap = await getDocs(collection(db,"kakiapp_announcements"));
+      const items = [];
+      snap.forEach(d => items.push(Object.assign({ _id: d.id }, d.data())));
+      items.sort((a,b)=> String(b.date||"").localeCompare(String(a.date||"")));
+      if(!items.length){ wrap.innerHTML = '<p class="who">まだお知らせはありません。</p>'; return; }
+      wrap.innerHTML = items.map(a =>
+        '<div class="item '+(a.active===false?"item-off":"")+'">' +
+          '<div class="item-t">'+esc(a.title)+(a.active===false?'<span class="badge-off">非表示</span>':'')+'</div>' +
+          (a.date?'<div class="item-d">'+esc(a.date)+'</div>':'') +
+          '<div class="item-b">'+esc(a.body)+'</div>' +
+          '<button class="btn-del" data-id="'+esc(a._id)+'">削除</button>' +
+        '</div>'
+      ).join("");
+      wrap.querySelectorAll(".btn-del").forEach(btn => btn.addEventListener("click", async () => {
+        if(!confirm("このお知らせを削除しますか？")) return;
+        try { await deleteDoc(doc(db,"kakiapp_announcements",btn.getAttribute("data-id"))); loadList(); }
+        catch(e){ alert("削除失敗："+(e.code||e.message)); }
+      }));
+    } catch(e){
+      wrap.innerHTML = '<p class="who" style="color:var(--vermillion)">一覧の取得に失敗：'+esc(e.code||e.message)+'</p>';
+    }
+  }
+</script>
+</body>
+</html>
