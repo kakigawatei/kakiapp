@@ -1,0 +1,12 @@
+[Version 1.0.4 — build 12]
+
+This update adds an in-app "Announcements" panel (bell icon at the top-left of the home screen) and fixes several UI issues:
+- Double-tap no longer zooms the page (viewport / touch-action).
+- The header logo image is now bundled with the app (it was missing from the native bundle in 1.0.3).
+- The point-redemption keypad now has a labeled "Clear" (クリア) button and a larger backspace button.
+- Line breaks in the hero copy and card titles are tidied.
+
+Announcements are read-only public documents fetched from Firestore over HTTPS; no new permissions are requested. If the shop has not posted any announcement yet, the panel shows "いまはお知らせはありません" (no announcements right now).
+
+Demo account (same as before): kakigawatei+appreview@gmail.com / Kakigawa2026review
+The visit check-in uses the device location near our shop; outside the shop, use the demo flow described in the previous review notes (the app shows a clear message instead of failing).
