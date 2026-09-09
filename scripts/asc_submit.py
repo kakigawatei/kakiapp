@@ -3,6 +3,7 @@
   python asc_submit.py status               … バージョン／ビルド／提出の状態
   python asc_submit.py create               … 新しい reviewSubmission を作って 1.0 を項目に追加（提出はしない）
   python asc_submit.py submit <submissionId> … 提出（masaのOK後にだけ実行）
+  python asc_submit.py release <versionId>   … 審査通過（PENDING_DEVELOPER_RELEASE）のバージョンを公開（release type MANUAL の「リリース」ボタン相当）
 """
 import sys, json
 import os, sys; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -47,9 +48,16 @@ def submit(sid):
     s, d = a.call("PATCH", f"/v1/reviewSubmissions/{sid}", {"data": {"type": "reviewSubmissions", "id": sid, "attributes": {"submitted": True}}})
     print("submit:", s, json.dumps(d.get("data", d), ensure_ascii=False)[:400])
 
+def release(vid):
+    """審査通過後の手動リリース。appStoreVersionReleaseRequests を POST（2026-09-10 1.0.4 で初使用）"""
+    s, d = a.call("POST", "/v1/appStoreVersionReleaseRequests", {"data": {"type": "appStoreVersionReleaseRequests",
+        "relationships": {"appStoreVersion": {"data": {"type": "appStoreVersions", "id": vid}}}}})
+    print("release:", s, json.dumps(d.get("data", d), ensure_ascii=False)[:400])
+
 if __name__ == "__main__":
     c = sys.argv[1]
     if c == "notes": notes(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None)
     elif c == "status": status()
     elif c == "create": create(sys.argv[2] if len(sys.argv) > 2 else None)
     elif c == "submit": submit(sys.argv[2])
+    elif c == "release": release(sys.argv[2])

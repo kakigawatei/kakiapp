@@ -32,7 +32,7 @@ python scripts/asc_submit.py submit <submissionId>  # 提出（masaのOK後に�
 ```
 - ビルドの差し替えは `PATCH /v1/appStoreVersions/{VID}/relationships/build`（asc_submit.py の VID＝a56a1340-…）
 - 🟥 **却下された submission は再提出できない**（UIの「App Reviewに再提出」が灰色・APIは「Version is not ready」）。正解＝旧 submission を `canceled:true` → CANCELING→COMPLETE（数十秒）→ 新 submission に version を item 追加 → `submitted:true`
-- 承認後のリリースは release type MANUAL＝ masa が ASC で「リリース」を押す
+- 承認後のリリースは release type MANUAL。`python scripts/asc_submit.py release <versionId>`（appStoreVersionReleaseRequests）で API から押せる（2026-09-10 1.0.4 で確認・数秒で READY_FOR_SALE）。versionId は `/v1/apps/{APP_ID}/appStoreVersions` で引く
 
 ## 認証まわり（秘密はリポジトリに入れない）
 - App Store Connect API キー: **Admin ロール必須**（App Manager だと `Cloud signing permission error`）。
