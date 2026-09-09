@@ -1,0 +1,11 @@
+[Version 1.0.5 — build 13]
+
+This is a small visual update on top of 1.0.4 (approved on Sep 9, 2026):
+- New app icon: a photograph of our signature abura-soba (oil noodles) bowl, replacing the illustrated icon.
+- The web "add to home screen" icon now uses the same design.
+- Minor spacing fixes in the Announcements panel.
+
+No functional changes, no new permissions, no new network endpoints.
+
+Demo account (same as before): kakigawatei+appreview@gmail.com / Kakigawa2026review
+The visit check-in uses the device location near our shop; outside the shop, use the demo flow described in the previous review notes (the app shows a clear message instead of failing).
