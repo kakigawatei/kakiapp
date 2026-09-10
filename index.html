@@ -559,6 +559,61 @@ function logTx(label, points) {
   store.set({ tx: tx.slice(0, 100) });
 }
 
+/* ---------- キャンペーン（ポイントプレゼント）: masa 2026-09-10「思いつきでいつでもやれる仕組み」 ----------
+ * admin.html の「キャンペーン」で Firestore kakiapp_campaigns に
+ *   {title, body, points, from:"YYYY-MM-DD", until:"YYYY-MM-DD", target:"all"|"before"|"new", eligibleBefore:"YYYY-MM-DD", active}
+ * を置く。起動時（クラウドから状態を戻した後）に読み、期間内・対象・未受取なら 1回だけ加点 → お祝い表示 → 鈴にも出す。
+ * 受取は store.s.claimed[id]=日付 に記録してクラウド同期（機種変更しても二重取りしない）。
+ * target: all=期間中に開いた全員／before=eligibleBefore より前から使っていた人（例: 創業記念）／new=期間中に使い始めた人 */
+let CAMPS = [];
+function firstActivityDate() {
+  const s = store.s; const ds = [];
+  if (s.createdAt) ds.push(s.createdAt);
+  if (s.loginDate) ds.push(s.loginDate);
+  (s.visits || []).forEach(v => ds.push(String(v).slice(0, 10)));
+  (s.tx || []).forEach(t => t && t.d && ds.push(String(t.d).slice(0, 10)));
+  return ds.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort()[0] || null;
+}
+function applyCampaigns() {
+  const t = today(); const first = firstActivityDate();
+  for (const c of CAMPS) {
+    const claimed = store.s.claimed || {};
+    if (claimed[c.id]) continue;
+    if (c.from && t < c.from) continue;
+    if (c.until && t > c.until) continue;
+    let ok = true;
+    if (c.target === "before") ok = !!first && first < (c.eligibleBefore || c.from);
+    if (c.target === "new") ok = !!first && first >= c.from;
+    if (!ok || !(c.points > 0)) continue;
+    claimed[c.id] = t;
+    store.set({ points: (store.s.points || 0) + c.points, claimed });
+    logTx(c.title || "プレゼント", c.points);
+    celebrate(c.points, c.body || c.title || "プレゼントを受け取りました");
+    break;   /* 1回の起動で1件まで。残りは次回 */
+  }
+}
+function fetchCampaigns() {
+  if (navigator.onLine === false) return;
+  fetch("https://firestore.googleapis.com/v1/projects/kakigawatei-franchise/databases/(default)/documents/kakiapp_campaigns?pageSize=50")
+    .then(r => r.ok ? r.json() : null)
+    .then(j => {
+      if (!j) return;
+      const sv = (f, k) => (f[k] && (f[k].stringValue !== undefined ? f[k].stringValue : f[k].integerValue !== undefined ? +f[k].integerValue : f[k].doubleValue)) ;
+      CAMPS = (j.documents || []).map(d => { const f = d.fields || {}; return {
+        id: d.name.split("/").pop(), title: sv(f, "title") || "プレゼント", body: sv(f, "body") || "", points: +(sv(f, "points") || 0),
+        from: sv(f, "from") || "", until: sv(f, "until") || "", target: sv(f, "target") || "all", eligibleBefore: sv(f, "eligibleBefore") || "",
+        active: !(f.active && f.active.booleanValue === false) }; }).filter(c => c.active);
+      /* 鈴にも出す（期間中のものだけ・受取済みかは問わない） */
+      const t = today();
+      CAMPS.filter(c => (!c.from || t >= c.from) && (!c.until || t <= c.until)).forEach(c => {
+        if (!ANNO.some(a => a.id === "cmp_" + c.id)) ANNO.unshift({ id: "cmp_" + c.id, title: c.title, body: c.body, date: c.from || t });
+      });
+      annoBell(); annoRender();
+      applyCampaigns();
+    })
+    .catch(e => console.warn("campaigns fetch failed", e));
+}
+
 function distM(lat1, lng1, lat2, lng2) {
   const R = 6371000, r = Math.PI / 180;
   const a = Math.sin((lat2 - lat1) * r / 2) ** 2 +
@@ -944,8 +999,11 @@ window.kakiStart = function () {
     store.set({ points: (s.points || 0) + C.loginBonus.points, loginDate: today() });
     logTx("ログインボーナス", C.loginBonus.points);
   }
+  /* 使い始めた日（キャンペーンの対象判定に使う）。無ければ履歴の最初の日、それも無ければ今日 */
+  if (!store.s.createdAt) store.set({ createdAt: firstActivityDate() || today() });
   render();
   shogoOpen();
+  fetchCampaigns();   /* クラウドから claimed を戻した後に判定する（この位置を守る） */
 };
 
 render();

@@ -66,7 +66,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>🔔 お知らせ管理</h1>
+  <h1>🔔 お知らせ・🎁 キャンペーン管理</h1>
   <p class="sub">柿川亭アプリ ／ ここで投稿すると全ユーザーのアプリに表示されます</p>
 
   <!-- ログイン前 -->
@@ -103,6 +103,40 @@
       <h2>投稿済みのお知らせ</h2>
       <div id="list"><p class="who">読み込み中…</p></div>
     </div>
+
+    <div class="card">
+      <h2>🎁 キャンペーン（ポイントプレゼント）</h2>
+      <p class="who">ここに入れると、対象の人がアプリを開いたときに1回だけポイントが入り、お祝い画面と鈴のお知らせに出ます。</p>
+      <label for="c-title">タイトル</label>
+      <input type="text" id="c-title" placeholder="例：創業6周年ありがとうプレゼント" maxlength="40">
+      <label for="c-body">お祝いの文（アプリの画面と鈴に出ます）</label>
+      <textarea id="c-body" placeholder="例：10月7日で柿川亭は創業6年。ここまで一緒に歩いてくれたみなさんに60Pをプレゼントします。"></textarea>
+      <label for="c-points">ポイント数</label>
+      <input type="number" id="c-points" min="1" max="10000" placeholder="例：60">
+      <label for="c-from">受け取れる期間（開始）</label>
+      <input type="date" id="c-from">
+      <label for="c-until">受け取れる期間（終了）</label>
+      <input type="date" id="c-until">
+      <label for="c-target">対象</label>
+      <select id="c-target">
+        <option value="all">期間中にアプリを開いた人 全員</option>
+        <option value="before">「この日」より前から使っている人（登録済みの人へのお礼）</option>
+        <option value="new">期間中に使い始めた人（新規登録ボーナス）</option>
+      </select>
+      <div id="c-before-wrap" class="hidden">
+        <label for="c-before">この日（より前から使っている人が対象）</label>
+        <input type="date" id="c-before">
+      </div>
+      <div class="row"><input type="checkbox" id="c-active" checked><label for="c-active">有効にする（オフにすると止まる）</label></div>
+      <button class="btn-primary" id="c-post-btn">キャンペーンを作る</button>
+      <div class="msg" id="c-post-msg"></div>
+      <p class="note">同じ人が二度受け取ることはできません（受け取りは本人のデータに記録）。作ったあとに数字や期間を変えたいときは、削除して作り直してください。</p>
+    </div>
+
+    <div class="card">
+      <h2>キャンペーン一覧</h2>
+      <div id="c-list"><p class="who">読み込み中…</p></div>
+    </div>
   </div>
 
 
@@ -112,7 +146,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp }
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp, query, where, getCountFromServer }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const app = initializeApp({
@@ -158,7 +192,7 @@
       $("app").classList.remove("hidden");
       $("who-email").textContent = user.email || user.displayName || "(不明)";
       if ($("who-uid")) $("who-uid").textContent = user.uid;
-      loadList();
+      loadList(); loadCampaigns();
     } else {
       $("app").classList.add("hidden");
       $("login-card").classList.remove("hidden");
@@ -183,6 +217,53 @@
       showMsg($("post-msg"), "投稿失敗："+(e.code||e.message)+"（ルール設定がまだかも）", false);
     } finally { $("post-btn").disabled = false; }
   });
+
+  /* ---------- キャンペーン（2026-09-10）---------- */
+  (function(){ const d=new Date(); const p=(n)=>String(n).padStart(2,"0"); $("c-from").value = d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); })();
+  $("c-target").addEventListener("change", () => { $("c-before-wrap").classList.toggle("hidden", $("c-target").value !== "before"); });
+  $("c-post-btn").addEventListener("click", async () => {
+    const title = $("c-title").value.trim(), body = $("c-body").value.trim(), points = parseInt($("c-points").value, 10);
+    const from = $("c-from").value, until = $("c-until").value, target = $("c-target").value, eligibleBefore = $("c-before").value, active = $("c-active").checked;
+    if(!title){ showMsg($("c-post-msg"),"タイトルを入れてください。",false); return; }
+    if(!(points > 0)){ showMsg($("c-post-msg"),"ポイント数を入れてください。",false); return; }
+    if(!from || !until || until < from){ showMsg($("c-post-msg"),"受け取れる期間（開始・終了）を入れてください。",false); return; }
+    if(target === "before" && !eligibleBefore){ showMsg($("c-post-msg"),"「この日」を入れてください。",false); return; }
+    $("c-post-btn").disabled = true;
+    try {
+      await addDoc(collection(db,"kakiapp_campaigns"), { title, body, points, from, until, target, eligibleBefore: target === "before" ? eligibleBefore : "", active, createdAt: serverTimestamp() });
+      showMsg($("c-post-msg"), "作りました。期間に入ると対象の人に配られます。", true);
+      $("c-title").value=""; $("c-body").value=""; $("c-points").value="";
+      loadCampaigns();
+    } catch(e){
+      showMsg($("c-post-msg"), "失敗："+(e.code||e.message)+"（ルール設定がまだかも）", false);
+    } finally { $("c-post-btn").disabled = false; }
+  });
+  const targetLabel = { all: "期間中に開いた全員", before: "登録済みの人へ", new: "新規登録の人へ" };
+  async function loadCampaigns(){
+    const wrap = $("c-list");
+    try {
+      const snap = await getDocs(collection(db,"kakiapp_campaigns"));
+      const items = []; snap.forEach(d => items.push(Object.assign({ _id: d.id }, d.data())));
+      items.sort((a,b)=> String(b.from||"").localeCompare(String(a.from||"")));
+      if(!items.length){ wrap.innerHTML = '<p class="who">まだキャンペーンはありません。</p>'; return; }
+      wrap.innerHTML = items.map(c =>
+        '<div class="item '+(c.active===false?"item-off":"")+'">' +
+          '<div class="item-t">'+esc(c.title)+' <b>+'+esc(c.points)+'P</b>'+(c.active===false?'<span class="badge-off">停止中</span>':'')+'</div>' +
+          '<div class="item-d">'+esc(c.from)+' 〜 '+esc(c.until)+'　'+esc(targetLabel[c.target]||c.target)+(c.eligibleBefore?'（'+esc(c.eligibleBefore)+' より前から）':'')+'</div>' +
+          '<div class="item-b">'+esc(c.body)+'</div>' +
+          '<div class="item-d" id="cnt-'+esc(c._id)+'">受け取った人: 数えています…</div>' +
+          '<button class="btn-del" data-cid="'+esc(c._id)+'">削除</button>' +
+        '</div>').join("");
+      wrap.querySelectorAll(".btn-del").forEach(b => b.addEventListener("click", async () => {
+        if(!confirm("このキャンペーンを削除しますか？（すでに受け取った人のポイントはそのまま）")) return;
+        try { await deleteDoc(doc(db,"kakiapp_campaigns", b.dataset.cid)); loadCampaigns(); } catch(e){ alert("削除失敗："+(e.code||e.message)); }
+      }));
+      for (const c of items) {
+        try { const r = await getCountFromServer(query(collection(db,"kakiapp_users"), where("claimed."+c._id, ">", ""))); $("cnt-"+c._id).textContent = "受け取った人: " + r.data().count + "人"; }
+        catch(e){ const el=$("cnt-"+c._id); if(el) el.textContent = "受け取った人: 集計できません（ルールで kakiapp_users の読み取り許可が必要）"; }
+      }
+    } catch(e){ wrap.innerHTML = '<p class="who">読み込み失敗：'+esc(e.code||e.message)+'</p>'; }
+  }
 
   async function loadList(){
     const wrap = $("list");
