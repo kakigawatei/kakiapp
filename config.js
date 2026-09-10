@@ -37,13 +37,13 @@ window.KAKI_CONFIG = {
   // 開発用: trueにするとGPS判定を常に成功させる
   devSkipGeo: false,
 
-  // ランク（累計来店数）名称はたたき台。bonus＝そのランクに上がった瞬間に1回だけ入るポイント（2026-09-10 masa「ランクアップボーナス」・数字はたたき台）
+  // ランク（累計来店数）名称はたたき台。bonus＝そのランクに上がった瞬間に1回だけ入るポイント（2026-09-10 masa「ランクアップボーナス」・masa決定 2026-09-10 12:50: 100/150/250/350/500）
   ranks: [
     { id: "bronze", name: "油そば見習い", minVisits: 0, badge: "assets/badge_bronze.png" },
-    { id: "silver", name: "常連", minVisits: 5, badge: "assets/badge_silver.png", bonus: 10 },
-    { id: "gold", name: "猛者", minVisits: 15, badge: "assets/badge_gold.png", bonus: 30 },
-    { id: "rainbow", name: "油神", minVisits: 40, badge: "assets/badge_rainbow.png", bonus: 80 },
-    { id: "king", name: "伝説の油神", minVisits: 100, badge: "assets/badge_king.png", bonus: 200 },   // 2026-09-03 masa「伝説の〇〇／至高の〇〇がいい」
+    { id: "silver", name: "常連", minVisits: 5, badge: "assets/badge_silver.png", bonus: 100 },
+    { id: "gold", name: "猛者", minVisits: 15, badge: "assets/badge_gold.png", bonus: 150 },
+    { id: "rainbow", name: "油神", minVisits: 40, badge: "assets/badge_rainbow.png", bonus: 250 },
+    { id: "king", name: "伝説の油神", minVisits: 100, badge: "assets/badge_king.png", bonus: 350 },   // 2026-09-03 masa「伝説の〇〇／至高の〇〇がいい」
     { id: "founder", name: "血液が米油", minVisits: 200, badge: "assets/badge_founder.png", bonus: 500 },  // masa案 2026-09-03
   ],
 };
