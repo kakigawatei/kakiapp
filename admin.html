@@ -127,6 +127,9 @@
         <label for="c-before">この日（より前から使っている人が対象）</label>
         <input type="date" id="c-before">
       </div>
+      <label for="c-minvisits">来店回数の条件（この回数以上の人だけ。0＝条件なし）</label>
+      <input type="number" id="c-minvisits" min="0" max="999" value="1">
+      <p class="note">1以上にすると、来店チェックインをしたことがない人（作っただけのアカウント）には配られません。</p>
       <div class="row"><input type="checkbox" id="c-active" checked><label for="c-active">有効にする（オフにすると止まる）</label></div>
       <button class="btn-primary" id="c-post-btn">キャンペーンを作る</button>
       <div class="msg" id="c-post-msg"></div>
@@ -224,13 +227,14 @@
   $("c-post-btn").addEventListener("click", async () => {
     const title = $("c-title").value.trim(), body = $("c-body").value.trim(), points = parseInt($("c-points").value, 10);
     const from = $("c-from").value, until = $("c-until").value, target = $("c-target").value, eligibleBefore = $("c-before").value, active = $("c-active").checked;
+    const minVisits = Math.max(0, parseInt($("c-minvisits").value, 10) || 0);
     if(!title){ showMsg($("c-post-msg"),"タイトルを入れてください。",false); return; }
     if(!(points > 0)){ showMsg($("c-post-msg"),"ポイント数を入れてください。",false); return; }
     if(!from || !until || until < from){ showMsg($("c-post-msg"),"受け取れる期間（開始・終了）を入れてください。",false); return; }
     if(target === "before" && !eligibleBefore){ showMsg($("c-post-msg"),"「この日」を入れてください。",false); return; }
     $("c-post-btn").disabled = true;
     try {
-      await addDoc(collection(db,"kakiapp_campaigns"), { title, body, points, from, until, target, eligibleBefore: target === "before" ? eligibleBefore : "", active, createdAt: serverTimestamp() });
+      await addDoc(collection(db,"kakiapp_campaigns"), { title, body, points, from, until, target, eligibleBefore: target === "before" ? eligibleBefore : "", minVisits, active, createdAt: serverTimestamp() });
       showMsg($("c-post-msg"), "作りました。期間に入ると対象の人に配られます。", true);
       $("c-title").value=""; $("c-body").value=""; $("c-points").value="";
       loadCampaigns();
@@ -249,7 +253,7 @@
       wrap.innerHTML = items.map(c =>
         '<div class="item '+(c.active===false?"item-off":"")+'">' +
           '<div class="item-t">'+esc(c.title)+' <b>+'+esc(c.points)+'P</b>'+(c.active===false?'<span class="badge-off">停止中</span>':'')+'</div>' +
-          '<div class="item-d">'+esc(c.from)+' 〜 '+esc(c.until)+'　'+esc(targetLabel[c.target]||c.target)+(c.eligibleBefore?'（'+esc(c.eligibleBefore)+' より前から）':'')+'</div>' +
+          '<div class="item-d">'+esc(c.from)+' 〜 '+esc(c.until)+'　'+esc(targetLabel[c.target]||c.target)+(c.eligibleBefore?'（'+esc(c.eligibleBefore)+' より前から）':'')+(c.minVisits>0?'　来店'+esc(c.minVisits)+'回以上':'')+'</div>' +
           '<div class="item-b">'+esc(c.body)+'</div>' +
           '<div class="item-d" id="cnt-'+esc(c._id)+'">受け取った人: 数えています…</div>' +
           '<button class="btn-del" data-cid="'+esc(c._id)+'">削除</button>' +

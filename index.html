@@ -561,7 +561,7 @@ function logTx(label, points) {
 
 /* ---------- キャンペーン（ポイントプレゼント）: masa 2026-09-10「思いつきでいつでもやれる仕組み」 ----------
  * admin.html の「キャンペーン」で Firestore kakiapp_campaigns に
- *   {title, body, points, from:"YYYY-MM-DD", until:"YYYY-MM-DD", target:"all"|"before"|"new", eligibleBefore:"YYYY-MM-DD", active}
+ *   {title, body, points, from:"YYYY-MM-DD", until:"YYYY-MM-DD", target:"all"|"before"|"new", eligibleBefore:"YYYY-MM-DD", minVisits:0, active}
  * を置く。起動時（クラウドから状態を戻した後）に読み、期間内・対象・未受取なら 1回だけ加点 → お祝い表示 → 鈴にも出す。
  * 受取は store.s.claimed[id]=日付 に記録してクラウド同期（機種変更しても二重取りしない）。
  * target: all=期間中に開いた全員／before=eligibleBefore より前から使っていた人（例: 創業記念）／new=期間中に使い始めた人 */
@@ -598,6 +598,7 @@ function applyCampaigns() {
     let ok = true;
     if (c.target === "before") ok = !!first && first < (c.eligibleBefore || c.from);
     if (c.target === "new") ok = !!first && first >= c.from;
+    if (c.minVisits > 0 && (store.s.visits || []).length < c.minVisits) ok = false;   /* 来店◯回以上（捨てアカウント対策・masa 2026-09-10） */
     if (!ok || !(c.points > 0)) continue;
     claimed[c.id] = t;
     store.set({ points: (store.s.points || 0) + c.points, claimed });
@@ -615,7 +616,7 @@ function fetchCampaigns() {
       const sv = (f, k) => (f[k] && (f[k].stringValue !== undefined ? f[k].stringValue : f[k].integerValue !== undefined ? +f[k].integerValue : f[k].doubleValue)) ;
       CAMPS = (j.documents || []).map(d => { const f = d.fields || {}; return {
         id: d.name.split("/").pop(), title: sv(f, "title") || "プレゼント", body: sv(f, "body") || "", points: +(sv(f, "points") || 0),
-        from: sv(f, "from") || "", until: sv(f, "until") || "", target: sv(f, "target") || "all", eligibleBefore: sv(f, "eligibleBefore") || "",
+        from: sv(f, "from") || "", until: sv(f, "until") || "", target: sv(f, "target") || "all", eligibleBefore: sv(f, "eligibleBefore") || "", minVisits: +(sv(f, "minVisits") || 0),
         active: !(f.active && f.active.booleanValue === false) }; }).filter(c => c.active);
       /* 鈴にも出す（期間中のものだけ・受取済みかは問わない） */
       const t = today();
