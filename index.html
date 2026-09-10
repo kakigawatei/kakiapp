@@ -565,6 +565,20 @@ function logTx(label, points) {
  * を置く。起動時（クラウドから状態を戻した後）に読み、期間内・対象・未受取なら 1回だけ加点 → お祝い表示 → 鈴にも出す。
  * 受取は store.s.claimed[id]=日付 に記録してクラウド同期（機種変更しても二重取りしない）。
  * target: all=期間中に開いた全員／before=eligibleBefore より前から使っていた人（例: 創業記念）／new=期間中に使い始めた人 */
+/* ランクアップボーナス（masa 2026-09-10）: 来店回数がランクの minVisits に達したら、そのランクの bonus を1回だけ入れる。
+   受取は store.s.rankBonus[rankId]=日付（クラウド同期）。起動時にも見るので、取りこぼしや機種変更にも効く */
+function applyRankBonus() {
+  const s = store.s; const visits = (s.visits || []).length; const got = s.rankBonus || {};
+  for (const r of C.ranks) {
+    if (!(r.bonus > 0) || got[r.id] || visits < r.minVisits) continue;
+    got[r.id] = today();
+    store.set({ points: (store.s.points || 0) + r.bonus, rankBonus: got });
+    logTx("ランクアップ「" + r.name + "」", r.bonus);
+    celebrate(r.bonus, "「" + r.name + "」にランクアップ！");
+    return true;   /* 1回に1段。複数段は次の起動で */
+  }
+  return false;
+}
 let CAMPS = [];
 function firstActivityDate() {
   const s = store.s; const ds = [];
@@ -756,7 +770,7 @@ function checkin(storeId) {
   store.set({ qrDate: today() });
   const visits = store.s.visits || [];
   const isNew = !visits.includes(today());
-  if (isNew) { visits.push(today()); store.set({ visits }); }
+  if (isNew) { visits.push(today()); store.set({ visits }); setTimeout(applyRankBonus, 1200); }
   /* どの店に来たかを別で数える（2026-09-03）。
      visits の形は変えない＝既存ユーザーのデータを壊さないため。
      これが無いと「仙台に行ったことある人だけに送る」ができない */
@@ -1003,7 +1017,8 @@ window.kakiStart = function () {
   if (!store.s.createdAt) store.set({ createdAt: firstActivityDate() || today() });
   render();
   shogoOpen();
-  fetchCampaigns();   /* クラウドから claimed を戻した後に判定する（この位置を守る） */
+  if (!applyRankBonus()) fetchCampaigns();   /* クラウドから戻した後に判定（この位置を守る）。ランク分が出た起動ではキャンペーンは次回 */
+  else setTimeout(fetchCampaigns, 4000);
 };
 
 render();
