@@ -203,6 +203,7 @@
       <div style="margin-top:16px"><button class="primary" id="gDoSignin">ログイン</button></div>
       <div class="links">
         <button class="link" id="gToSignup">新規登録はこちら</button>
+        <button class="link" id="gToPhone" style="display:none">電話番号でログイン（試作）</button>
         <button class="link" id="gReset">パスワードを忘れた</button>
       </div>
       <p class="note">※ おひとり1アカウントです。複数アカウントでのポイント取得は停止の対象になります。</p>
@@ -224,6 +225,20 @@
       <div class="links"><button class="link" id="gToSignin">ログインに戻る</button></div>
     </div>
 
+    <div id="gPhone" style="display:none">
+      <h2>電話番号でログイン</h2>
+      <p class="lead">SMS で届く6桁の番号を入れるだけ。メールもパスワードも要りません。</p>
+      <label>携帯電話番号</label>
+      <input id="gTel" type="tel" autocomplete="tel" inputmode="tel" placeholder="090-1234-5678">
+      <div id="gSmsStep2" style="display:none">
+        <label style="margin-top:12px">SMS の確認コード（6桁）</label>
+        <input id="gSmsCode" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="6">
+      </div>
+      <div style="margin-top:16px"><button class="primary" id="gSendSms">確認コードを送る</button></div>
+      <div style="margin-top:10px;display:none" id="gDoSmsWrap"><button class="primary" id="gDoSms">ログイン</button></div>
+      <div class="links"><button class="link" id="gPhoneBack">メールでログインに戻る</button></div>
+      <div id="recaptcha-container"></div>
+    </div>
     <div id="gVerify" style="display:none">
       <h2>確認メールを送りました</h2>
       <p class="lead"><b id="gVerifyMail"></b> 宛のメールを開いて、<br>中のリンクをタップしてください。<br>そのあとこの画面に戻って「確認しました」を押します。</p>

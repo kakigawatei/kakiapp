@@ -7,7 +7,8 @@ import {
   getAuth, initializeAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
   sendEmailVerification, sendPasswordResetEmail, signOut,
   EmailAuthProvider, reauthenticateWithCredential, deleteUser,
-  setPersistence, browserLocalPersistence, indexedDBLocalPersistence
+  setPersistence, browserLocalPersistence, indexedDBLocalPersistence,
+  RecaptchaVerifier, signInWithPhoneNumber, linkWithPhoneNumber
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { initializeFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
@@ -109,6 +110,49 @@ window.cloudPush = function () {
   clearTimeout(timer);
   timer = setTimeout(() => { write().catch(() => {}); }, 700);
 };
+
+/* ---- SMS（電話番号）認証・試作（?sms=1 のときだけ入口を出す） ---- */
+const SMS_ON = location.search.includes("sms=1") || localStorage.getItem("kakiSms") === "1";
+if (SMS_ON) { localStorage.setItem("kakiSms", "1"); $("gToPhone").style.display = "inline-block"; }
+const toE164 = raw => { let d = (raw || "").replace(/[^0-9+]/g, ""); if (d.startsWith("+")) return d; if (d.startsWith("0")) return "+81" + d.slice(1); return "+81" + d; };
+let smsConfirm = null, smsLinkUser = null, recaptcha = null;
+const getRecaptcha = () => { if (recaptcha) return recaptcha; recaptcha = new RecaptchaVerifier(auth, "gSendSms", { size: "invisible" }); return recaptcha; };
+const smsErr = e => ({ "auth/invalid-phone-number": "電話番号の形が違います（例: 090-1234-5678）", "auth/too-many-requests": "送りすぎです。しばらく待ってからもう一度",
+  "auth/invalid-verification-code": "確認コードが違います", "auth/code-expired": "コードの期限が切れました。もう一度送ってください",
+  "auth/credential-already-in-use": "この電話番号は別のアカウントに登録済みです", "auth/provider-already-linked": "このアカウントには電話番号が登録済みです",
+  "auth/captcha-check-failed": "確認（reCAPTCHA）に失敗しました。ページを開き直してください" }[e && e.code] || jaError(e));
+$("gToPhone").onclick = () => { msg(""); smsLinkUser = null; $("gSmsStep2").style.display = "none"; $("gDoSmsWrap").style.display = "none"; $("gSendSms").textContent = "確認コードを送る"; showGate("gPhone"); };
+$("gPhoneBack").onclick = () => { msg(""); showGate("gSignin"); };
+$("gSendSms").onclick = async () => {
+  msg(""); const tel = toE164($("gTel").value);
+  if (!/^\+81[0-9]{9,10}$/.test(tel)) { msg("携帯電話番号を入れてください（例: 090-1234-5678）"); return; }
+  busy(true);
+  try {
+    const v = getRecaptcha();
+    smsConfirm = smsLinkUser ? await linkWithPhoneNumber(smsLinkUser, tel, v) : await signInWithPhoneNumber(auth, tel, v);
+    $("gSmsStep2").style.display = "block"; $("gDoSmsWrap").style.display = "block"; $("gSendSms").textContent = "もう一度送る";
+    $("gDoSms").textContent = smsLinkUser ? "登録する" : "ログイン"; msg("SMS を送りました。届いた6桁を入れてください"); setTimeout(() => $("gSmsCode").focus(), 100);
+  } catch (e) { msg(smsErr(e)); try { recaptcha && recaptcha.clear(); } catch (_) {} recaptcha = null; }
+  finally { busy(false); }
+};
+$("gDoSms").onclick = async () => {
+  msg(""); const code = ($("gSmsCode").value || "").replace(/[^0-9]/g, "");
+  if (code.length !== 6 || !smsConfirm) { msg("6桁の確認コードを入れてください"); return; }
+  busy(true);
+  try {
+    await smsConfirm.confirm(code);
+    if (smsLinkUser) {   // 既存アカウントへの紐付け完了 → 本体へ戻る
+      const st = window.kakiGetState ? window.kakiGetState() : {}; st.phoneLinkedAt = new Date().toISOString(); if (window.kakiSetState) window.kakiSetState(st);
+      smsLinkUser = null; hideGate(); msg(""); if (window.kakiToast) window.kakiToast("電話番号を登録しました");
+    }
+    /* 新規は onAuthStateChanged が拾って本体へ */
+  } catch (e) { msg(smsErr(e)); }
+  finally { busy(false); }
+};
+/* 既存（メール）ユーザーに1回だけ電話番号の登録を勧める入口。本体から window.kakiLinkPhone() で開ける */
+window.kakiLinkPhone = () => { const u = auth.currentUser; if (!u || !SMS_ON) return false; if (u.providerData.some(p => p.providerId === "phone")) return false;
+  smsLinkUser = u; $("gSmsStep2").style.display = "none"; $("gDoSmsWrap").style.display = "none"; $("gSendSms").textContent = "確認コードを送る"; $("gTel").value = ""; showGate("gPhone"); msg("1人1アカウントのため、携帯電話番号を登録してください"); return true; };
+window.kakiPhoneLinked = () => { const u = auth.currentUser; return !!(u && u.providerData.some(p => p.providerId === "phone")); };
 
 /* ---- 画面の配線 ---- */
 $("gToSignup").onclick = () => { msg(""); showGate("gSignup"); };
@@ -255,7 +299,8 @@ onAuthStateChanged(auth, async (u) => {
     ready = true;
     hideGate();
     window.kakiStart();
-    $("acctMail").textContent = u.email || u.displayName || "";
+    $("acctMail").textContent = u.email || u.displayName || (u.phoneNumber ? u.phoneNumber.replace("+81", "0") : "");
+    if (SMS_ON && byPassword && !u.providerData.some(p => p.providerId === "phone") && !sessionStorage.getItem("kakiLinkAsked")) { sessionStorage.setItem("kakiLinkAsked", "1"); setTimeout(() => window.kakiLinkPhone(), 1200); }
   } catch (e) {
     console.error(e);
     $("gLoadMsg").textContent = "サーバーに接続できませんでした。電波の良い場所で「もう一度」を押してください。";
