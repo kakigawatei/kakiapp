@@ -49,7 +49,7 @@ const gate = () => $("gate");
 function showGate(view) {
   gate().style.display = "flex";
   document.body.style.overflow = "hidden";
-  ["gSignin", "gSignup", "gVerify", "gLoading"].forEach(v => $(v).style.display = v === view ? "block" : "none");
+  ["gSignin", "gSignup", "gVerify", "gLoading", "gPhone"].forEach(v => { const el = $(v); if (el) el.style.display = v === view ? "block" : "none"; });
 }
 function hideGate() {
   gate().style.display = "none";
