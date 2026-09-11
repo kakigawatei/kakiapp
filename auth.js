@@ -132,7 +132,7 @@ $("gSendSms").onclick = async () => {
     smsConfirm = smsLinkUser ? await linkWithPhoneNumber(smsLinkUser, tel, v) : await signInWithPhoneNumber(auth, tel, v);
     $("gSmsStep2").style.display = "block"; $("gDoSmsWrap").style.display = "block"; $("gSendSms").textContent = "もう一度送る";
     $("gDoSms").textContent = smsLinkUser ? "登録する" : "ログイン"; msg("SMS を送りました。届いた6桁を入れてください"); setTimeout(() => $("gSmsCode").focus(), 100);
-  } catch (e) { msg(smsErr(e)); try { recaptcha && recaptcha.clear(); } catch (_) {} recaptcha = null; }
+  } catch (e) { console.error("sms send", e && e.code, e && e.message, e); msg(smsErr(e) + (e && e.code ? "（" + e.code + "）" : "")); try { recaptcha && recaptcha.clear(); } catch (_) {} recaptcha = null; }
   finally { busy(false); }
 };
 $("gDoSms").onclick = async () => {
