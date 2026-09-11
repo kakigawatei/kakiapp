@@ -113,7 +113,7 @@ window.cloudPush = function () {
 
 /* ---- SMS（電話番号）認証・試作（?sms=1 のときだけ入口を出す） ---- */
 const SMS_ON = location.search.includes("sms=1") || localStorage.getItem("kakiSms") === "1";
-if (SMS_ON) { localStorage.setItem("kakiSms", "1"); $("gToPhone").style.display = "inline-block"; }
+if (SMS_ON) { localStorage.setItem("kakiSms", "1"); }   /* 電話番号ログインの入口は出さない（紐付け専用） */
 const toE164 = raw => { let d = (raw || "").replace(/[^0-9+]/g, ""); if (d.startsWith("+")) return d; if (d.startsWith("0")) return "+81" + d.slice(1); return "+81" + d; };
 let smsConfirm = null, smsLinkUser = null, recaptcha = null;
 const getRecaptcha = () => { if (recaptcha) return recaptcha; recaptcha = new RecaptchaVerifier(auth, "gSendSms", { size: "invisible" }); return recaptcha; };
@@ -122,7 +122,7 @@ const smsErr = e => ({ "auth/invalid-phone-number": "電話番号の形が違い
   "auth/credential-already-in-use": "この電話番号は別のアカウントに登録済みです", "auth/provider-already-linked": "このアカウントには電話番号が登録済みです",
   "auth/captcha-check-failed": "確認（reCAPTCHA）に失敗しました。ページを開き直してください" }[e && e.code] || jaError(e));
 $("gToPhone").onclick = () => { msg(""); smsLinkUser = null; $("gSmsStep2").style.display = "none"; $("gDoSmsWrap").style.display = "none"; $("gSendSms").textContent = "確認コードを送る"; showGate("gPhone"); };
-$("gPhoneBack").onclick = () => { msg(""); showGate("gSignin"); };
+$("gPhoneBack").onclick = async () => { msg(""); try { await withTimeout(signOut(auth), 5000, "signOut"); } catch (e) {} smsLinkUser = null; showGate("gSignin"); };
 $("gSendSms").onclick = async () => {
   msg(""); const tel = toE164($("gTel").value);
   if (!/^\+81[0-9]{9,10}$/.test(tel)) { msg("携帯電話番号を入れてください（例: 090-1234-5678）"); return; }
@@ -141,9 +141,9 @@ $("gDoSms").onclick = async () => {
   busy(true);
   try {
     await smsConfirm.confirm(code);
-    if (smsLinkUser) {   // 既存アカウントへの紐付け完了 → 本体へ戻る
-      const st = window.kakiGetState ? window.kakiGetState() : {}; st.phoneLinkedAt = new Date().toISOString(); if (window.kakiSetState) window.kakiSetState(st);
-      smsLinkUser = null; hideGate(); msg(""); if (window.kakiToast) window.kakiToast("電話番号を登録しました");
+    if (smsLinkUser) {   // 紐付け完了 → 再読込して通常フロー（onAuthStateChanged が phone provider を見て本体へ）
+      try { const st = window.kakiGetState ? window.kakiGetState() : {}; st.phoneLinkedAt = new Date().toISOString(); if (window.kakiSetState) window.kakiSetState(st); } catch (_) {}
+      smsLinkUser = null; msg("電話番号を確認しました。"); setTimeout(() => location.reload(), 600); return;
     }
     /* 新規は onAuthStateChanged が拾って本体へ */
   } catch (e) { msg(smsErr(e)); }
@@ -288,6 +288,7 @@ onAuthStateChanged(auth, async (u) => {
     return;
   }
 
+  if (SMS_ON && byPassword && !u.providerData.some(p => p.providerId === "phone")) { uid = u.uid; window.kakiLinkPhone(); return; }   /* 電話番号の確認が済むまで本体に入れない */
   uid = u.uid;
   /* 読み込み中は本体を触らせない（裏で見えていると「0P」の古い画面を操作できてしまう） */
   showGate("gLoading");
@@ -300,7 +301,7 @@ onAuthStateChanged(auth, async (u) => {
     hideGate();
     window.kakiStart();
     $("acctMail").textContent = u.email || u.displayName || (u.phoneNumber ? u.phoneNumber.replace("+81", "0") : "");
-    if (SMS_ON && byPassword && !u.providerData.some(p => p.providerId === "phone") && !sessionStorage.getItem("kakiLinkAsked")) { sessionStorage.setItem("kakiLinkAsked", "1"); setTimeout(() => window.kakiLinkPhone(), 1200); }
+
   } catch (e) {
     console.error(e);
     $("gLoadMsg").textContent = "サーバーに接続できませんでした。電波の良い場所で「もう一度」を押してください。";
