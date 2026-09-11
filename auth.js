@@ -112,7 +112,7 @@ window.cloudPush = function () {
 };
 
 /* ---- SMS（電話番号）認証・試作（?sms=1 のときだけ入口を出す） ---- */
-const SMS_ON = location.search.includes("sms=1") || localStorage.getItem("kakiSms") === "1";
+const SMS_ON = true;   /* 2026-09-11 masa「出して」: 全員に展開（メール登録→電話番号を1回確認→紐付け。1番号1アカウント） */
 if (SMS_ON) { localStorage.setItem("kakiSms", "1"); }   /* 電話番号ログインの入口は出さない（紐付け専用） */
 const toE164 = raw => { let d = (raw || "").replace(/[^0-9+]/g, ""); if (d.startsWith("+")) return d; if (d.startsWith("0")) return "+81" + d.slice(1); return "+81" + d; };
 let smsConfirm = null, smsLinkUser = null, recaptcha = null;
