@@ -1,0 +1,11 @@
+[Version 1.0.6 — build 14]
+
+This is a small feature update on top of 1.0.5 (approved on Sep 11, 2026):
+- Time-limited point gifts ("campaigns") that the shop owner sets from a separate admin page. When a campaign is active, eligible users receive the points once on launch, with a small celebration message and a bell notification. The first one is our 6th-anniversary gift (Oct 7–13, 2026).
+- A one-time bonus when a user's rank goes up.
+- Minor fixes.
+
+No new permissions, no new SDKs. Data is read from the same Firebase project as before (one additional read-only collection for campaigns).
+
+Demo account (same as before): kakigawatei+appreview@gmail.com / Kakigawa2026review
+The visit check-in uses the device location near our shop; outside the shop, use the demo flow described in the previous review notes (the app shows a clear message instead of failing).
