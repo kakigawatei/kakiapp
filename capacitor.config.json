@@ -11,7 +11,9 @@
   "plugins": {
     "FirebaseAuthentication": {
       "skipNativeAuth": true,
-      "providers": []
+      "providers": [
+        "phone"
+      ]
     }
   }
 }

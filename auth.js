@@ -8,7 +8,8 @@ import {
   sendEmailVerification, sendPasswordResetEmail, signOut,
   EmailAuthProvider, reauthenticateWithCredential, deleteUser,
   setPersistence, browserLocalPersistence, indexedDBLocalPersistence,
-  RecaptchaVerifier, signInWithPhoneNumber, linkWithPhoneNumber
+  RecaptchaVerifier, signInWithPhoneNumber, linkWithPhoneNumber,
+  PhoneAuthProvider, linkWithCredential
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { initializeFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
@@ -123,16 +124,44 @@ const smsErr = e => ({ "auth/invalid-phone-number": "電話番号の形が違い
   "auth/captcha-check-failed": "確認（reCAPTCHA）に失敗しました。ページを開き直してください" }[e && e.code] || jaError(e));
 $("gToPhone").onclick = () => { msg(""); smsLinkUser = null; $("gSmsStep2").style.display = "none"; $("gDoSmsWrap").style.display = "none"; $("gSendSms").textContent = "確認コードを送る"; showGate("gPhone"); };
 $("gPhoneBack").onclick = async () => { msg(""); try { await withTimeout(signOut(auth), 5000, "signOut"); } catch (e) {} smsLinkUser = null; showGate("gSignin"); };
+/* ---- iOS/Android アプリ版（1.0.7〜）: WKWebView では reCAPTCHA が動かないので、SMS の送信だけネイティブ（@capacitor-firebase/authentication・APNs のサイレント通知で端末確認）に頼み、
+   届いた verificationId ＋ 入力コードで Web SDK の PhoneAuthProvider.credential を作り、ログイン中のメールユーザーに linkWithCredential する（skipNativeAuth はそのまま） ---- */
+const nativePhone = (() => {
+  if (!isNativeApp || !window.Capacitor) return null;
+  try { const C = window.Capacitor; const P = C.registerPlugin ? C.registerPlugin("FirebaseAuthentication") : (C.Plugins && C.Plugins.FirebaseAuthentication); return P || null; } catch (_) { return null; }
+})();
+let nativeVerificationId = null, nativeListening = false, nativeSentOnce = false, nativeFail = null;
+const nativeErr = e => { const c = (e && (e.code || e.message)) || ""; const m = { "missing-apns-token": "端末の確認ができませんでした（通知の設定を確認して、アプリを開き直してください）", "invalid-phone-number": "電話番号の形が違います（例: 090-1234-5678）",
+  "too-many-requests": "送りすぎです。しばらく待ってからもう一度", "quota-exceeded": "本日の送信上限に達しました。時間をおいてもう一度", "network-request-failed": "通信できませんでした。電波の良い所でもう一度" };
+  for (const k in m) if (String(c).includes(k)) return m[k]; return "SMS を送れませんでした" + (c ? "（" + String(c).slice(0, 60) + "）" : ""); };
+async function nativeSendSms(tel) {
+  if (!nativeListening) {
+    nativeListening = true;
+    await nativePhone.addListener("phoneCodeSent", ev => { nativeVerificationId = ev && ev.verificationId || null; });
+    await nativePhone.addListener("phoneVerificationFailed", ev => { console.error("phone failed", ev); nativeFail = ev || { message: "failed" }; });
+  }
+  nativeVerificationId = null; nativeFail = null;
+  const wait = new Promise((res, rej) => { const t0 = Date.now(); const tick = () => { if (nativeVerificationId) return res(nativeVerificationId); if (nativeFail) return rej(nativeFail); if (Date.now() - t0 > 40000) return rej(Object.assign(new Error("timeout"), { code: "timeout/sms" })); setTimeout(tick, 250); }; tick(); });
+  await nativePhone.signInWithPhoneNumber({ phoneNumber: tel, skipNativeAuth: true, resendCode: nativeSentOnce });   // 送信だけ。ネイティブ側ではログインしない
+  nativeSentOnce = true;
+  return wait;
+}
 $("gSendSms").onclick = async () => {
   msg(""); const tel = toE164($("gTel").value);
   if (!/^\+81[0-9]{9,10}$/.test(tel)) { msg("携帯電話番号を入れてください（例: 090-1234-5678）"); return; }
   busy(true);
   try {
-    const v = getRecaptcha();
-    smsConfirm = smsLinkUser ? await linkWithPhoneNumber(smsLinkUser, tel, v) : await signInWithPhoneNumber(auth, tel, v);
+    if (nativePhone) {
+      if (!smsLinkUser) throw Object.assign(new Error("link only"), { code: "auth/operation-not-allowed" });   // アプリ版は紐付け専用
+      const vid = await nativeSendSms(tel);
+      smsConfirm = { confirm: async code => linkWithCredential(smsLinkUser, PhoneAuthProvider.credential(vid, code)) };
+    } else {
+      const v = getRecaptcha();
+      smsConfirm = smsLinkUser ? await linkWithPhoneNumber(smsLinkUser, tel, v) : await signInWithPhoneNumber(auth, tel, v);
+    }
     $("gSmsStep2").style.display = "block"; $("gDoSmsWrap").style.display = "block"; $("gSendSms").textContent = "もう一度送る";
     $("gDoSms").textContent = smsLinkUser ? "登録する" : "ログイン"; msg("SMS を送りました。届いた6桁を入れてください"); setTimeout(() => $("gSmsCode").focus(), 100);
-  } catch (e) { console.error("sms send", e && e.code, e && e.message, e); msg(smsErr(e) + (e && e.code ? "（" + e.code + "）" : "")); try { recaptcha && recaptcha.clear(); } catch (_) {} recaptcha = null; }
+  } catch (e) { console.error("sms send", e && e.code, e && e.message, e); msg((nativePhone ? nativeErr(e) : smsErr(e)) + (e && e.code && !nativePhone ? "（" + e.code + "）" : "")); try { recaptcha && recaptcha.clear(); } catch (_) {} recaptcha = null; }
   finally { busy(false); }
 };
 $("gDoSms").onclick = async () => {
