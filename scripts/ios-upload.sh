@@ -50,7 +50,7 @@ echo "== archive ($(grep -m1 CURRENT_PROJECT_VERSION App.xcodeproj/project.pbxpr
 rm -rf "$ARCHIVE"
 xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
   -destination "generic/platform=iOS" -archivePath "$ARCHIVE" \
-  -allowProvisioningUpdates archive > /tmp/kakiapp_archive.log 2>&1
+  -allowProvisioningUpdates \n  -authenticationKeyPath "$KEY" -authenticationKeyID "$KEYID" -authenticationKeyIssuerID "$ISSUER" \n  archive > /tmp/kakiapp_archive.log 2>&1
 if ! grep -q "ARCHIVE SUCCEEDED" /tmp/kakiapp_archive.log; then
   echo "ARCHIVE_FAILED"; grep -n "error:\|errSec" /tmp/kakiapp_archive.log | head -8; exit 3
 fi
