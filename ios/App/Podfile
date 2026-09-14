@@ -17,23 +17,11 @@ end
 
 target 'App' do
   capacitor_pods
-  # Googleログイン用。CapacitorFirebaseAuthentication の Google サブスペックと同じ中身を、
-  # ここ（cap sync が触らない場所）に書いている。
-  # GoogleSignIn 7.1 は GTMSessionFetcher 3.x を要求するので、FirebaseAuth も
-  # それに合う 11.4.0 で揃える（新しい FirebaseAuth は 4.x を引いてきて衝突する）
-  pod 'FirebaseAuth', '11.4.0'
-  pod 'GoogleSignIn', '7.1.0'
+  # 2026-09-14: Google ログインは使っていない（providers は phone のみ）ので、
+  # GoogleSignIn と RGCFA_INCLUDE_GOOGLE の手組みは外した。FirebaseAuth の版はプラグインの
+  # 指定（~> 11.0）に任せて FirebaseCore と揃える。
 end
 
 post_install do |installer|
   assertDeploymentTarget(installer)
-  # プラグインの Google ログイン用コードは、このフラグが立っていないとコンパイルされない
-  installer.pods_project.targets.each do |t|
-    next unless t.name == 'CapacitorFirebaseAuthentication'
-    t.build_configurations.each do |c|
-      flags = c.build_settings['OTHER_SWIFT_FLAGS'] || '$(inherited)'
-      flags = flags.join(' ') if flags.is_a?(Array)
-      c.build_settings['OTHER_SWIFT_FLAGS'] = flags + ' -DRGCFA_INCLUDE_GOOGLE' unless flags.include?('RGCFA_INCLUDE_GOOGLE')
-    end
-  end
 end
