@@ -7,7 +7,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // 電話番号の確認（Firebase Auth）は、端末の確認にサイレント通知を使う。
+        // APNs の登録をしないとトークンが取れず、reCAPTCHA のブラウザ画面に逃げてしまう。
+        // これは通知の許可ダイアログを出さない（サイレント通知のみ・ユーザーには何も見えない）。
+        application.registerForRemoteNotifications()
         return true
     }
 
