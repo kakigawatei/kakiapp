@@ -828,6 +828,20 @@ function getPosition() {
   return new Promise((ok, ng) =>
     navigator.geolocation.getCurrentPosition(ok, ng, { enableHighAccuracy: true, timeout: 10000 }));
 }
+/* 開いた瞬間の自動チェックイン（2026-09-16 masa🇦「本当に"開くだけ"にする」）
+   店の近くなら来店カウント＋ガチャ画面へ。近くにいない／位置情報が取れないときは何も出さない（手動ボタンは残す） */
+function autoGeoCheckin() {
+  if (store.s.gachaDate === today()) return;                       /* 今日の来店ガチャは済み */
+  if (C.devSkipGeo || store.s.devSkipGeo) return;                   /* 開発用は手動のまま */
+  const cap = window.Capacitor;
+  const native = cap && cap.isNativePlatform && cap.isNativePlatform();
+  if (!native && !navigator.geolocation) return;
+  getPosition().then(pos => {
+    const { latitude, longitude } = pos.coords;
+    const near = C.stores.find(st => distM(latitude, longitude, st.lat, st.lng) <= st.radius);
+    if (near && store.s.gachaDate !== today()) checkin(near.id);
+  }).catch(() => {});
+}
 document.getElementById("btnGeoCheckin").onclick = geoCheckin;
 document.getElementById("btnGeoCheckin2").onclick = geoCheckin;
 
@@ -1032,6 +1046,7 @@ window.kakiStart = function () {
   /* 使い始めた日（キャンペーンの対象判定に使う）。無ければ履歴の最初の日、それも無ければ今日 */
   if (!store.s.createdAt) store.set({ createdAt: firstActivityDate() || today() });
   render();
+  autoGeoCheckin();   /* 裏でGPS判定。店の近くならガチャ画面に切り替わる（称号カードの後ろで） */
   shogoOpen();
   if (!applyRankBonus()) fetchCampaigns();   /* クラウドから戻した後に判定（この位置を守る）。ランク分が出た起動ではキャンペーンは次回 */
   else setTimeout(fetchCampaigns, 4000);
