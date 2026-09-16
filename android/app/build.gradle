@@ -16,10 +16,26 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // 署名（2026-09-16）: アップロード鍵はリポジトリに置かない。
+    // GitHub Actions が Secrets から鍵を復元して環境変数で渡す。無ければ未署名のまま組む（手元の確認用）。
+    signingConfigs {
+        release {
+            def ksPath = System.getenv("KAKIAPP_KEYSTORE_PATH")
+            if (ksPath != null && file(ksPath).exists()) {
+                storeFile file(ksPath)
+                storePassword System.getenv("KAKIAPP_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KAKIAPP_KEY_ALIAS") ?: "kakigawatei-upload"
+                keyPassword System.getenv("KAKIAPP_KEY_PASSWORD") ?: System.getenv("KAKIAPP_KEYSTORE_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (System.getenv("KAKIAPP_KEYSTORE_PATH") != null) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

@@ -6,10 +6,11 @@
 # 使い方：GitHubのActionsタブ →「Android AAB をビルド」→ Run workflow。
 # 完成物は実行結果ページの Artifacts からダウンロードできる。
 #
-# 🟥 署名はまだ入れていない（未署名のAABが出る）。
-#    Google Play Console にアップロードするには署名が要るので、
-#    デベロッパー登録が済んで鍵（キーストア）を作ったら、
-#    android/app/build.gradle に signingConfig を足してここで使う。
+# 署名（2026-09-16）：GitHub の Secrets に鍵を入れてある。
+#   KAKIAPP_KEYSTORE_B64      … アップロード鍵 kakigawatei-upload.jks を base64 にしたもの
+#   KAKIAPP_KEYSTORE_PASSWORD … その鍵のパスワード（alias も同じパスワード）
+#   Secrets が無いときは従来どおり未署名で組む。
+#   鍵の実体は Mac ~/.android/ と Windows C:\Users\masat\.android\ の2か所（リポジトリには置かない）。
 
 name: Android AAB をビルド
 
@@ -39,7 +40,22 @@ jobs:
           node build-www.js
           npx cap sync android
 
-      - name: AAB を組み立てる（未署名）
+      - name: 署名鍵を Secrets から復元（無ければ未署名）
+        env:
+          KS_B64: ${{ secrets.KAKIAPP_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            echo "KAKIAPP_KEYSTORE_PATH=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+            echo "署名鍵あり: 署名付きで組みます"
+          else
+            echo "署名鍵なし: 未署名で組みます"
+          fi
+
+      - name: AAB を組み立てる
+        env:
+          KAKIAPP_KEYSTORE_PASSWORD: ${{ secrets.KAKIAPP_KEYSTORE_PASSWORD }}
+          KAKIAPP_KEY_ALIAS: kakigawatei-upload
         run: |
           cd android
           chmod +x gradlew
