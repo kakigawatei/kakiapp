@@ -786,7 +786,13 @@ function checkin(storeId) {
   store.set({ qrDate: today() });
   const visits = store.s.visits || [];
   const isNew = !visits.includes(today());
-  if (isNew) { visits.push(today()); store.set({ visits }); setTimeout(applyRankBonus, 1200); }
+  if (isNew) {
+    visits.push(today()); store.set({ visits });
+    /* 固定の来店ポイント（称号ごと・ガチャとは別）。今日の分を数えた後の称号で決める＝5回目で常連の5Pがつく */
+    const vp = currentRank(visits.length).r.visitPoints || 0;
+    if (vp > 0) { store.set({ points: (store.s.points || 0) + vp }); logTx("来店ポイント", vp); }
+    setTimeout(applyRankBonus, 1200);
+  }
   /* どの店に来たかを別で数える（2026-09-03）。
      visits の形は変えない＝既存ユーザーのデータを壊さないため。
      これが無いと「仙台に行ったことある人だけに送る」ができない */
