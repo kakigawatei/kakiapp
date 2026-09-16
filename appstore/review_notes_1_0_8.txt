@@ -1,0 +1,10 @@
+[Version 1.0.8 — build 21]
+
+This update makes the visit check-in automatic. When the app is opened, it silently checks the device location once; if the user is within about 150 m of one of our two shops, the visit is recorded and the daily "visit gacha" screen opens. If the user is not near a shop, or location is unavailable or denied, nothing happens and no error is shown (the manual "お店でチェックイン" button remains available). Location is only used at that moment and is never stored or sent to a server. NSLocationWhenInUseUsageDescription explains this in Japanese.
+
+Each recorded visit now also grants a small fixed number of points depending on the user's rank (1, 5 or 10 points; 1 point = 1 yen of value in our shop). This is in addition to the existing visit gacha.
+
+Demo account (same as before): kakigawatei+appreview@gmail.com / Kakigawa2026review
+Phone verification (unchanged from 1.0.7): test number 080-0000-0001, code 246810 — no real SMS is sent.
+
+Because the reviewer is not near our shop in Nagaoka or Sendai, the automatic check-in will simply not trigger; the app shows the normal home screen. Everything else (roulette, points history, rank titles) can be tested as before.

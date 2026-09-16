@@ -1,8 +1,8 @@
-[Version 1.0.7 — build 15]
+[Version 1.0.7 — build 19]
 
 This update adds a one-time phone number verification after e-mail sign-in (to keep one account per person). The user enters a Japanese mobile number, receives a 6-digit SMS code and enters it once; the number is then linked to the existing account. No phone-number-only login is offered.
 
-How it works technically: Firebase Authentication phone verification. On iOS the SMS is sent through Firebase's native SDK, which uses a silent APNs notification to verify the device (this is why the Push Notifications capability was added; the app does not show any user-facing push notifications and does not ask for notification permission).
+How it works technically: Firebase Authentication phone verification. On iOS the SMS is sent through Firebase's native SDK, which uses a silent APNs notification to verify the device. This is why the Push Notifications capability is enabled and why the app calls registerForRemoteNotifications() at launch. The app never shows a user-facing push notification and never asks for notification permission.
 
 For review, please use the test phone number registered in Firebase for this app — it does not send a real SMS and always accepts the fixed code:
   Phone number: 080-0000-0001   (the app adds +81 automatically)
