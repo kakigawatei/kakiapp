@@ -35,8 +35,7 @@ def pick(d):
 
 def load_art(name):
     im = Image.open(os.path.join(SRC, name + ".png")).convert("RGB")
-    w, h = im.size; m = int(min(w, h) * 0.012)          # グリッドの継ぎ目を落とす
-    return im.crop((m, m, w - m, h - m))
+    return im                                           # 切り出し済み（グリッドの白帯を検出して余白ごと正確に切ってある・2026-09-19）
 
 def draw_text_block(dr, x, y, lines, f, fill, spacing=1.25, align="left", maxw=None):
     for ln in lines:
