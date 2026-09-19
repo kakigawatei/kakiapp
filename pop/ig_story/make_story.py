@@ -6,23 +6,24 @@ import os, sys, datetime
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 HERE = os.path.dirname(os.path.abspath(__file__)); SRC = os.path.join(HERE, "..", "ig_story_src")
 W, H = 1080, 1920
+TOP_SAFE, BOTTOM_SAFE = 240, 270   # Instagram のヘッダー／返信バーに隠れる領域（masa 2026-09-19「下が切れる」）
 DEADLINE = datetime.date(2026, 10, 7); UNTIL = datetime.date(2026, 10, 13)
 RED = (215, 48, 31); INK = (17, 17, 17); PAPER = (255, 255, 255)
 FONT_B = "C:/Windows/Fonts/YuGothB.ttc"; FONT_M = "C:/Windows/Fonts/YuGothM.ttc"
 def font(path, size): return ImageFont.truetype(path, size)
 
-# 日替わり文言（登録＋来店ガチャ1回＝来店1回のミッション・masa 2026-09-17「ガチャ1回の間違い」）。10/7〜10/13 は受け取り期間の文言に切替
+# 日替わり文言（登録＋来店ガチャ1回のミッション・🟥 350P など「ポイントを渡す」は書かない＝masa 2026-09-19）。10/7〜10/13 は受け取り期間の文言に切替
 COPIES = [
     ("ミッション！", "10月7日までにアプリを登録して\nお店で来店ガチャを1回引いておくこと。"),
-    ("10月7日、柿川亭は創業6年。", "それまでに登録して1回来てくれた人に\n350ポイントのお礼があります。"),
+    ("10月7日、柿川亭は創業6年。", "その日までに、アプリを登録して\n一度食べに来ておいてください。"),
     ("今日のミッション", "アプリを入れて、食べに来る。\n来店ガチャは1日1回、ハズレなし。"),
     ("登録は1分。来店ガチャは10秒。", "10月7日まで、あと少し。"),
-    ("10月7日にアプリを開くと", "350ポイント（油そば約半杯分）が届きます。\n条件は、登録して1回来ること。"),
+    ("10月7日に、アプリを開いてみて。", "登録して1回来てくれた人には\nちょっとしたお知らせがあります。"),
     ("来るたび称号が上がる。", "見習い→常連→猛者→油神。\nあなたは今どこ？"),
     ("ミッション！", "アプリを登録して、\n来店ガチャを1回引いておくこと。\n10月7日まで。"),
 ]
-COPIES_AFTER = [("350ポイント、受け取った？", "アプリを開くだけ。\n10月13日まで。"),
-                ("創業6年、ありがとう。", "350ポイントは10月13日まで受け取れます。\nアプリを開くだけ。")]
+COPIES_AFTER = [("アプリ、開いてみた？", "10月13日まで。\n開くだけで分かります。"),
+                ("創業6年、ありがとう。", "10月13日までにアプリを開いてみてください。")]
 IMAGES = ["pop_1", "card_1", "pop_2", "card_2", "card_3", "pop_3", "card_4", "card_5", "pop_4", "card_6", "card_7", "card_8", "card_9"]
 
 def pick(d):
@@ -59,10 +60,10 @@ def make(d, style="A", out=None):
         canvas = Image.new("RGB", (W, H), PAPER if style == "A" else INK)
     dr = ImageDraw.Draw(canvas)
     # 中央の絵: 幅 1000 に収める（縦POPは高さ制限も）
-    top_band, bottom_band = 300, 300
-    avail_h = H - top_band - bottom_band - 80
+    art_top = TOP_SAFE + 330; art_bottom = H - BOTTOM_SAFE - 190
+    avail_h = art_bottom - art_top
     aw, ah = art.size; sc = min(1000 / aw, avail_h / ah); art = art.resize((int(aw * sc), int(ah * sc)), Image.LANCZOS)
-    ax = (W - art.width) // 2; ay = top_band + 40 + (avail_h - art.height) // 2
+    ax = (W - art.width) // 2; ay = art_top + (avail_h - art.height) // 2
     # 影
     sh = Image.new("RGBA", (art.width + 60, art.height + 60), (0, 0, 0, 0)); ImageDraw.Draw(sh).rounded_rectangle((30, 30, art.width + 30, art.height + 30), 24, fill=(0, 0, 0, 90))
     sh = sh.filter(ImageFilter.GaussianBlur(18)); canvas.paste(sh, (ax - 30, ay - 22), sh)
@@ -70,12 +71,13 @@ def make(d, style="A", out=None):
     canvas.paste(art, (ax, ay), mask)
     ink = INK if style == "A" else PAPER
     # 上の帯: MISSION タグ＋見出し＋本文
-    tag_f = font(FONT_B, 40); dr.rounded_rectangle((60, 70, 60 + 250, 70 + 64), 8, fill=RED)
-    dr.text((60 + 125 - dr.textlength("MISSION", font=tag_f) / 2, 78), "MISSION", font=tag_f, fill=PAPER)
-    y = draw_text_block(dr, 60, 150, [title], font(FONT_B, 60 if len(title) <= 12 else 50), ink, 1.2)
+    ty = TOP_SAFE + 10
+    tag_f = font(FONT_B, 40); dr.rounded_rectangle((60, ty, 60 + 250, ty + 64), 8, fill=RED)
+    dr.text((60 + 125 - dr.textlength("MISSION", font=tag_f) / 2, ty + 8), "MISSION", font=tag_f, fill=PAPER)
+    y = draw_text_block(dr, 60, ty + 80, [title], font(FONT_B, 60 if len(title) <= 12 else 50), ink, 1.2)
     draw_text_block(dr, 60, y + 4, body.split("\n"), font(FONT_M, 38), ink, 1.35)
     # 下の帯: カウントダウン＋アプリ名＋リンク誘導
-    by = H - bottom_band + 30
+    by = H - BOTTOM_SAFE - 175
     if d < DEADLINE:
         big = font(FONT_B, 150); small = font(FONT_B, 44)
         s1 = "10月7日まで あと"; s2 = str(days_left); s3 = "日"
@@ -84,8 +86,8 @@ def make(d, style="A", out=None):
         dr.text((x, by + 90), s1, font=small, fill=ink); dr.text((x + w1 + 15, by - 10), s2, font=big, fill=RED); dr.text((x + w1 + w2 + 30, by + 90), s3, font=small, fill=ink)
     else:
         big = font(FONT_B, 96); dr.text(((W - dr.textlength("10月13日まで", font=big)) / 2, by + 10), "10月13日まで", font=big, fill=RED)
-    f2 = font(FONT_B, 40); t2 = "柿川亭アプリ ｜ リンクをタップして登録"
-    dr.text(((W - dr.textlength(t2, font=f2)) / 2, H - 110), t2, font=f2, fill=ink)
+    f2 = font(FONT_B, 34); t2 = "柿川亭アプリ ｜ リンクをタップして登録"
+    dr.text(((W - dr.textlength(t2, font=f2)) / 2, H - BOTTOM_SAFE - 20), t2, font=f2, fill=ink)
     out = out or os.path.join(HERE, "out", f"story_{d.strftime('%Y%m%d')}.png")
     os.makedirs(os.path.dirname(out), exist_ok=True); canvas.save(out, "PNG", optimize=True)
     return out, img_name, title, body
