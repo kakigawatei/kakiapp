@@ -98,3 +98,8 @@ if __name__ == "__main__":
     d = datetime.date.fromisoformat(a[0]) if a else datetime.date.today()
     if style is None: style = "AB"[(d - datetime.date(2026, 9, 18)).days % 2]   # masa 2026-09-17「日替わりで交互」（9/18=A 白, 9/19=B 黒…）
     p, img, t, b = make(d, style, out); print(p); print(img); print(t); print(b.replace("\n", " / "))
+    # 動画版（Remotion KakiStory）用の props も書く（2026-09-19）
+    import json
+    props = {"title": t, "body": b, "art": f"kakistory/{img}.png", "landscape": img.startswith("card_"), "style": style, "days": (DEADLINE - d).days, "after": d >= DEADLINE}
+    pp = os.path.join("C:/Users/masat/Desktop/nagaoka-video/out/kakistory", f"props_{d.strftime('%Y%m%d')}.json")
+    os.makedirs(os.path.dirname(pp), exist_ok=True); json.dump(props, open(pp, "w", encoding="utf-8"), ensure_ascii=False); print(pp)
