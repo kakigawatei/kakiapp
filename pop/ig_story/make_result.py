@@ -13,7 +13,7 @@ def draw(data, W, H, top_safe=0, bottom_safe=0):
     m = data.get("month", ""); mo = f"{m[:4]}年{int(m[5:7])}月" if len(m) >= 7 else ""
     y = top_safe + 60
     dr.rectangle((60, y, 124, y + 64), fill=RED)
-    dr.text((60, y + 100), f"{rl} 学校対抗 来店バトル ｜ {mo}", font=f(FM, 30), fill=SUB)
+    dr.text((60, y + 100), f"{rl} 学校対抗 来店バトル ｜ {mo} ｜ 参加 {data.get('schools', 0)}校・{data.get('participants', 0)}人", font=f(FM, 28), fill=SUB)
     x = 60
     for ch in "RESULT": dr.text((x, y + 160), ch, font=f(FB, 34), fill=GOLD); x += dr.textlength(ch, font=f(FB, 34)) + 12
     dr.text((52, y + 200), "結果発表", font=f(FMIN, 150), fill=GOLD)
@@ -29,7 +29,6 @@ def draw(data, W, H, top_safe=0, bottom_safe=0):
     mvp = data.get("mvp")
     if mvp:
         dr.text((60, yy), "MVP校（1人あたり最多）", font=f(FB, 26), fill=PURPLE); dr.text((60, yy + 36), f"{mvp['name']}  {mvp['per']}回／人", font=f(FMIN, 50), fill=INK); yy += 120
-    dr.text((60, yy + 10), f"参加 {data.get('schools', 0)}校・{data.get('participants', 0)}人", font=f(FM, 26), fill=SUB)
     by = H - bottom_safe - 130
     dr.line((60, by, W - 60, by), fill=GOLD, width=1)
     dr.text((60, by + 24), "油そば 柿川亭", font=f(FMIN, 40), fill=INK)
