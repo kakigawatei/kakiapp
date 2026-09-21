@@ -47,4 +47,13 @@ window.KAKI_CONFIG = {
     { id: "king", name: "伝説の油神", minVisits: 100, badge: "assets/badge_king.png", bonus: 350 },   // 2026-09-03 masa「伝説の〇〇／至高の〇〇がいい」
     { id: "founder", name: "血液が米油", minVisits: 200, badge: "assets/badge_founder.png", bonus: 500 },  // masa案 2026-09-03
   ],
+
+  // 学校対抗 来店バトル（masa 決定 2026-09-21）: 第0回＝お試し（10/7〜10/31・エントリー10/15まで・報酬少なめ）、第1回＝11月から本番・以後毎月・エントリーは月末まで。
+  // 報酬の対象＝そのシーズンに来店1回以上（登録だけでは出ない）。数字は admin の「シーズン設定」（Firestore kakiapp_settings/teamBattle）で月ごとに上書きできる
+  teamBattle: {
+    seasons: { "2026-10": { round: 0, trial: true, start: "2026-10-07", entryUntil: "2026-10-15", rewards: { r1: 50, r2: 0, r3: 0, mvp: 0 } } },
+    firstRealMonth: "2026-11",
+    defaultRewards: { r1: 200, r2: 100, r3: 50, mvp: 50 },
+    minMembersForRank: 2,
+  },
 };

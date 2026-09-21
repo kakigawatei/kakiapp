@@ -481,6 +481,15 @@
       </div>
     </div>
     <div class="card">
+      <h2>ニックネーム</h2>
+      <p class="muted">学校対抗のカードや参加メンバーの一覧に載る名前（任意・12文字まで）。本名でなくてOK。</p>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="myNick" maxlength="12" placeholder="例：ゆうき" autocomplete="off" style="flex:1;font:inherit;font-size:16px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)">
+        <button class="small" id="btnNickSave">保存</button>
+      </div>
+      <p class="muted" id="nickMsg" style="min-height:1.2em"></p>
+    </div>
+    <div class="card">
       <h2>お知らせメール</h2>
       <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;color:#5c5647;line-height:1.6;cursor:pointer">
         <input type="checkbox" id="myOptIn" style="width:19px;height:19px;margin-top:1px;flex:none">
@@ -519,12 +528,18 @@
       <div class="tb-tabs" id="teamKinds" style="flex-wrap:wrap;margin:8px 0 2px"></div>
       <input id="teamInput" placeholder="学校名" maxlength="30" autocomplete="off" style="width:100%;font:inherit;font-size:16px;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;margin-top:8px;background:#fff;color:var(--ink)">
       <div id="teamSug" class="tm-sug"></div>
+      <p class="muted" id="teamJoinNote" style="margin-top:6px;font-size:11.5px"></p>
       <button class="small" id="btnTeamJoin" style="margin-top:10px;width:100%">この学校で参加する</button>
       <p class="muted" id="teamJoinMsg" style="min-height:1.4em"></p>
     </div>
     <div class="card tb-podium" id="teamPodium">
       <div class="tb-head" style="gap:6px"><svg viewBox="0 0 24 24" style="width:20px;height:20px" aria-hidden="true"><path fill="#c4913c" d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.5 10h-15z"/></svg><h2 style="font-size:15px;color:var(--gold)">TOP 3</h2></div>
       <div class="cols" id="teamPodiumCols"></div>
+    </div>
+    <div class="card" id="teamAwardBox" style="display:none;border-color:#e6c98a;background:#fffaf0">
+      <h2 id="teamAwardTitle">結果発表</h2>
+      <p id="teamAwardBody" style="font-size:13.5px;line-height:1.7;margin-top:6px"></p>
+      <p class="muted" id="teamAwardNote" style="font-size:11.5px;margin-top:6px"></p>
     </div>
     <div class="card tb-mine" id="teamMineBox" style="display:none">
       <div class="top"><svg viewBox="0 0 24 24" style="width:20px;height:20px" aria-hidden="true"><path fill="#c4913c" d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.5 10h-15z"/></svg>あなたの学校　<span id="teamMineName">—</span></div>
@@ -798,6 +813,7 @@ function render() {
   document.getElementById("myBadge").src = r.badge;
   const oi = document.getElementById("myOptIn");
   if (oi) oi.checked = store.s.mailOptIn !== false;
+  const nn = document.getElementById("myNick"); if (nn && document.activeElement !== nn) nn.value = s.nickname || "";
   const tx = s.tx || [];
   document.getElementById("txList").innerHTML = tx.length
     ? tx.map(t => `<div class="itemrow"><span>${t.d}　${t.label}</span><span class="pt">${t.points > 0 ? "+" : ""}${t.points}P</span></div>`).join("")
@@ -1190,7 +1206,16 @@ async function teamRender(force) {
   const total = all.reduce((a, r) => a + r.members, 0), schools = all.filter(r => r.members >= 2).length;
   const max = Math.max(1, ...ranked.map(r => r.visits));
   const myIdx = ranked.findIndex(r => r.id === s.teamId), me = rows.find(r => r.id === s.teamId);
-  document.getElementById("teamSub").textContent = (m.slice(5).replace(/^0/, "")) + "月シーズン ｜ 参加 " + schools + "校・" + total + "人 ｜ 残り " + teamDaysLeft() + "日";
+  let SEASON = null; try { SEASON = await T.season(); } catch (e) {}
+  const roundLabel = SEASON ? (SEASON.round === 0 || SEASON.trial ? "第0回（お試し）" : "第" + SEASON.round + "回") : "";
+  document.getElementById("teamSub").textContent = roundLabel + " " + (m.slice(5).replace(/^0/, "")) + "月 ｜ 参加 " + schools + "校・" + total + "人 ｜ 残り " + teamDaysLeft() + "日";
+  const note = document.getElementById("teamJoinNote");
+  if (SEASON) {
+    const td = today(); const cut = SEASON.entryUntil.slice(5).replace(/^0/, "").replace("-", "/").replace(/\/0/, "/");
+    note.textContent = td > SEASON.entryUntil ? "今シーズンのエントリー（" + cut + "まで）は締め切りました。参加はできますが、報酬の対象は次のシーズンから。ランキングは見られます。"
+      : "エントリー締切 " + cut + " ｜ 報酬の対象になるのは「参加＋そのシーズンにお店で来店チェックイン1回以上」の人です。";
+  }
+  teamAwardRender(SEASON);
   /* 速報＝今日いちばん来ている学校 */
   const hot = all.filter(r => r.today > 0).sort((a, b) => b.today - a.today)[0];
   document.getElementById("teamNews").style.display = hot ? "flex" : "none";
@@ -1231,6 +1256,34 @@ async function teamRender(force) {
       '<div class="tb-row' + (r.id === s.teamId ? " me" : "") + '"><span class="no' + (i < 3 ? " m" + (i + 1) : "") + '">' + (i + 1) + '</span><span class="nm"><div class="t">' + escT(r.name) + '<span class="mem">' + r.members + '人</span></div><div class="bar" style="width:' + Math.max(4, Math.round(r.visits / max * 100)) + '%"></div></span><span class="v">' + r.visits + '回' + (r.today ? '<small>今日 +' + r.today + '</small>' : (isNew(r) ? '<small>NEW</small>' : '')) + '</span></div>').join("")
     : '<div class="muted">まだ順位のつく学校がありません（参加2人以上で順位がつきます）</div>';
 }
+/* シーズン結果の受け取り: 運営（admin の締め処理）が本人の awards.{月} に {tier, teamName, points, status:"pending"|"verified", ...} を書く。
+   pending ＝ 店頭でスタッフが確認するまで待ち／verified ＆ 未 claimed ＝ ここで P を入れて claimed に。カード（コレクション）は第2弾その2で */
+const TIER_LABEL = { r1: "優勝", r2: "準優勝", r3: "3位", mvp: "MVP校" };
+function teamAwardRender(SEASON) {
+  const box = document.getElementById("teamAwardBox"); const aw = store.s.awards || {};
+  const months = Object.keys(aw).sort().reverse(); if (!months.length) { box.style.display = "none"; return; }
+  const m = months[0], a = aw[m]; if (!a || !a.tier) { box.style.display = "none"; return; }
+  const rl = a.round === 0 || a.trial ? "第0回（お試し）" : "第" + a.round + "回";
+  document.getElementById("teamAwardTitle").textContent = rl + " 結果：" + (a.teamName || "") + " " + (TIER_LABEL[a.tier] || "") + (a.mvpAlso ? "＋MVP校" : "");
+  const pts = (a.points || 0);
+  document.getElementById("teamAwardBody").textContent = "学校の来店 " + (a.teamVisits || 0) + "回 ｜ 参加 " + (a.teamMembers || 0) + "人 ｜ あなたの来店 " + (a.myVisits || 0) + "回" + (pts ? " ｜ 報酬 " + pts + "P" : "");
+  const note = document.getElementById("teamAwardNote");
+  if (a.claimed) note.textContent = "受け取り済み（" + a.claimed.slice(0, 10) + "）";
+  else if (a.status === "verified") note.textContent = "確認が済みました。ポイントを入れます…";
+  else note.textContent = pts ? "受け取りは店頭で。この画面をスタッフに見せて、学生証（生徒手帳）を確認してもらうとポイントが入ります。" : "お試し回のため、ポイントの配布はありません。";
+  box.style.display = "block";
+  if (a.status === "verified" && !a.claimed) {
+    const aw2 = Object.assign({}, aw); aw2[m] = Object.assign({}, a, { claimed: new Date().toISOString() });
+    store.set({ points: (store.s.points || 0) + pts, awards: aw2 });
+    if (pts) { logTx(rl + " " + (TIER_LABEL[a.tier] || "") + "（" + (a.teamName || "") + "）", pts); celebrate(pts, (a.teamName || "") + " " + (TIER_LABEL[a.tier] || "") + "おめでとう！"); }
+  }
+}
+document.getElementById("btnNickSave").onclick = () => {
+  const v = (document.getElementById("myNick").value || "").normalize("NFKC").replace(/\s+/g, " ").trim(); const msg = document.getElementById("nickMsg");
+  if (v.length > 12) { msg.textContent = "12文字までにしてください"; return; }
+  if (/(死ね|殺す|うんこ|セックス|ちんこ|まんこ|バカ|アホ|キモい)/i.test(v)) { msg.textContent = "その言葉は使えません"; return; }
+  store.set({ nickname: v }); msg.textContent = v ? "保存しました：" + v : "ニックネームを消しました";
+};
 document.getElementById("btnGoTeam").onclick = () => { show("team"); teamRender(true); };
 document.getElementById("btnTeamShare").onclick = async () => {
   const url = "https://kakigawatei.github.io/kakiapp/get/", text = "柿川亭アプリの「学校対抗 来店バトル」" + (store.s.team ? "、" + store.s.team + "で参加してる。" : "。") + "一緒に上位を目指そう！";

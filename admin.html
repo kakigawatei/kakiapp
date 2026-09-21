@@ -147,16 +147,42 @@
       <div id="t-list"><p class="who">読み込み中…</p></div>
       <button class="btn-primary" id="t-reload" style="background:var(--indigo)">一覧を更新</button>
     </div>
+
+    <div class="card">
+      <h2>🏁 学校対抗 シーズン設定と締め</h2>
+      <p class="who">第0回＝10月お試し（エントリー10/15まで）、第1回＝11月から本番。数字を変えたい月だけここで上書き。締めは毎月1日に自動で走る予定。手動で締めるときはボタンで（同じ月は二度締めない）。</p>
+      <label for="s-month">対象の月</label>
+      <input type="text" id="s-month" placeholder="2026-10">
+      <div class="row"><input type="checkbox" id="s-trial"><label for="s-trial">お試し回（第0回）</label></div>
+      <label for="s-entry">エントリー締切（YYYY-MM-DD・空欄＝月末）</label>
+      <input type="text" id="s-entry" placeholder="2026-10-15">
+      <label>報酬ポイント（優勝／準優勝／3位／MVP校）</label>
+      <div style="display:flex;gap:6px"><input type="number" id="s-r1" placeholder="200" style="flex:1"><input type="number" id="s-r2" placeholder="100" style="flex:1"><input type="number" id="s-r3" placeholder="50" style="flex:1"><input type="number" id="s-mvp" placeholder="50" style="flex:1"></div>
+      <button class="btn-primary" id="s-save" style="background:var(--indigo)">この月の設定を保存</button>
+      <div class="msg" id="s-msg"></div>
+      <hr style="border:none;border-top:1px dashed var(--line);margin:14px 0">
+      <button class="btn-primary" id="s-close">この月を締める（順位を確定し、対象者に受け取りを配る）</button>
+      <div class="msg" id="s-close-msg"></div>
+      <div id="s-result" class="note"></div>
+    </div>
+
+    <div class="card">
+      <h2>🎫 受け取り待ち（店頭で学生証を確認したら「確認済み」）</h2>
+      <p class="who">お客さんの「結果発表」画面を見て、学校名と本人を確認してから押してください。押すと本人のアプリにポイントが入ります。</p>
+      <div id="v-list"><p class="who">読み込み中…</p></div>
+      <button class="btn-primary" id="v-reload" style="background:var(--indigo)">一覧を更新</button>
+    </div>
   </div>
 
 
 </div>
 
+<script src="config.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp, query, where, getCountFromServer, updateDoc, increment, arrayUnion }
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp, query, where, getCountFromServer, updateDoc, increment, arrayUnion, getDoc, setDoc, writeBatch }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const app = initializeApp({
@@ -202,7 +228,7 @@
       $("app").classList.remove("hidden");
       $("who-email").textContent = user.email || user.displayName || "(不明)";
       if ($("who-uid")) $("who-uid").textContent = user.uid;
-      loadList(); loadCampaigns(); loadTeams();
+      loadList(); loadCampaigns(); loadTeams(); fillSeason(); loadVerify();
     } else {
       $("app").classList.add("hidden");
       $("login-card").classList.remove("hidden");
@@ -327,6 +353,84 @@
     } catch(e){ alert("失敗："+(e.code||e.message)); }
   }
   $("t-reload").addEventListener("click", loadTeams);
+
+  /* ---------- シーズン設定・締め・受け取り確認（2026-09-21） ---------- */
+  const CFG = (window.KAKI_CONFIG && window.KAKI_CONFIG.teamBattle) || { seasons: {}, firstRealMonth: "2026-11", defaultRewards: { r1: 200, r2: 100, r3: 50, mvp: 50 }, minMembersForRank: 2 };
+  function seasonOf(m, over) {
+    const base = (CFG.seasons && CFG.seasons[m]) || {}, ovr = (over && over.seasons && over.seasons[m]) || {};
+    const s = Object.assign({}, base, ovr); const y = +m.slice(0, 4), mo = +m.slice(5, 7); const last = new Date(y, mo, 0).getDate();
+    if (s.round === undefined) { const fy = +CFG.firstRealMonth.slice(0, 4), fm = +CFG.firstRealMonth.slice(5, 7); s.round = Math.max(0, (y - fy) * 12 + (mo - fm) + 1); }
+    s.month = m; s.trial = !!s.trial; s.end = m + "-" + String(last).padStart(2, "0"); s.entryUntil = s.entryUntil || s.end; s.rewards = Object.assign({}, CFG.defaultRewards, s.rewards || {}); return s;
+  }
+  async function loadSettings(){ try { const snap = await getDoc(doc(db,"kakiapp_settings","teamBattle")); return snap.exists() ? snap.data() : {}; } catch(e){ return {}; } }
+  (function(){ const d=new Date(); $("s-month").value = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); })();
+  async function fillSeason(){ const m = $("s-month").value.trim(); if(!/^\d{4}-\d{2}$/.test(m)) return; const s = seasonOf(m, await loadSettings());
+    $("s-trial").checked = s.trial; $("s-entry").value = s.entryUntil; $("s-r1").value = s.rewards.r1; $("s-r2").value = s.rewards.r2; $("s-r3").value = s.rewards.r3; $("s-mvp").value = s.rewards.mvp;
+    $("s-msg").textContent = "第"+s.round+"回"+(s.trial?"（お試し）":"")+"　"+m+"-01 〜 "+s.end+"　締切 "+s.entryUntil; $("s-msg").className="msg ok"; }
+  $("s-month").addEventListener("change", fillSeason);
+  $("s-save").addEventListener("click", async () => {
+    const m = $("s-month").value.trim(); if(!/^\d{4}-\d{2}$/.test(m)){ showMsg($("s-msg"),"月は 2026-10 の形で",false); return; }
+    const entry = $("s-entry").value.trim(); if(entry && !/^\d{4}-\d{2}-\d{2}$/.test(entry)){ showMsg($("s-msg"),"締切は 2026-10-15 の形で",false); return; }
+    const sv = { trial: $("s-trial").checked, rewards: { r1: +$("s-r1").value||0, r2: +$("s-r2").value||0, r3: +$("s-r3").value||0, mvp: +$("s-mvp").value||0 } }; if(entry) sv.entryUntil = entry;
+    try { const cur = await loadSettings(); const seasons = Object.assign({}, cur.seasons||{}); seasons[m] = sv; await setDoc(doc(db,"kakiapp_settings","teamBattle"), { seasons, updatedAt: new Date().toISOString() }, { merge: true }); showMsg($("s-msg"),"保存しました（"+m+"）",true); }
+    catch(e){ showMsg($("s-msg"),"失敗："+(e.code||e.message)+"（ルールに kakiapp_settings の許可が要るかも）",false); }
+  });
+  /* 締め: チーム集計 → 結果 doc → 対象者の awards に書く → お知らせ */
+  $("s-close").addEventListener("click", async () => {
+    const m = $("s-month").value.trim(); if(!/^\d{4}-\d{2}$/.test(m)) return;
+    const s = seasonOf(m, await loadSettings());
+    if(!confirm(m+"（第"+s.round+"回"+(s.trial?"・お試し":"")+"）を締めます。順位を確定し、対象者に受け取りを配ります。よろしいですか？")) return;
+    $("s-close").disabled = true; const out = $("s-result"); out.textContent = "集計中…";
+    try {
+      const ex = await getDoc(doc(db,"kakiapp_seasons",m)); if(ex.exists()){ if(!confirm("この月はすでに締めてあります（"+(ex.data().closedAt||"")+"）。もう一度やり直しますか？（受け取りは上書きされます）")) { $("s-close").disabled=false; out.textContent=""; return; } }
+      const tsnap = await getDocs(collection(db,"kakiapp_teams")); const teams = []; tsnap.forEach(x => { const t = x.data(); if(!t.mergedInto && !t.hidden) teams.push(Object.assign({ id: x.id }, t)); });
+      const usnap = await getDocs(query(collection(db,"kakiapp_users"), where("teamId", ">", ""))); const users = []; usnap.forEach(x => users.push(Object.assign({ uid: x.id }, x.data())));
+      const byTeam = {}; users.forEach(u => { (byTeam[u.teamId] = byTeam[u.teamId] || []).push(u); });
+      const rows = teams.map(t => { const mem = byTeam[t.id] || []; const v = (t.visits && t.visits[m]) || 0; return { id: t.id, name: t.name, kind: t.kind||"高校", members: mem.length, visits: v, per: mem.length ? v/mem.length : 0, roster: mem.filter(u => u.nickname).map(u => u.nickname).slice(0, 120) }; });
+      const ranked = rows.filter(r => r.members >= (CFG.minMembersForRank||2)).sort((a,b)=> b.visits-a.visits || b.members-a.members || a.name.localeCompare(b.name,"ja"));
+      ranked.forEach((r,i)=> r.rank = i+1);
+      const mvp = ranked.filter(r => r.visits > 0).sort((a,b)=> b.per-a.per)[0] || null;
+      const winners = { r1: ranked[0]?ranked[0].id:null, r2: ranked[1]?ranked[1].id:null, r3: ranked[2]?ranked[2].id:null, mvp: mvp?mvp.id:null };
+      const rosters = {}; rows.forEach(r => { rosters[r.id] = r.roster; });
+      const closedAt = new Date().toISOString();
+      await setDoc(doc(db,"kakiapp_seasons",m), { month: m, round: s.round, trial: s.trial, entryUntil: s.entryUntil, rewards: s.rewards, closedAt, teams: rows.map(r => ({ id:r.id, name:r.name, kind:r.kind, members:r.members, visits:r.visits, rank:r.rank||null, per: Math.round(r.per*10)/10 })), winners, rosters, participants: users.length });
+      /* 対象者: 優勝〜3位・MVP のチームで、締切までに参加し、その月に来店1回以上 */
+      const tierOf = id => id===winners.r1?"r1":id===winners.r2?"r2":id===winners.r3?"r3":null;
+      let n = 0, batch = writeBatch(db), inBatch = 0; const counters = {};
+      for (const u of users) {
+        const tier = tierOf(u.teamId), isMvp = winners.mvp && u.teamId === winners.mvp; if(!tier && !isMvp) continue;
+        const myV = (u.teamVisits && u.teamVisits[m]) || 0; const joined = (u.teamJoinedAt||"").slice(0,10);
+        if (myV < 1 || (joined && joined > s.entryUntil)) continue;
+        const t = rows.find(r => r.id === u.teamId); const useTier = tier || "mvp"; counters[u.teamId] = (counters[u.teamId]||0)+1;
+        const pts = (tier ? (s.rewards[tier]||0) : 0) + (isMvp ? (s.rewards.mvp||0) : 0);
+        const award = { month: m, round: s.round, trial: s.trial, tier: useTier, mvpAlso: !!(tier && isMvp), teamId: u.teamId, teamName: t?t.name:"", kind: t?t.kind:"高校", teamVisits: t?t.visits:0, teamMembers: t?t.members:0, myVisits: myV, nick: u.nickname||"", cardNo: counters[u.teamId], points: pts, status: pts ? "pending" : "verified", createdAt: closedAt };
+        const up = {}; up["awards."+m] = award; batch.update(doc(db,"kakiapp_users",u.uid), up); inBatch++; n++;
+        if (inBatch >= 400) { await batch.commit(); batch = writeBatch(db); inBatch = 0; }
+      }
+      if (inBatch) await batch.commit();
+      const title = (s.round===0||s.trial?"第0回（お試し）":"第"+s.round+"回")+" 学校対抗 来店バトル 結果発表";
+      const body = ranked.length ? "優勝 "+ranked[0].name+"（"+ranked[0].visits+"回）"+(ranked[1]?" ／ 準優勝 "+ranked[1].name+"（"+ranked[1].visits+"回）":"")+(ranked[2]?" ／ 3位 "+ranked[2].name+"（"+ranked[2].visits+"回）":"")+(mvp?" ／ MVP校 "+mvp.name+"（1人あたり "+(Math.round(mvp.per*10)/10)+"回）":"")+"。対象の人はアプリの「ランキング」で受け取りを確認してください。" : "順位のつく学校（参加2人以上）がありませんでした。";
+      await addDoc(collection(db,"kakiapp_announcements"), { title, body, date: closedAt.slice(0,10), active: true, createdAt: serverTimestamp() });
+      out.innerHTML = "締めました。順位つき "+ranked.length+"校 ／ 参加者 "+users.length+"人 ／ 受け取り対象 "+n+"人<br>"+ranked.slice(0,3).map(r=>r.rank+"位 "+esc(r.name)+"（"+r.visits+"回・"+r.members+"人）").join("<br>")+(mvp?"<br>MVP校 "+esc(mvp.name):"");
+      showMsg($("s-close-msg"),"完了。お知らせも投稿しました。",true); loadVerify();
+    } catch(e){ console.error(e); showMsg($("s-close-msg"),"失敗："+(e.code||e.message),false); }
+    finally { $("s-close").disabled = false; }
+  });
+  async function loadVerify(){
+    const wrap = $("v-list"); const m = $("s-month").value.trim();
+    try {
+      const snap = await getDocs(query(collection(db,"kakiapp_users"), where("awards."+m+".status","==","pending")));
+      const items = []; snap.forEach(x => { const u = x.data(); items.push({ uid: x.id, email: u.email||"", a: u.awards[m] }); });
+      if(!items.length){ wrap.innerHTML = '<p class="who">'+esc(m)+' の受け取り待ちはいません。</p>'; return; }
+      const TL = { r1:"優勝", r2:"準優勝", r3:"3位", mvp:"MVP校" };
+      wrap.innerHTML = items.map(it => '<div class="item"><div class="item-t">'+esc(it.a.nick||"（ニックネーム未設定）")+' <span style="font-size:11px;color:var(--ink-soft)">'+esc(it.email)+'</span></div><div class="item-d">'+esc(it.a.teamName)+'（'+esc(it.a.kind)+'）'+esc(TL[it.a.tier]||it.a.tier)+(it.a.mvpAlso?"＋MVP":"")+' ／ 本人の来店 '+esc(it.a.myVisits)+'回 ／ '+esc(it.a.points)+'P ／ No. '+esc(it.a.cardNo)+'</div><button class="btn-del" style="background:var(--indigo)" data-uid="'+esc(it.uid)+'">確認済み（ポイントを渡す）</button></div>').join("");
+      wrap.querySelectorAll("button[data-uid]").forEach(b => b.addEventListener("click", async () => {
+        if(!confirm("この人の学生証（生徒手帳）を確認しましたか？ 押すと本人のアプリにポイントが入ります。")) return;
+        try { const up = {}; up["awards."+m+".status"] = "verified"; up["awards."+m+".verifiedAt"] = new Date().toISOString(); await updateDoc(doc(db,"kakiapp_users",b.dataset.uid), up); loadVerify(); } catch(e){ alert("失敗："+(e.code||e.message)); }
+      }));
+    } catch(e){ wrap.innerHTML = '<p class="who">読み込み失敗：'+esc(e.code||e.message)+'（ルールで運営の kakiapp_users 読み書きが要る／複合インデックスの案内が出たらそのリンクを開く）</p>'; }
+  }
+  $("v-reload").addEventListener("click", loadVerify);
 
   async function loadList(){
     const wrap = $("list");

@@ -40,7 +40,8 @@ const KEYS = ["points", "visits", "tx", "rouletteDate", "gachaDate", "qrDate", "
   "mailOptIn", "mailOptInAt",   /* 宣伝メールの同意（特定電子メール法）2026-09-03 */
   "storeVisits", "lastStore", "lastStoreAt",   /* どの店に来たか。送り分けに使う 2026-09-03 */
   "createdAt", "claimed", "rankBonus",   /* 使い始めた日・キャンペーン受取・ランクアップ受取（二重取り防止）2026-09-10 */
-  "teamId", "team", "teamJoinedAt", "teamVisits"];   /* 高校対抗 来店バトル（任意参加・自分の学校と月別の自分の来店数）2026-09-21 */
+  "teamId", "team", "teamJoinedAt", "teamVisits",   /* 学校対抗 来店バトル（任意参加・自分の学校と月別の自分の来店数）2026-09-21 */
+  "nickname", "awards"];   /* ニックネーム（カード・名簿用）／シーズン結果の受け取り（運営が書き込む・本人は claimed を足す）2026-09-21 */
 
 
 let uid = null, ready = false, timer = null;
@@ -315,7 +316,25 @@ async function teamList(force) {
 }
 const teamResolve = (arr, id) => { let t = arr.find(x => x.id === id), n = 0; while (t && t.mergedInto && n++ < 5) { const nx = arr.find(x => x.id === t.mergedInto); if (!nx) break; t = nx; } return t || null; };
 const teamFind = (arr, norm) => { const t = arr.find(x => !x.mergedInto && (x.norm === norm || (x.aliases || []).includes(norm))) || arr.find(x => x.norm === norm || (x.aliases || []).includes(norm)); return t ? teamResolve(arr, t.id) : null; };
+/* シーズン情報: config.js の既定 ＋ Firestore kakiapp_settings/teamBattle の上書き（admin で編集）。round は firstRealMonth を第1回として自動計算 */
+let settingsCache = null, settingsAt = 0;
+async function teamSeason(force) {
+  const m = teamMonth(); const cfg = (window.KAKI_CONFIG && window.KAKI_CONFIG.teamBattle) || {};
+  let over = settingsCache || {};
+  try {
+    if (force || !settingsCache || Date.now() - settingsAt > 300000) { const snap = await withTimeout(getDoc(doc(db, "kakiapp_settings", "teamBattle")), 8000, "settings"); settingsCache = snap.exists() ? snap.data() : {}; settingsAt = Date.now(); }
+    over = settingsCache || {};
+  } catch (e) { console.warn("settings", e && e.code); }
+  const base = (cfg.seasons && cfg.seasons[m]) || null, ovr = (over.seasons && over.seasons[m]) || null;
+  const s = Object.assign({}, base || {}, ovr || {});
+  const y = Number(m.slice(0, 4)), mo = Number(m.slice(5, 7)); const lastDay = new Date(y, mo, 0).getDate();
+  if (s.round === undefined) { const fm = String(cfg.firstRealMonth || "2026-11"); const fy = Number(fm.slice(0, 4)), fmo = Number(fm.slice(5, 7)); s.round = Math.max(0, (y - fy) * 12 + (mo - fmo) + 1); }
+  s.month = m; s.trial = !!s.trial; s.start = s.start || m + "-01"; s.end = m + "-" + String(lastDay).padStart(2, "0"); s.entryUntil = s.entryUntil || s.end;
+  s.rewards = Object.assign({}, cfg.defaultRewards || {}, s.rewards || {});
+  return s;
+}
 window.kakiTeams = {
+  season: teamSeason,
   month: teamMonth, norm: teamNorm, list: teamList,
   /* 入力中の候補（正規化して部分一致・統合済み/非表示は除く） */
   suggest: async q => { const n = teamNorm(q); if (!n) return []; const arr = await teamList(); return arr.filter(t => !t.mergedInto && !t.hidden && (String(t.norm || "").includes(n) || String(t.name || "").includes(q))).slice(0, 8); },
