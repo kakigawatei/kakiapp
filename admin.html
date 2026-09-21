@@ -410,7 +410,8 @@
       if (inBatch) await batch.commit();
       const title = (s.round===0||s.trial?"第0回（お試し）":"第"+s.round+"回")+" 学校対抗 来店バトル 結果発表";
       const body = ranked.length ? "優勝 "+ranked[0].name+"（"+ranked[0].visits+"回）"+(ranked[1]?" ／ 準優勝 "+ranked[1].name+"（"+ranked[1].visits+"回）":"")+(ranked[2]?" ／ 3位 "+ranked[2].name+"（"+ranked[2].visits+"回）":"")+(mvp?" ／ MVP校 "+mvp.name+"（1人あたり "+(Math.round(mvp.per*10)/10)+"回）":"")+"。対象の人はアプリの「ランキング」で受け取りを確認してください。" : "順位のつく学校（参加2人以上）がありませんでした。";
-      await addDoc(collection(db,"kakiapp_announcements"), { title, body, date: closedAt.slice(0,10), active: true, createdAt: serverTimestamp() });
+      const isTest = /kakiapp-test/.test(location.pathname);   /* テスト版からのお知らせは本番の鈴に出さない（【テスト】＋非表示）2026-09-21 */
+      await addDoc(collection(db,"kakiapp_announcements"), { title: (isTest ? "【テスト】" : "") + title, body, date: closedAt.slice(0,10), active: !isTest, createdAt: serverTimestamp() });
       out.dataset.json = JSON.stringify({ month: m, round: s.round, trial: s.trial, closedAt, participants: users.length, awarded: n, ranked: ranked.slice(0, 10).map(r => ({ rank: r.rank, name: r.name, kind: r.kind, visits: r.visits, members: r.members })), mvp: mvp ? { name: mvp.name, per: Math.round(mvp.per*10)/10, members: mvp.members } : null, schools: rows.length });   /* 自動締め（scripts/season_close.mjs）が IG 画像用に読む */
       out.innerHTML = "締めました。順位つき "+ranked.length+"校 ／ 参加者 "+users.length+"人 ／ 受け取り対象 "+n+"人<br>"+ranked.slice(0,3).map(r=>r.rank+"位 "+esc(r.name)+"（"+r.visits+"回・"+r.members+"人）").join("<br>")+(mvp?"<br>MVP校 "+esc(mvp.name):"");
       showMsg($("s-close-msg"),"完了。お知らせも投稿しました。",true); loadVerify();

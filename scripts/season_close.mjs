@@ -1,6 +1,6 @@
 // 学校対抗 来店バトル: 月初の自動締め。Mac Chrome（9224・kakigawatei@gmail.com でログイン済み）で admin.html を開き、
 // 「シーズン設定と締め」の対象月を前月にして「この月を締める」を押す（確認ダイアログは自動で OK）。
-//   node season_close.mjs [YYYY-MM] [base-url]   既定: 前月・https://kakigawatei.github.io/kakiapp/admin.html
+//   node season_close.mjs [YYYY-MM] [base-url] --yes   既定: 前月・本番 admin。--yes が無いと確認だけで締めない
 //   テスト版: node season_close.mjs 2026-10 https://kakigawatei.github.io/kakiapp-test/admin.html
 // 動かす場所: Windows の cron（毎月1日 0:05）→ ssh mac 'node /tmp/season_close.mjs'。admin の Google ログインが切れていたら LOGIN_REQUIRED を出して止まる（masa がその画面でログインすれば次回から通る）
 import fs from "node:fs";
@@ -26,6 +26,8 @@ console.log("month:", MONTH);
 await ev(`(() => { const el = document.getElementById("s-month"); el.value = ${JSON.stringify(MONTH)}; el.dispatchEvent(new Event("change")); })()`);
 await sleep(2500);
 console.log("season:", await ev(`document.getElementById("s-msg").textContent`));
+/* 🟥 --yes が無ければ確認だけ（誤って締めない・2026-09-21 の教訓） */
+if (!process.argv.includes("--yes")) { console.log("DRY_RUN (add --yes to close)"); await fetch(base + "/json/close/" + open.id); ws.close(); process.exit(0); }
 await ev(`document.getElementById("s-close").click()`);
 let res = "";
 for (let i = 0; i < 60; i++) { await sleep(2000); res = await ev(`document.getElementById("s-close-msg").textContent + " || " + document.getElementById("s-result").innerText`); if (/完了|失敗/.test(res)) break; }
