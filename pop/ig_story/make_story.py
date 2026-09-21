@@ -59,7 +59,7 @@ def make(d, style="A", out=None):
         canvas = Image.new("RGB", (W, H), PAPER if style == "A" else INK)
     dr = ImageDraw.Draw(canvas)
     # 中央の絵: 幅 1000 に収める（縦POPは高さ制限も）
-    art_top = TOP_SAFE + 330; art_bottom = H - BOTTOM_SAFE - 190
+    art_top = TOP_SAFE + 330; art_bottom = H - BOTTOM_SAFE - 250   # 6周年の1行の分だけ絵を上で止める（2026-09-21）
     avail_h = art_bottom - art_top
     aw, ah = art.size; sc = min(1000 / aw, avail_h / ah); art = art.resize((int(aw * sc), int(ah * sc)), Image.LANCZOS)
     ax = (W - art.width) // 2; ay = art_top + (avail_h - art.height) // 2
@@ -77,6 +77,9 @@ def make(d, style="A", out=None):
     draw_text_block(dr, 60, y + 4, body.split("\n"), font(FONT_M, 38), ink, 1.35)
     # 下の帯: カウントダウン＋アプリ名＋リンク誘導
     by = H - BOTTOM_SAFE - 175
+    # 6周年の1行（masa 2026-09-21「柿川亭は10月7日で創業6周年 ってワード入れて」）
+    fa = font(FONT_B, 36); ta = "柿川亭は10月7日で創業6周年"
+    dr.text(((W - dr.textlength(ta, font=fa)) / 2, by - 58), ta, font=fa, fill=RED if style == "A" else PAPER)
     if d < DEADLINE:
         big = font(FONT_B, 150); small = font(FONT_B, 44)
         s1 = "10月7日まで あと"; s2 = str(days_left); s3 = "日"
