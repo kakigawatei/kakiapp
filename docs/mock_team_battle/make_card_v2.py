@@ -14,7 +14,7 @@ TIERS = [("CHAMPION", "優勝", (214, 170, 80), "長岡高校", "来店 156回 �
          ("3RD PLACE", "3位", (196, 140, 96), "仙台育英高校", "来店 120回 ｜ 参加 33人", "No. 0007 / 33"),
          ("MVP SCHOOL", "MVP校", (170, 130, 220), "東北学院高校", "1人あたり 4.1回 ｜ 参加 22人", "No. 0003 / 22")]
 
-def render(lab, jp, col, school, stat, no, kind="高校", season="2026年10月", round_no=1, out=None):
+def render(lab, jp, col, school, stat, no, kind="高校", season="2026年10月", round_no=1, nick="ゆうき", my_visits=7, out=None):
     src = Image.open(os.path.join(OUT, "card_gen_V_black.png")).convert("RGB").resize((W, H), Image.LANCZOS)
     bowl = src.crop((150, 140, 980, 830))   # 赤い四角を含めない範囲で丼だけ
     im = Image.new("RGB", (W, H), (12, 12, 12))
@@ -32,6 +32,10 @@ def render(lab, jp, col, school, stat, no, kind="高校", season="2026年10月",
     dr.line((60, y + 20, W - 60, y + 20), fill=col, width=2)
     dr.text((60, y + 60), school, font=f(FMIN, 104 if len(school) <= 5 else 86), fill=ink)
     dr.text((60, y + 200), stat, font=f(FM, 30), fill=sub)
+    # 持ち主のニックネーム（masa 2026-09-21「ニックネームも記載」）
+    if nick:
+        dr.text((60, y + 270), nick, font=f(FB, 44), fill=ink); w = dr.textlength(nick, font=f(FB, 44))
+        dr.text((60 + w + 14, y + 284), f"さん ｜ この月の来店 {my_visits}回", font=f(FM, 26), fill=sub)
     dr.line((60, 1230, W - 60, 1230), fill=col, width=1)
     dr.text((60, 1262), "油そば 柿川亭", font=f(FMIN, 40), fill=ink)
     x = 60
