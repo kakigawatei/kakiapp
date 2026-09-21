@@ -18,29 +18,29 @@ def draw(W, H, top_safe=0, bottom_safe=0):
     im = Image.new("RGB", (W, H), BG); dr = ImageDraw.Draw(im)
     y = top_safe + 56
     dr.rectangle((60, y, 124, y + 64), fill=RED)
-    dr.text((60, y + 96), "柿川亭アプリ ｜ 10月7日スタート", font=f(FM, 28), fill=SUB)
+    dr.text((60, y + 90), "柿川亭アプリ ｜ 10月7日スタート", font=f(FM, 26), fill=SUB)
     x = 60
-    for ch in "SCHOOL BATTLE": dr.text((x, y + 150), ch, font=f(FB, 30), fill=GOLD); x += dr.textlength(ch, font=f(FB, 30)) + 10
-    dr.text((52, y + 188), "学校対抗", font=f(FMIN, 128), fill=GOLD)
-    dr.text((52, y + 330), "来店バトル", font=f(FMIN, 128), fill=INK)
-    dr.text((60, y + 492), "どこの学校が、いちばん柿川亭に来てるか。", font=f(FM, 30), fill=SUB)
-    yy = y + 560; dr.line((60, yy, W - 60, yy), fill=GOLD, width=2); yy += 26
+    for ch in "SCHOOL BATTLE": dr.text((x, y + 134), ch, font=f(FB, 28), fill=GOLD); x += dr.textlength(ch, font=f(FB, 28)) + 10
+    dr.text((52, y + 168), "学校対抗", font=f(FMIN, 104), fill=GOLD)
+    dr.text((52, y + 282), "来店バトル", font=f(FMIN, 104), fill=INK)
+    dr.text((60, y + 412), "どこの学校が、いちばん柿川亭に来てるか。", font=f(FM, 28), fill=SUB)
+    yy = y + 468; dr.line((60, yy, W - 60, yy), fill=GOLD, width=2); yy += 26
     for no, t, body in RULES:
-        dr.text((60, yy), no, font=f(FB, 26), fill=GOLD); dr.text((120, yy - 4), t, font=f(FB, 32), fill=INK)
+        dr.text((60, yy), no, font=f(FB, 24), fill=GOLD); dr.text((120, yy - 4), t, font=f(FB, 30), fill=INK)
         # 本文を折り返し
-        fo = f(FM, 24); line = ""; ly = yy + 44; maxw = W - 120 - 60
+        fo = f(FM, 22); line = ""; ly = yy + 40; maxw = W - 120 - 60
         for ch in body:
-            if dr.textlength(line + ch, font=fo) > maxw: dr.text((120, ly), line, font=fo, fill=SUB); ly += 34; line = ch
+            if dr.textlength(line + ch, font=fo) > maxw: dr.text((120, ly), line, font=fo, fill=SUB); ly += 31; line = ch
             else: line += ch
-        if line: dr.text((120, ly), line, font=fo, fill=SUB); ly += 34
-        yy = ly + 18; dr.line((120, yy - 8, W - 60, yy - 8), fill=LINE, width=1)
-    by = H - bottom_safe - 150
-    dr.text((60, by), "第0回（お試し）10/7〜10/31 ・ エントリーは 10/15 まで ・ 11月から本番、以後毎月", font=f(FB, 22), fill=GOLD)
-    dr.line((60, by + 44, W - 60, by + 44), fill=GOLD, width=1)
-    dr.text((60, by + 66), "油そば 柿川亭", font=f(FMIN, 36), fill=INK)
+        if line: dr.text((120, ly), line, font=fo, fill=SUB); ly += 31
+        yy = ly + 14; dr.line((120, yy - 8, W - 60, yy - 8), fill=LINE, width=1)
+    by = H - bottom_safe - 128
+    dr.text((60, by), "第0回（お試し）10/7〜10/31 ・ エントリーは 10/15 まで ・ 11月から本番、以後毎月", font=f(FB, 21), fill=GOLD)
+    dr.line((60, by + 40, W - 60, by + 40), fill=GOLD, width=1)
+    dr.text((60, by + 56), "油そば 柿川亭", font=f(FMIN, 34), fill=INK)
     x = 60
-    for ch in "KAKIGAWATEI": dr.text((x, by + 118), ch, font=f(FM, 18), fill=SUB); x += dr.textlength(ch, font=f(FM, 18)) + 6
-    t = "アプリはプロフィールのリンクから"; dr.text((W - 60 - dr.textlength(t, font=f(FM, 22)), by + 80), t, font=f(FM, 22), fill=SUB)
+    for ch in "KAKIGAWATEI": dr.text((x, by + 102), ch, font=f(FM, 17), fill=SUB); x += dr.textlength(ch, font=f(FM, 17)) + 6
+    t = "アプリはプロフィールのリンクから"; dr.text((W - 60 - dr.textlength(t, font=f(FM, 22)), by + 66), t, font=f(FM, 22), fill=SUB)
     return im
 if __name__ == "__main__":
     draw(1080, 1350).save(os.path.join(OUT, "rulebook_feed.png")); draw(1080, 1920, 200, 250).save(os.path.join(OUT, "rulebook_story.png")); print("ok")
