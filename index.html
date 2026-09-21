@@ -168,7 +168,7 @@
   .page { display: none; }
   .page.on { display: block; }
   .itemrow { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; }
-  /* 高校対抗 来店バトル（2026-09-21・masa の参考UIに準拠） */
+  /* 学校対抗 来店バトル（2026-09-21・masa の参考UIに準拠） */
   .tm-sug { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .tm-sug button { font: inherit; font-size: 13px; padding: 6px 11px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); }
   .tb-head { display: flex; align-items: center; gap: 8px; }
@@ -368,7 +368,7 @@
     <div class="card" id="teamCard">
       <div class="row">
         <div class="ico"><svg viewBox="0 0 24 24" style="width:34px;height:34px" aria-hidden="true"><path fill="#c4913c" d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.5 10h-15z"/><rect x="4.5" y="18.5" width="15" height="2.2" rx="1" fill="#a8792c"/></svg></div>
-        <div class="body"><h2>高校対抗 来店バトル</h2><p class="muted" id="teamCardText">学校ごとに来店回数を競う（任意参加）</p></div>
+        <div class="body"><h2>学校対抗 来店バトル</h2><p class="muted" id="teamCardText">学校ごとに来店回数を競う（任意参加）</p></div>
         <div class="side"><button class="small" id="btnGoTeam">参加する</button><span class="chev">›</span></div>
       </div>
     </div>
@@ -502,19 +502,21 @@
   </main>
 </section>
 
-<!-- 高校対抗 来店バトル（2026-09-21 masa🇦・任意参加・学校名は自由入力・個人は出さず学校の合計だけ。見た目は masa の参考UI 2026-09-21 に準拠） -->
+<!-- 学校対抗 来店バトル（2026-09-21 masa🇦・任意参加・学校名は自由入力・個人は出さず学校の合計だけ。見た目は masa の参考UI 2026-09-21 に準拠） -->
 <section class="page" id="page-team">
   <main>
     <div class="card">
-      <div class="tb-head"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#c4913c" d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.5 10h-15z"/><rect x="4.5" y="18.5" width="15" height="2.2" rx="1" fill="#a8792c"/></svg><h2>高校対抗 来店バトル</h2></div>
+      <div class="tb-head"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#c4913c" d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.5 10h-15z"/><rect x="4.5" y="18.5" width="15" height="2.2" rx="1" fill="#a8792c"/></svg><h2>学校対抗 来店バトル</h2></div>
       <div class="tb-sub" id="teamSub">読み込み中…</div>
       <div class="tb-tabs" id="teamTabs"></div>
+      <div class="tb-tabs" id="teamKindTabs" style="flex-wrap:wrap;margin-top:0"></div>
       <div class="tb-news" id="teamNews" style="display:none"><span class="tag">速報</span><span id="teamNewsText"></span></div>
-      <p class="muted" style="font-size:11.5px">参加した人の来店回数を学校ごとに合計してランキングにします。参加は任意・途中参加OK。学校名はあなたが入力したものをそのまま使い、あなたの名前や来店は表示しません。</p>
+      <p class="muted" style="font-size:11.5px">中学・高校・高専・専門学校・大学、どこでも参加OK。参加した人の来店回数を学校ごとに合計してランキングにします。参加は任意・途中参加OK。学校名はあなたが入力したものをそのまま使い、あなたの名前や来店は表示しません。</p>
     </div>
     <div class="card" id="teamJoinBox">
       <h2>参加する</h2>
-      <p class="muted">学校名を入れてください（例：長岡高校）。すでにある学校は候補に出ます。無ければ新しく作れます。遠くの学校でもOK。</p>
+      <p class="muted">学校の区分を選んで、学校名を入れてください（例：長岡高校）。すでにある学校は候補に出ます。無ければ新しく作れます。遠くの学校でもOK。</p>
+      <div class="tb-tabs" id="teamKinds" style="flex-wrap:wrap;margin:8px 0 2px"></div>
       <input id="teamInput" placeholder="学校名" maxlength="30" autocomplete="off" style="width:100%;font:inherit;font-size:16px;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;margin-top:8px;background:#fff;color:var(--ink)">
       <div id="teamSug" class="tm-sug"></div>
       <button class="small" id="btnTeamJoin" style="margin-top:10px;width:100%">この学校で参加する</button>
@@ -1151,10 +1153,17 @@ async function shogoOpen() {
 
 /* ここから下は auth.js（ログイン完了）から呼ばれる。
    先に走らせるとクラウドのデータで上書きされて消えるので順番を守ること */
-/* ---------- 高校対抗 来店バトル（2026-09-21 masa🇦）: 表示と操作。データは auth.js の window.kakiTeams ---------- */
+/* ---------- 学校対抗 来店バトル（2026-09-21 masa🇦）: 表示と操作。データは auth.js の window.kakiTeams ---------- */
 function teamMonthKey() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); }
 const escT = t => String(t == null ? "" : t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 let TEAM_TAB = "";   /* "" = 全体、それ以外は店ID */
+const TEAM_KINDS = ["中学校", "高校", "高専", "専門学校", "大学・短大", "その他"];   /* masa 2026-09-21「専門学校・大学・中学校も」 */
+let TEAM_KIND_FILTER = "", TEAM_JOIN_KIND = "高校";
+function teamKindChips() {
+  const jk = document.getElementById("teamKinds");
+  jk.innerHTML = TEAM_KINDS.map(k => '<button type="button" data-k="' + k + '" class="' + (k === TEAM_JOIN_KIND ? "on" : "") + '">' + k + '</button>').join("");
+  jk.querySelectorAll("button").forEach(b => b.onclick = () => { TEAM_JOIN_KIND = b.dataset.k; teamKindChips(); });
+}
 const TEAM_TABS = [{ id: "", name: "全体" }].concat((C.stores || []).map(st => ({ id: st.id, name: (st.name || "").replace(/^柿川亭\s*/, "").replace(/(本店|連坊店|店)$/, "") })));
 function teamCrownSvg(size) { return '<svg class="crown" viewBox="0 0 24 24" aria-hidden="true"><path fill="#c4913c" d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.5 10h-15z"/><rect x="4.5" y="18.5" width="15" height="2.2" rx="1" fill="#a8792c"/></svg>'; }
 const TEAM_LAUREL = '<svg class="laurel" viewBox="0 0 120 120" aria-hidden="true"><g fill="none" stroke="#c4913c" stroke-width="3" stroke-linecap="round"><path d="M30 100c-14-10-20-30-14-50"/><path d="M90 100c14-10 20-30 14-50"/></g><g fill="#c4913c"><ellipse cx="18" cy="62" rx="4" ry="9" transform="rotate(-30 18 62)"/><ellipse cx="17" cy="78" rx="4" ry="9" transform="rotate(-10 17 78)"/><ellipse cx="22" cy="92" rx="4" ry="9" transform="rotate(15 22 92)"/><ellipse cx="102" cy="62" rx="4" ry="9" transform="rotate(30 102 62)"/><ellipse cx="103" cy="78" rx="4" ry="9" transform="rotate(10 103 78)"/><ellipse cx="98" cy="92" rx="4" ry="9" transform="rotate(-15 98 92)"/></g></svg>';
@@ -1167,9 +1176,16 @@ async function teamRender(force) {
   const tabs = document.getElementById("teamTabs");
   tabs.innerHTML = TEAM_TABS.length > 2 ? TEAM_TABS.map(t => '<button type="button" data-id="' + t.id + '" class="' + (t.id === TEAM_TAB ? "on" : "") + '">' + escT(t.name) + '</button>').join("") : "";
   tabs.querySelectorAll("button").forEach(b => b.onclick = () => { TEAM_TAB = b.dataset.id; teamRender(false); });
+  teamKindChips();
   let all = [], rows = [];
   try { all = await T.ranking(force, ""); rows = TEAM_TAB ? await T.ranking(false, TEAM_TAB) : all; }
   catch (e) { console.error("team ranking", e); document.getElementById("teamRank").textContent = "読み込めませんでした（電波の良い所でもう一度）"; return; }
+  /* 区分の絞り込み（実際に参加のある区分だけチップを出す） */
+  const kindsPresent = TEAM_KINDS.filter(k => all.some(r => r.kind === k));
+  const kt = document.getElementById("teamKindTabs");
+  kt.innerHTML = kindsPresent.length > 1 ? [""].concat(kindsPresent).map(k => '<button type="button" data-k="' + k + '" class="' + (k === TEAM_KIND_FILTER ? "on" : "") + '" style="font-size:12px;padding:6px 12px">' + (k || "すべて") + '</button>').join("") : "";
+  kt.querySelectorAll("button").forEach(b => b.onclick = () => { TEAM_KIND_FILTER = b.dataset.k; teamRender(false); });
+  if (TEAM_KIND_FILTER) rows = rows.filter(r => r.kind === TEAM_KIND_FILTER);
   const ranked = rows.filter(r => r.members >= 2), waiting = all.filter(r => r.members === 1);
   const total = all.reduce((a, r) => a + r.members, 0), schools = all.filter(r => r.members >= 2).length;
   const max = Math.max(1, ...ranked.map(r => r.visits));
@@ -1217,7 +1233,7 @@ async function teamRender(force) {
 }
 document.getElementById("btnGoTeam").onclick = () => { show("team"); teamRender(true); };
 document.getElementById("btnTeamShare").onclick = async () => {
-  const url = "https://kakigawatei.github.io/kakiapp/get/", text = "柿川亭アプリの「高校対抗 来店バトル」" + (store.s.team ? "、" + store.s.team + "で参加してる。" : "。") + "一緒に上位を目指そう！";
+  const url = "https://kakigawatei.github.io/kakiapp/get/", text = "柿川亭アプリの「学校対抗 来店バトル」" + (store.s.team ? "、" + store.s.team + "で参加してる。" : "。") + "一緒に上位を目指そう！";
   try { if (navigator.share) await navigator.share({ title: "柿川亭アプリ", text, url }); else { await navigator.clipboard.writeText(text + " " + url); window.kakiAlert("誘い文句とリンクをコピーしました。LINE などに貼って送ってください。"); } } catch (e) {}
 };
 document.getElementById("btnTeamBack").onclick = () => show("home");
@@ -1228,8 +1244,8 @@ document.getElementById("teamInput").addEventListener("input", () => {
     const q = document.getElementById("teamInput").value.trim(), box = document.getElementById("teamSug");
     if (!q || !window.kakiTeams) { box.innerHTML = ""; return; }
     let hits = []; try { hits = await window.kakiTeams.suggest(q); } catch (e) {}
-    box.innerHTML = hits.map(t => '<button type="button" data-name="' + escT(t.name) + '">' + escT(t.name) + ' <span class="muted">' + (t.members || 0) + '人</span></button>').join("");
-    box.querySelectorAll("button").forEach(b => b.onclick = () => { document.getElementById("teamInput").value = b.dataset.name; box.innerHTML = ""; });
+    box.innerHTML = hits.map(t => '<button type="button" data-name="' + escT(t.name) + '" data-k="' + escT(t.kind || "高校") + '">' + escT(t.name) + ' <span class="muted">' + escT(t.kind || "高校") + '・' + (t.members || 0) + '人</span></button>').join("");
+    box.querySelectorAll("button").forEach(b => b.onclick = () => { document.getElementById("teamInput").value = b.dataset.name; if (TEAM_KINDS.includes(b.dataset.k)) { TEAM_JOIN_KIND = b.dataset.k; teamKindChips(); } box.innerHTML = ""; });
   }, 250);
 });
 document.getElementById("btnTeamJoin").onclick = async () => {
@@ -1241,7 +1257,7 @@ document.getElementById("btnTeamJoin").onclick = async () => {
   if (!ok) return;
   btn.disabled = true; msgEl.textContent = "登録中…";
   try {
-    const t = await window.kakiTeams.join(name);
+    const t = await window.kakiTeams.join(name, TEAM_JOIN_KIND);
     msgEl.textContent = ""; inp.value = ""; document.getElementById("teamSug").innerHTML = "";
     await window.kakiAlert("「" + t.name + "」で参加しました！\nお店に来てチェックインすると、学校の来店数が増えます。");
     teamRender(true);

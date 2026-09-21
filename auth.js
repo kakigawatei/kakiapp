@@ -322,10 +322,10 @@ window.kakiTeams = {
   /* 今月のランキング材料（表示側で「参加2人以上だけ順位つき」にする） */
   /* storeId を渡すとその店での来店だけで並べる（タブ 長岡／仙台）。today＝今日の来店数、createdAt＝NEW 判定用 */
   ranking: async (force, storeId) => { const m = teamMonth(), d = new Date().toISOString().slice(0, 10); const arr = await teamList(force);
-    return arr.filter(t => !t.mergedInto && !t.hidden).map(t => ({ id: t.id, name: t.name, members: t.members || 0, createdAt: t.createdAt || "",
+    return arr.filter(t => !t.mergedInto && !t.hidden).map(t => ({ id: t.id, name: t.name, kind: t.kind || "高校", members: t.members || 0, createdAt: t.createdAt || "",
       visits: storeId ? ((t.visitsByStore && t.visitsByStore[m] && t.visitsByStore[m][storeId]) || 0) : ((t.visits && t.visits[m]) || 0),
       today: (t.days && t.days[d]) || 0 })).sort((a, b) => b.visits - a.visits || b.members - a.members || String(a.name).localeCompare(String(b.name), "ja")); },
-  join: async name => {
+  join: async (name, kind) => {
     if (!uid || !auth.currentUser) throw Object.assign(new Error("not signed in"), { code: "team/auth" });
     name = String(name || "").normalize("NFKC").replace(/\s+/g, " ").trim(); const norm = teamNorm(name);
     if (norm.length < 2 || name.length > 30) throw Object.assign(new Error("bad name"), { code: "team/name" });
@@ -336,8 +336,8 @@ window.kakiTeams = {
     if (st.teamId) { try { await updateDoc(doc(db, "kakiapp_teams", st.teamId), { members: increment(-1) }); } catch (e) { console.error(e); } }
     if (t) { await withTimeout(updateDoc(doc(db, "kakiapp_teams", t.id), { members: increment(1) }), 12000, "teamJoin"); }
     else {
-      const ref = await withTimeout(addDoc(collection(db, "kakiapp_teams"), { name, norm, kind: "school", members: 1, visits: {}, visitsTotal: 0, aliases: [], hidden: false, mergedInto: null, createdAt: new Date().toISOString(), createdBy: uid }), 12000, "teamCreate");
-      t = { id: ref.id, name, norm, members: 1, visits: {} };
+      const ref = await withTimeout(addDoc(collection(db, "kakiapp_teams"), { name, norm, kind: kind || "高校", members: 1, visits: {}, visitsTotal: 0, aliases: [], hidden: false, mergedInto: null, createdAt: new Date().toISOString(), createdBy: uid }), 12000, "teamCreate");
+      t = { id: ref.id, name, norm, kind: kind || "高校", members: 1, visits: {} };
     }
     teamCache = null;
     const s2 = window.kakiGetState(); s2.teamId = t.id; s2.team = t.name; s2.teamJoinedAt = new Date().toISOString(); window.kakiSetState(s2); window.cloudPush();

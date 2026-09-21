@@ -142,7 +142,7 @@
     </div>
 
     <div class="card">
-      <h2>🏫 高校対抗 来店バトル（学校の管理）</h2>
+      <h2>🏫 学校対抗 来店バトル（学校の管理）</h2>
       <p class="who">学校名はお客さんが自由に入力します。同じ学校が2つできたら「統合」でひとつにまとめてください（人数と来店数は合算・以後その名前で入った人も自動で同じ学校になります）。ふざけた名前は「非表示」でランキングから外せます。</p>
       <div id="t-list"><p class="who">読み込み中…</p></div>
       <button class="btn-primary" id="t-reload" style="background:var(--indigo)">一覧を更新</button>
@@ -290,7 +290,7 @@
       if(!live.length){ wrap.innerHTML = '<p class="who">まだ参加した学校はありません。</p>'; return; }
       wrap.innerHTML = live.map((t, i) =>
         '<div class="item '+(t.hidden?"item-off":"")+'">' +
-          '<div class="item-t">'+(i+1)+'. '+esc(t.name)+(t.hidden?'<span class="badge-off">非表示</span>':'')+'</div>' +
+          '<div class="item-t">'+(i+1)+'. '+esc(t.name)+' <span style="font-size:11px;color:var(--ink-soft)">'+esc(t.kind||"高校")+'</span>'+(t.hidden?'<span class="badge-off">非表示</span>':'')+'</div>' +
           '<div class="item-d">参加 '+esc(t.members||0)+'人 ／ 今月 '+esc(nm(t))+'回 ／ 累計 '+esc(t.visitsTotal||0)+'回'+((t.aliases||[]).length?' ／ 別名: '+esc((t.aliases||[]).join("・")):'')+'</div>' +
           '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' +
             '<button class="btn-del" style="background:var(--indigo)" data-act="rename" data-id="'+esc(t._id)+'">名前を直す</button>' +
