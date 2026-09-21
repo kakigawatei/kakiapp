@@ -25,7 +25,9 @@ if (!loggedIn) { await shot("/tmp/season_close_login.jpg"); console.log("LOGIN_R
 console.log("month:", MONTH);
 await ev(`(() => { const el = document.getElementById("s-month"); el.value = ${JSON.stringify(MONTH)}; el.dispatchEvent(new Event("change")); })()`);
 await sleep(2500);
-console.log("season:", await ev(`document.getElementById("s-msg").textContent`));
+const smsg = await ev(`document.getElementById("s-msg").textContent`); console.log("season:", smsg);
+/* 締め済みの月は自動では締め直さない（受け取り済みの保護・エル監査） */
+if (/締め済み/.test(smsg) && !process.argv.includes("--force")) { console.log("ALREADY_CLOSED (use --force to redo)"); await fetch(base + "/json/close/" + open.id); ws.close(); process.exit(3); }
 /* 🟥 --yes が無ければ確認だけ（誤って締めない・2026-09-21 の教訓） */
 if (!process.argv.includes("--yes")) { console.log("DRY_RUN (add --yes to close)"); await fetch(base + "/json/close/" + open.id); ws.close(); process.exit(0); }
 await ev(`document.getElementById("s-close").click()`);
