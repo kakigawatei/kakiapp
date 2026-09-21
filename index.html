@@ -1243,7 +1243,7 @@ async function teamRender(force) {
   if (SEASON) {
     const td = today(); const cut = SEASON.entryUntil.slice(5).replace(/^0/, "").replace("-", "/").replace(/\/0/, "/");
     note.textContent = td > SEASON.entryUntil ? "今シーズンのエントリー（" + cut + "まで）は締め切りました。参加はできますが、報酬の対象は次のシーズンから。ランキングは見られます。"
-      : "エントリー締切 " + cut + " ｜ 報酬の対象になるのは「参加＋そのシーズンにお店で来店チェックイン1回以上」の人です。";
+      : "エントリー締切 " + cut + " ｜ 報酬の対象は「参加＋そのシーズンに来店チェックイン1回以上」の人。結果発表と同時にアプリへ自動で入ります。";
   }
   teamAwardRender(SEASON); teamLastRender().catch(() => {});
   /* 速報＝今日いちばん来ている学校 */
@@ -1299,8 +1299,7 @@ function teamAwardRender(SEASON) {
   document.getElementById("teamAwardBody").textContent = "学校の来店 " + (a.teamVisits || 0) + "回 ｜ 参加 " + (a.teamMembers || 0) + "人 ｜ あなたの来店 " + (a.myVisits || 0) + "回" + (pts ? " ｜ 報酬 " + pts + "P" : "");
   const note = document.getElementById("teamAwardNote");
   if (a.claimed) note.textContent = "受け取り済み（" + a.claimed.slice(0, 10) + "）";
-  else if (a.status === "verified") note.textContent = "確認が済みました。ポイントを入れます…";
-  else note.textContent = pts ? "受け取りは店頭で。この画面をスタッフに見せて、学生証（生徒手帳）を確認してもらうとポイントが入ります。" : "お試し回のため、ポイントの配布はありません。";
+  else note.textContent = pts ? "ポイントを入れています…" : "お試し回のため、ポイントの配布はありません。カードはコレクションに入ります。";
   box.style.display = "block";
   if (a.status === "verified" && !a.claimed) {
     const aw2 = Object.assign({}, aw); aw2[m] = Object.assign({}, a, { claimed: new Date().toISOString() });

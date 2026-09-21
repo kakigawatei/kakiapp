@@ -167,8 +167,8 @@
     </div>
 
     <div class="card">
-      <h2>🎫 受け取り待ち（店頭で学生証を確認したら「確認済み」）</h2>
-      <p class="who">お客さんの「結果発表」画面を見て、学校名と本人を確認してから押してください。押すと本人のアプリにポイントが入ります。</p>
+      <h2>🎫 配布一覧（締めた月の受け取り対象）</h2>
+      <p class="who">ポイントとカードは、本人がアプリを開いた瞬間に自動で入ります（店頭の確認なし）。ここは誰に配ったかの確認用。</p>
       <div id="v-list"><p class="who">読み込み中…</p></div>
       <button class="btn-primary" id="v-reload" style="background:var(--indigo)">一覧を更新</button>
     </div>
@@ -403,7 +403,7 @@
         if (myV < 1 || (joined && joined > s.entryUntil)) continue;
         const t = rows.find(r => r.id === u.teamId); const useTier = tier || "mvp"; counters[u.teamId] = (counters[u.teamId]||0)+1;
         const pts = (tier ? (s.rewards[tier]||0) : 0) + (isMvp ? (s.rewards.mvp||0) : 0);
-        const award = { month: m, round: s.round, trial: s.trial, tier: useTier, mvpAlso: !!(tier && isMvp), teamId: u.teamId, teamName: t?t.name:"", kind: t?t.kind:"高校", teamVisits: t?t.visits:0, teamMembers: t?t.members:0, myVisits: myV, nick: u.nickname||"", cardNo: counters[u.teamId], points: pts, status: pts ? "pending" : "verified", createdAt: closedAt };
+        const award = { month: m, round: s.round, trial: s.trial, tier: useTier, mvpAlso: !!(tier && isMvp), teamId: u.teamId, teamName: t?t.name:"", kind: t?t.kind:"高校", teamVisits: t?t.visits:0, teamMembers: t?t.members:0, myVisits: myV, nick: u.nickname||"", cardNo: counters[u.teamId], points: pts, status: "verified", createdAt: closedAt };   /* masa 2026-09-21「学生証チェックはしない・自動で付与」 */
         const up = {}; up["awards."+m] = award; batch.update(doc(db,"kakiapp_users",u.uid), up); inBatch++; n++;
         if (inBatch >= 400) { await batch.commit(); batch = writeBatch(db); inBatch = 0; }
       }
@@ -421,15 +421,12 @@
   async function loadVerify(){
     const wrap = $("v-list"); const m = $("s-month").value.trim();
     try {
-      const snap = await getDocs(query(collection(db,"kakiapp_users"), where("awards."+m+".status","==","pending")));
+      const snap = await getDocs(query(collection(db,"kakiapp_users"), where("awards."+m+".status","==","verified")));
       const items = []; snap.forEach(x => { const u = x.data(); items.push({ uid: x.id, email: u.email||"", a: u.awards[m] }); });
-      if(!items.length){ wrap.innerHTML = '<p class="who">'+esc(m)+' の受け取り待ちはいません。</p>'; return; }
+      if(!items.length){ wrap.innerHTML = '<p class="who">'+esc(m)+' の配布対象はいません（まだ締めていないか、対象0人）。</p>'; return; }
       const TL = { r1:"優勝", r2:"準優勝", r3:"3位", mvp:"MVP校" };
-      wrap.innerHTML = items.map(it => '<div class="item"><div class="item-t">'+esc(it.a.nick||"（ニックネーム未設定）")+' <span style="font-size:11px;color:var(--ink-soft)">'+esc(it.email)+'</span></div><div class="item-d">'+esc(it.a.teamName)+'（'+esc(it.a.kind)+'）'+esc(TL[it.a.tier]||it.a.tier)+(it.a.mvpAlso?"＋MVP":"")+' ／ 本人の来店 '+esc(it.a.myVisits)+'回 ／ '+esc(it.a.points)+'P ／ No. '+esc(it.a.cardNo)+'</div><button class="btn-del" style="background:var(--indigo)" data-uid="'+esc(it.uid)+'">確認済み（ポイントを渡す）</button></div>').join("");
-      wrap.querySelectorAll("button[data-uid]").forEach(b => b.addEventListener("click", async () => {
-        if(!confirm("この人の学生証（生徒手帳）を確認しましたか？ 押すと本人のアプリにポイントが入ります。")) return;
-        try { const up = {}; up["awards."+m+".status"] = "verified"; up["awards."+m+".verifiedAt"] = new Date().toISOString(); await updateDoc(doc(db,"kakiapp_users",b.dataset.uid), up); loadVerify(); } catch(e){ alert("失敗："+(e.code||e.message)); }
-      }));
+      items.sort((a,b)=> String(a.a.teamName).localeCompare(String(b.a.teamName),"ja") || (a.a.cardNo||0)-(b.a.cardNo||0));
+      wrap.innerHTML = items.map(it => '<div class="item"><div class="item-t">'+esc(it.a.nick||"（ニックネーム未設定）")+' <span style="font-size:11px;color:var(--ink-soft)">'+esc(it.email)+'</span></div><div class="item-d">'+esc(it.a.teamName)+'（'+esc(it.a.kind)+'）'+esc(TL[it.a.tier]||it.a.tier)+(it.a.mvpAlso?"＋MVP":"")+' ／ 本人の来店 '+esc(it.a.myVisits)+'回 ／ '+esc(it.a.points)+'P ／ No. '+esc(it.a.cardNo)+(it.a.claimed?' ／ 受け取り済み':' ／ 未受け取り（次にアプリを開いた時に入る）')+'</div></div>').join("");
     } catch(e){ wrap.innerHTML = '<p class="who">読み込み失敗：'+esc(e.code||e.message)+'（ルールで運営の kakiapp_users 読み書きが要る／複合インデックスの案内が出たらそのリンクを開く）</p>'; }
   }
   $("v-reload").addEventListener("click", loadVerify);
