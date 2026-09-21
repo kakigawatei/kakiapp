@@ -562,6 +562,13 @@ window.__errs = [];
 })();
 
 const C = window.KAKI_CONFIG;
+/* テスト版の目印（kakigawatei.github.io/kakiapp-test/ で開いたとき。本番 kakiapp では出ない）2026-09-21 */
+if (/kakiapp-test/.test(location.pathname)) {
+  document.title = "柿川亭アプリ（テスト版）";
+  const rb = document.createElement("div"); rb.textContent = "テスト版";
+  rb.style.cssText = "position:fixed;top:calc(env(safe-area-inset-top) + 8px);left:8px;z-index:70;background:#a63a2a;color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;opacity:.92;pointer-events:none";
+  document.body.appendChild(rb);
+}
 
 /* ---------- お知らせ（鈴）: Firestore kakiapp_announcements を REST で取得（SDK不使用・未ログインでも読める） ----------
  * masa が admin.html か Firebase コンソールで {title, body, date:"YYYY-MM-DD", active} を足すと、
