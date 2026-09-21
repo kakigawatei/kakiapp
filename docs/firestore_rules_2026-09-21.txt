@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {match /announcements/{doc} {
+  allow read: if true;
+  allow write: if request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2";
+}
+match /stats_spot/{doc} { allow read: if false; allow write: if request.auth != null; }
+match /stats_shop/{doc} { allow read: if false; allow write: if request.auth != null; }
+match /survey_results/{doc} { allow read: if false; allow write: if request.auth != null; }
+match /surveys/{doc} { allow read: if true; allow write: if false; }
+    // お宝カードのシリアル番号（何番目の発見者か）
+    match /cards/{cardId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // 友達紹介コード
+    match /refcodes/{code} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
+    }
+
+    // 友達紹介の成立記録
+    match /referrals/{referredUid} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && referredUid == request.auth.uid
+                    && request.resource.data.referrerUid is string;
+    }
+
+    // プレイヤーの稼働記録（自分の分だけ書ける／読み取りは禁止）
+    match /users/{uid} {
+      allow read: if false;
+      allow write: if request.auth != null && uid == request.auth.uid;
+    }
+
+    // 「このアカウントはどのお店か」の紐付け（運営がコンソールから作る）
+    match /shopOwners/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // お店の混雑ステータス（アプリは誰でも読める／書けるのは紐付いた店だけ）
+    match /crowd/{shopId} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && get(/databases/$(database)/documents/shopOwners/$(request.auth.uid)).data.shopId == shopId
+        && request.resource.data.keys().hasOnly(['level', 'updatedAt', 'source'])
+        && request.resource.data.level in ['green', 'yellow', 'red', 'off'];
+    }
+    
+    match /shime_docs/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 柿川亭アプリ（ポイント）の会員データ。本人だけが自分の1件を読み書きできる
+    // ＝他人のポイントは見えないし、書き換えられない
+
+
+   
+match /kakiapp_announcements/{doc} {
+      allow read: if true;
+      allow write: if request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2";
+    }
+
+match /kakiapp_users/{uid} { allow read: if request.auth != null && (request.auth.uid == uid || request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"); allow write: if request.auth != null && request.auth.uid == uid; }match /kakiapp_campaigns/{doc} { allow read: if true; allow write: if request.auth != null && request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"; }
+// 柿川亭アプリ 高校対抗 来店バトルのチーム（2026-09-21）。参加者が作る・人数と来店数を足す。消せるのは運営だけ
+match /kakiapp_teams/{doc} { allow read: if request.auth != null; allow create: if request.auth != null && request.resource.data.name is string && request.resource.data.name.size() <= 40 && request.resource.data.norm is string; allow update: if request.auth != null; allow delete: if request.auth != null && request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"; }
+match /sugoroku_players/{uid} { allow read: if request.auth != null; allow write: if request.auth != null && request.auth.uid == uid; }
+match /sugoroku_props/{doc} { allow read: if request.auth != null; allow create: if request.auth != null && request.resource.data.owner == request.auth.uid; allow update: if request.auth != null && resource.data.owner in [null, request.auth.uid] && request.resource.data.owner == request.auth.uid; allow delete: if request.auth != null && resource.data.owner == request.auth.uid; }
+match /sugoroku_games/{doc} { allow read, write: if request.auth != null; }
+
+match /sugoroku_matches/{matchId} { allow read: if request.auth != null && request.auth.uid in resource.data.participantUids; allow write: if false;
+  match /hands/{seatId} { allow read: if request.auth != null && request.auth.uid == resource.data.uid; allow write: if false; }
+  match /actions/{actionId} { allow read: if request.auth != null && request.auth.uid == resource.data.actorUid; allow write: if false; }
+  match /events/{rev} { allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/sugoroku_matches/$(matchId)).data.participantUids; allow write: if false; }
+  match /serverState/{doc} { allow read, write: if false; }
+  match /jobs/{doc} { allow read, write: if false; } }
+match /sugoroku_requests/{uid}/{document=**} { allow read, write: if false; }
+  }
+}
