@@ -11,7 +11,7 @@ import {
   RecaptchaVerifier, signInWithPhoneNumber, linkWithPhoneNumber,
   PhoneAuthProvider, linkWithCredential
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { initializeFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, addDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const app = initializeApp({
   apiKey: "AIzaSyDtDZIEQtBzjujnpTDcXt1QeEU2r-wbg74",
@@ -39,7 +39,8 @@ if (!isNativeApp) setPersistence(auth, browserLocalPersistence).catch(() => {});
 const KEYS = ["points", "visits", "tx", "rouletteDate", "gachaDate", "qrDate", "loginDate",
   "mailOptIn", "mailOptInAt",   /* 宣伝メールの同意（特定電子メール法）2026-09-03 */
   "storeVisits", "lastStore", "lastStoreAt",   /* どの店に来たか。送り分けに使う 2026-09-03 */
-  "createdAt", "claimed", "rankBonus"];   /* 使い始めた日・キャンペーン受取・ランクアップ受取（二重取り防止）2026-09-10 */
+  "createdAt", "claimed", "rankBonus",   /* 使い始めた日・キャンペーン受取・ランクアップ受取（二重取り防止）2026-09-10 */
+  "teamId", "team", "teamJoinedAt", "teamVisits"];   /* 高校対抗 来店バトル（任意参加・自分の学校と月別の自分の来店数）2026-09-21 */
 
 
 let uid = null, ready = false, timer = null;
@@ -292,6 +293,61 @@ window.kakiDeleteAccount = async function () {
       await window.kakiAlert("削除できませんでした。" + jaError(e));
     }
   } finally { acting = false; }
+};
+
+/* ---- 高校対抗 来店バトル（2026-09-21 masa🇦）----
+   チーム＝ kakiapp_teams/{id} {name, norm, kind:"school", members, visits:{"YYYY-MM":n}, visitsTotal, aliases:[norm...], hidden, mergedInto, createdAt, createdBy}
+   学校名は本人が自由入力（遠くの学校も自分で作れる）。表記ゆれは norm（正規化）で寄せ、残った重複は admin.html の「統合」で masa がひとつにする
+   （統合された側は mergedInto に統合先が入り、norm は統合先の aliases に記憶＝次から同じ名前は自動で同じチーム。所属していた人は起動時 sync で付け替わる） */
+const teamNorm = raw => {
+  let s = String(raw || "").normalize("NFKC").replace(/[\s\u3000]+/g, "").toLowerCase();
+  s = s.replace(/^(新潟県立|新潟県|県立|私立|市立|国立|学校法人)/, "");
+  s = s.replace(/高等学校$/, "高校").replace(/高等専門学校$/, "高専");
+  return s;
+};
+const teamMonth = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); };
+let teamCache = null, teamCacheAt = 0;
+async function teamList(force) {
+  if (!force && teamCache && Date.now() - teamCacheAt < 60000) return teamCache;
+  const snap = await withTimeout(getDocs(collection(db, "kakiapp_teams")), 12000, "teams");
+  const arr = []; snap.forEach(d => arr.push(Object.assign({ id: d.id }, d.data())));
+  teamCache = arr; teamCacheAt = Date.now(); return arr;
+}
+const teamResolve = (arr, id) => { let t = arr.find(x => x.id === id), n = 0; while (t && t.mergedInto && n++ < 5) { const nx = arr.find(x => x.id === t.mergedInto); if (!nx) break; t = nx; } return t || null; };
+const teamFind = (arr, norm) => { const t = arr.find(x => !x.mergedInto && (x.norm === norm || (x.aliases || []).includes(norm))) || arr.find(x => x.norm === norm || (x.aliases || []).includes(norm)); return t ? teamResolve(arr, t.id) : null; };
+window.kakiTeams = {
+  month: teamMonth, norm: teamNorm, list: teamList,
+  /* 入力中の候補（正規化して部分一致・統合済み/非表示は除く） */
+  suggest: async q => { const n = teamNorm(q); if (!n) return []; const arr = await teamList(); return arr.filter(t => !t.mergedInto && !t.hidden && (String(t.norm || "").includes(n) || String(t.name || "").includes(q))).slice(0, 8); },
+  /* 今月のランキング材料（表示側で「参加2人以上だけ順位つき」にする） */
+  ranking: async force => { const m = teamMonth(); const arr = await teamList(force); return arr.filter(t => !t.mergedInto && !t.hidden).map(t => ({ id: t.id, name: t.name, members: t.members || 0, visits: (t.visits && t.visits[m]) || 0 })).sort((a, b) => b.visits - a.visits || b.members - a.members || String(a.name).localeCompare(String(b.name), "ja")); },
+  join: async name => {
+    if (!uid || !auth.currentUser) throw Object.assign(new Error("not signed in"), { code: "team/auth" });
+    name = String(name || "").normalize("NFKC").replace(/\s+/g, " ").trim(); const norm = teamNorm(name);
+    if (norm.length < 2 || name.length > 30) throw Object.assign(new Error("bad name"), { code: "team/name" });
+    const st = window.kakiGetState();
+    const arr = await teamList(true);
+    let t = teamFind(arr, norm);
+    if (t && t.id === st.teamId) return t;
+    if (st.teamId) { try { await updateDoc(doc(db, "kakiapp_teams", st.teamId), { members: increment(-1) }); } catch (e) { console.error(e); } }
+    if (t) { await withTimeout(updateDoc(doc(db, "kakiapp_teams", t.id), { members: increment(1) }), 12000, "teamJoin"); }
+    else {
+      const ref = await withTimeout(addDoc(collection(db, "kakiapp_teams"), { name, norm, kind: "school", members: 1, visits: {}, visitsTotal: 0, aliases: [], hidden: false, mergedInto: null, createdAt: new Date().toISOString(), createdBy: uid }), 12000, "teamCreate");
+      t = { id: ref.id, name, norm, members: 1, visits: {} };
+    }
+    teamCache = null;
+    const s2 = window.kakiGetState(); s2.teamId = t.id; s2.team = t.name; s2.teamJoinedAt = new Date().toISOString(); window.kakiSetState(s2); window.cloudPush();
+    return t;
+  },
+  leave: async () => {
+    const st = window.kakiGetState(); if (!st.teamId) return;
+    try { await updateDoc(doc(db, "kakiapp_teams", st.teamId), { members: increment(-1) }); } catch (e) { console.error(e); }
+    teamCache = null; delete st.teamId; delete st.team; delete st.teamJoinedAt; window.kakiSetState(st); window.cloudPush();
+  },
+  /* 来店1回＝自分の学校の今月に+1（index.html の checkin から。失敗しても本人の来店は成立） */
+  visit: async () => { const st = window.kakiGetState(); if (!st.teamId) return; const u = {}; u["visits." + teamMonth()] = increment(1); u.visitsTotal = increment(1); await updateDoc(doc(db, "kakiapp_teams", st.teamId), u); teamCache = null; },
+  /* 起動時: 統合・改名されていたら自分の所属を付け替える */
+  sync: async () => { const st = window.kakiGetState(); if (!st.teamId) return null; const arr = await teamList(); const t = teamResolve(arr, st.teamId); if (!t) return null; if (t.id !== st.teamId || t.name !== st.team) { const s2 = window.kakiGetState(); s2.teamId = t.id; s2.team = t.name; window.kakiSetState(s2); window.cloudPush(); } return t; },
 };
 
 /* ---- 入口 ---- */

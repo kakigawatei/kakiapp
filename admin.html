@@ -140,6 +140,13 @@
       <h2>キャンペーン一覧</h2>
       <div id="c-list"><p class="who">読み込み中…</p></div>
     </div>
+
+    <div class="card">
+      <h2>🏫 高校対抗 来店バトル（学校の管理）</h2>
+      <p class="who">学校名はお客さんが自由に入力します。同じ学校が2つできたら「統合」でひとつにまとめてください（人数と来店数は合算・以後その名前で入った人も自動で同じ学校になります）。ふざけた名前は「非表示」でランキングから外せます。</p>
+      <div id="t-list"><p class="who">読み込み中…</p></div>
+      <button class="btn-primary" id="t-reload" style="background:var(--indigo)">一覧を更新</button>
+    </div>
   </div>
 
 
@@ -149,7 +156,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp, query, where, getCountFromServer }
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp, query, where, getCountFromServer, updateDoc, increment, arrayUnion }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const app = initializeApp({
@@ -195,7 +202,7 @@
       $("app").classList.remove("hidden");
       $("who-email").textContent = user.email || user.displayName || "(不明)";
       if ($("who-uid")) $("who-uid").textContent = user.uid;
-      loadList(); loadCampaigns();
+      loadList(); loadCampaigns(); loadTeams();
     } else {
       $("app").classList.add("hidden");
       $("login-card").classList.remove("hidden");
@@ -268,6 +275,58 @@
       }
     } catch(e){ wrap.innerHTML = '<p class="who">読み込み失敗：'+esc(e.code||e.message)+'</p>'; }
   }
+
+  /* ---------- 高校対抗 来店バトル（2026-09-21）: kakiapp_teams の一覧・改名・非表示・統合 ---------- */
+  const tMonth = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); };
+  let TEAMS = [];
+  async function loadTeams(){
+    const wrap = $("t-list");
+    try {
+      const snap = await getDocs(collection(db,"kakiapp_teams"));
+      TEAMS = []; snap.forEach(d => TEAMS.push(Object.assign({ _id: d.id }, d.data())));
+      const m = tMonth(); const nm = t => (t.visits && t.visits[m]) || 0;
+      const live = TEAMS.filter(t => !t.mergedInto).sort((a,b)=> nm(b)-nm(a) || (b.members||0)-(a.members||0));
+      const merged = TEAMS.filter(t => t.mergedInto);
+      if(!live.length){ wrap.innerHTML = '<p class="who">まだ参加した学校はありません。</p>'; return; }
+      wrap.innerHTML = live.map((t, i) =>
+        '<div class="item '+(t.hidden?"item-off":"")+'">' +
+          '<div class="item-t">'+(i+1)+'. '+esc(t.name)+(t.hidden?'<span class="badge-off">非表示</span>':'')+'</div>' +
+          '<div class="item-d">参加 '+esc(t.members||0)+'人 ／ 今月 '+esc(nm(t))+'回 ／ 累計 '+esc(t.visitsTotal||0)+'回'+((t.aliases||[]).length?' ／ 別名: '+esc((t.aliases||[]).join("・")):'')+'</div>' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' +
+            '<button class="btn-del" style="background:var(--indigo)" data-act="rename" data-id="'+esc(t._id)+'">名前を直す</button>' +
+            '<button class="btn-del" style="background:var(--gold)" data-act="hide" data-id="'+esc(t._id)+'">'+(t.hidden?"表示に戻す":"非表示")+'</button>' +
+            '<button class="btn-del" data-act="merge" data-id="'+esc(t._id)+'">別の学校に統合</button>' +
+          '</div>' +
+        '</div>').join("") +
+        (merged.length ? '<p class="note">統合済み: '+merged.map(t => esc(t.name)+' → '+esc((TEAMS.find(x=>x._id===t.mergedInto)||{}).name||"?")).join("／")+'</p>' : "");
+      wrap.querySelectorAll("button[data-act]").forEach(b => b.addEventListener("click", () => teamAct(b.dataset.act, b.dataset.id)));
+    } catch(e){ wrap.innerHTML = '<p class="who">読み込み失敗：'+esc(e.code||e.message)+'（ルールに kakiapp_teams の許可が要るかも）</p>'; }
+  }
+  async function teamAct(act, id){
+    const t = TEAMS.find(x => x._id === id); if(!t) return;
+    try {
+      if(act === "rename"){
+        const name = prompt("新しい学校名（ランキングにそのまま出ます）", t.name); if(!name || name.trim() === t.name) return;
+        await updateDoc(doc(db,"kakiapp_teams",id), { name: name.trim() });
+      } else if(act === "hide"){
+        if(!confirm((t.hidden?"表示に戻します":"ランキングから隠します（参加者のデータは残ります）")+"：「"+t.name+"」")) return;
+        await updateDoc(doc(db,"kakiapp_teams",id), { hidden: !t.hidden });
+      } else if(act === "merge"){
+        const m = tMonth();
+        const cands = TEAMS.filter(x => !x.mergedInto && x._id !== id);
+        if(!cands.length){ alert("統合先になる学校がありません"); return; }
+        const pick = prompt("「"+t.name+"」をどの学校にまとめますか？ 番号を入れてください\n\n"+cands.map((x,i)=>(i+1)+". "+x.name+"（"+(x.members||0)+"人）").join("\n"));
+        const target = cands[parseInt(pick,10)-1]; if(!target) return;
+        if(!confirm("「"+t.name+"」 → 「"+target.name+"」にまとめます。\n人数と来店数は合算され、「"+t.name+"」は今後この学校の別名になります。元には戻せません。")) return;
+        const up = { members: increment(t.members||0), visitsTotal: increment(t.visitsTotal||0), aliases: arrayUnion.apply(null, [t.norm].concat(t.aliases||[]).filter(Boolean)) };
+        for (const k of Object.keys(t.visits||{})) up["visits."+k] = increment(t.visits[k]||0);
+        await updateDoc(doc(db,"kakiapp_teams",target._id), up);
+        await updateDoc(doc(db,"kakiapp_teams",id), { mergedInto: target._id, hidden: true, members: 0, mergedAt: new Date().toISOString() });
+      }
+      loadTeams();
+    } catch(e){ alert("失敗："+(e.code||e.message)); }
+  }
+  $("t-reload").addEventListener("click", loadTeams);
 
   async function loadList(){
     const wrap = $("list");

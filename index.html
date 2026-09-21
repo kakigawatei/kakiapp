@@ -168,6 +168,17 @@
   .page { display: none; }
   .page.on { display: block; }
   .itemrow { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; }
+  /* 高校対抗 来店バトル（2026-09-21） */
+  .tm-sug { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tm-sug button { font: inherit; font-size: 13px; padding: 6px 11px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); }
+  .tm-mine b { font-size: 18px; display: block; margin-bottom: 2px; }
+  .tm-row { display: flex; align-items: center; gap: 8px; padding: 8px 4px; border-bottom: 1px dashed #eee; font-size: 14px; }
+  .tm-row .no { width: 26px; font-weight: 800; color: var(--red); font-size: 16px; }
+  .tm-row .nm { flex: 1; min-width: 0; }
+  .tm-row .nm .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tm-row .bar { height: 6px; background: var(--red); border-radius: 3px; min-width: 3px; margin-top: 4px; opacity: .85; }
+  .tm-row .v { font-weight: 800; width: 52px; text-align: right; }
+  .tm-row.me { background: #fbf3ea; border-radius: 10px; }
   .itemrow:last-child { border-bottom: none; }
   .pt { font-weight: 700; color: var(--red); }
 
@@ -314,6 +325,13 @@
         </div>
       </div>
     </div>
+    <div class="card" id="teamCard">
+      <div class="row">
+        <div class="ico">🏫</div>
+        <div class="body"><h2>高校対抗 来店バトル</h2><p class="muted" id="teamCardText">学校ごとに来店回数を競う（任意参加）</p></div>
+        <div class="side"><button class="small" id="btnGoTeam">参加する</button><span class="chev">›</span></div>
+      </div>
+    </div>
     <div class="card">
       <div class="row">
         <div class="ico">🎡<img src="assets/icon_wheel.png" alt="" onerror="this.remove()"></div>
@@ -441,6 +459,36 @@
       <p class="muted" style="font-size:10px;margin-top:6px">削除すると、貯めたポイント・来店記録・履歴はすべて消え、元に戻せません。</p>
     </div>
     <p class="muted" style="font-size:10px;padding:0 4px">⚠️ 不正行為（位置情報の偽装・複数アカウントの利用など）が確認された場合、ポイントの没収およびアカウント停止の対象となります。ポイントの有効期限や交換内容は予告なく変更される場合があります。</p>
+  </main>
+</section>
+
+<!-- 高校対抗 来店バトル（2026-09-21 masa🇦・任意参加・学校名は自由入力・個人は出さず学校の合計だけ） -->
+<section class="page" id="page-team">
+  <main>
+    <div class="card">
+      <h2>🏫 高校対抗 来店バトル <span class="muted" id="teamMonthLabel"></span></h2>
+      <p class="muted" style="margin-top:6px">参加した人の来店回数を学校ごとに合計してランキングにします。参加は任意・途中参加OK。学校名はあなたが入力したものをそのまま使い、あなたの名前や来店は表示しません。</p>
+    </div>
+    <div class="card" id="teamJoinBox">
+      <h2>参加する</h2>
+      <p class="muted">学校名を入れてください（例：長岡高校）。すでにある学校は候補に出ます。無ければ新しく作れます。遠くの学校でもOK。</p>
+      <input id="teamInput" placeholder="学校名" maxlength="30" autocomplete="off" style="width:100%;font:inherit;font-size:16px;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;margin-top:8px;background:#fff;color:var(--ink)">
+      <div id="teamSug" class="tm-sug"></div>
+      <button class="small" id="btnTeamJoin" style="margin-top:10px;width:100%">この学校で参加する</button>
+      <p class="muted" id="teamJoinMsg" style="min-height:1.4em"></p>
+    </div>
+    <div class="card tm-mine" id="teamMineBox" style="display:none">
+      <h2>あなたの学校</h2>
+      <b id="teamMineName">—</b>
+      <div class="muted">今月のあなたの来店 <span id="teamMineVisits">0</span>回 ／ 学校の合計 <span id="teamMineTotal">0</span>回 ／ <span id="teamMineRank">—</span></div>
+      <button class="ghost" id="btnTeamLeave" style="margin-top:10px">参加をやめる／学校を変える</button>
+    </div>
+    <div class="card">
+      <h2>ランキング <span class="muted" id="teamRankMeta"></span></h2>
+      <div id="teamRank" class="muted">読み込み中…</div>
+      <p class="muted" style="font-size:11px;margin-top:8px">参加2人以上の学校から順位がつきます。1人の学校は「参加待ち」。同じ学校が2つできてしまった時はお店側でひとつにまとめます。</p>
+    </div>
+    <button class="ghost" id="btnTeamBack">← ホームへ</button>
   </main>
 </section>
 
@@ -792,6 +840,11 @@ function checkin(storeId) {
     const vp = currentRank(visits.length).r.visitPoints || 0;
     if (vp > 0) { store.set({ points: (store.s.points || 0) + vp }); logTx("来店ポイント", vp); }
     setTimeout(applyRankBonus, 1200);
+    /* 高校対抗: 参加している人だけ、自分の学校の今月に+1（失敗しても本人の来店は成立） */
+    if (store.s.teamId) {
+      const tm = teamMonthKey(), tv = Object.assign({}, store.s.teamVisits || {}); tv[tm] = (tv[tm] || 0) + 1; store.set({ teamVisits: tv });
+      if (window.kakiTeams) window.kakiTeams.visit().catch(e => console.error("team visit", e));
+    }
   }
   /* どの店に来たかを別で数える（2026-09-03）。
      visits の形は変えない＝既存ユーザーのデータを壊さないため。
@@ -1033,6 +1086,81 @@ async function shogoOpen() {
 
 /* ここから下は auth.js（ログイン完了）から呼ばれる。
    先に走らせるとクラウドのデータで上書きされて消えるので順番を守ること */
+/* ---------- 高校対抗 来店バトル（2026-09-21 masa🇦）: 表示と操作。データは auth.js の window.kakiTeams ---------- */
+function teamMonthKey() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); }
+const escT = t => String(t == null ? "" : t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+async function teamRender(force) {
+  const T = window.kakiTeams; if (!T) return;
+  const s = store.s, m = teamMonthKey();
+  document.getElementById("teamMonthLabel").textContent = m.replace("-", "年") + "月";
+  let rows = [];
+  try { rows = await T.ranking(force); }
+  catch (e) { console.error("team ranking", e); document.getElementById("teamRank").textContent = "読み込めませんでした（電波の良い所でもう一度）"; return; }
+  const ranked = rows.filter(r => r.members >= 2), waiting = rows.filter(r => r.members < 2 && r.members > 0);
+  const total = rows.reduce((a, r) => a + r.members, 0);
+  const max = Math.max(1, ...ranked.map(r => r.visits));
+  const myIdx = ranked.findIndex(r => r.id === s.teamId);
+  const me = rows.find(r => r.id === s.teamId);
+  /* ホームのカード */
+  const card = document.getElementById("teamCardText"), btn = document.getElementById("btnGoTeam");
+  if (s.teamId) { card.textContent = "あなたの学校：" + (s.team || "") + "（" + (myIdx >= 0 ? (myIdx + 1) + "位" : "参加待ち") + "）・参加" + total + "人"; btn.textContent = "ランキング"; }
+  else { card.textContent = total ? "参加" + total + "人・" + ranked.length + "校が競争中。あなたの学校で参加しよう" : "学校ごとに来店回数を競う（任意参加）。最初の1校になろう"; btn.textContent = "参加する"; }
+  /* バトル画面 */
+  document.getElementById("teamJoinBox").style.display = s.teamId ? "none" : "block";
+  document.getElementById("teamMineBox").style.display = s.teamId ? "block" : "none";
+  if (s.teamId) {
+    document.getElementById("teamMineName").textContent = s.team || "—";
+    document.getElementById("teamMineVisits").textContent = (s.teamVisits && s.teamVisits[m]) || 0;
+    document.getElementById("teamMineTotal").textContent = me ? me.visits : 0;
+    document.getElementById("teamMineRank").textContent = myIdx >= 0 ? (myIdx + 1) + "位" : (me && me.members < 2 ? "あと" + (2 - me.members) + "人で順位がつきます" : "参加待ち");
+  }
+  document.getElementById("teamRankMeta").textContent = total ? "参加" + total + "人" : "";
+  const list = document.getElementById("teamRank");
+  if (!rows.length) { list.textContent = "まだ参加した学校がありません。最初の1校になろう！"; return; }
+  list.innerHTML = (ranked.length ? ranked.map((r, i) =>
+      '<div class="tm-row' + (r.id === s.teamId ? " me" : "") + '"><span class="no">' + (i + 1) + '</span><span class="nm"><div class="t">' + escT(r.name) +
+      ' <span class="muted">' + r.members + '人</span></div><div class="bar" style="width:' + Math.max(3, Math.round(r.visits / max * 100)) + '%"></div></span><span class="v">' + r.visits + '回</span></div>').join("")
+    : '<div class="muted">まだ順位のつく学校がありません（参加2人以上で順位がつきます）</div>')
+    + (waiting.length ? '<div class="muted" style="margin-top:8px;font-size:12px">参加待ち（あと1人で順位がつく）：' + waiting.map(r => escT(r.name)).join("・") + '</div>' : "");
+}
+document.getElementById("btnGoTeam").onclick = () => { show("team"); teamRender(true); };
+document.getElementById("btnTeamBack").onclick = () => show("home");
+let teamSugTimer = null;
+document.getElementById("teamInput").addEventListener("input", () => {
+  clearTimeout(teamSugTimer);
+  teamSugTimer = setTimeout(async () => {
+    const q = document.getElementById("teamInput").value.trim(), box = document.getElementById("teamSug");
+    if (!q || !window.kakiTeams) { box.innerHTML = ""; return; }
+    let hits = []; try { hits = await window.kakiTeams.suggest(q); } catch (e) {}
+    box.innerHTML = hits.map(t => '<button type="button" data-name="' + escT(t.name) + '">' + escT(t.name) + ' <span class="muted">' + (t.members || 0) + '人</span></button>').join("");
+    box.querySelectorAll("button").forEach(b => b.onclick = () => { document.getElementById("teamInput").value = b.dataset.name; box.innerHTML = ""; });
+  }, 250);
+});
+document.getElementById("btnTeamJoin").onclick = async () => {
+  const inp = document.getElementById("teamInput"), msgEl = document.getElementById("teamJoinMsg"), btn = document.getElementById("btnTeamJoin");
+  const name = inp.value.trim();
+  if (name.length < 2) { msgEl.textContent = "学校名を入れてください（2文字以上）"; return; }
+  if (!window.kakiTeams) { msgEl.textContent = "ログイン後に参加できます"; return; }
+  const ok = await window.kakiConfirm("「" + name + "」で参加します。\n学校名はランキングにそのまま表示されます（あなたの名前は出ません）。", { okText: "参加する" });
+  if (!ok) return;
+  btn.disabled = true; msgEl.textContent = "登録中…";
+  try {
+    const t = await window.kakiTeams.join(name);
+    msgEl.textContent = ""; inp.value = ""; document.getElementById("teamSug").innerHTML = "";
+    await window.kakiAlert("「" + t.name + "」で参加しました！\nお店に来てチェックインすると、学校の来店数が増えます。");
+    teamRender(true);
+  } catch (e) {
+    console.error(e);
+    msgEl.textContent = e && e.code === "team/name" ? "学校名は2〜30文字で入れてください" : "登録できませんでした。電波の良い所でもう一度お試しください。";
+  } finally { btn.disabled = false; }
+};
+document.getElementById("btnTeamLeave").onclick = async () => {
+  const ok = await window.kakiConfirm("「" + (store.s.team || "") + "」への参加をやめます。\nこれまでに学校に足した来店数はそのまま残ります。", { okText: "やめる", danger: true });
+  if (!ok) return;
+  try { await window.kakiTeams.leave(); teamRender(true); }
+  catch (e) { console.error(e); window.kakiAlert("うまくいきませんでした。もう一度お試しください。"); }
+};
+
 window.kakiGetState = () => store.s;
 window.kakiSetState = (o) => { localStorage.setItem("kakiapp", JSON.stringify(o || {})); render(); };
 window.kakiStart = function () {
@@ -1056,6 +1184,8 @@ window.kakiStart = function () {
   shogoOpen();
   if (!applyRankBonus()) fetchCampaigns();   /* クラウドから戻した後に判定（この位置を守る）。ランク分が出た起動ではキャンペーンは次回 */
   else setTimeout(fetchCampaigns, 4000);
+  /* 高校対抗: 統合・改名の反映 → ホームのカードとランキングを描く（裏で。失敗しても本体は動く） */
+  if (window.kakiTeams) window.kakiTeams.sync().catch(() => {}).then(() => teamRender(true)).catch(() => {});
 };
 
 render();
