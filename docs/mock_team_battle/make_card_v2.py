@@ -14,7 +14,7 @@ TIERS = [("CHAMPION", "優勝", (214, 170, 80), "長岡高校", "来店 156回 �
          ("3RD PLACE", "3位", (196, 140, 96), "仙台育英高校", "来店 120回 ｜ 参加 33人", "No. 0007 / 33"),
          ("MVP SCHOOL", "MVP校", (170, 130, 220), "東北学院高校", "1人あたり 4.1回 ｜ 参加 22人", "No. 0003 / 22")]
 
-def render(lab, jp, col, school, stat, no, kind="高校", season="2026年10月シーズン", out=None):
+def render(lab, jp, col, school, stat, no, kind="高校", season="2026年10月", round_no=1, out=None):
     src = Image.open(os.path.join(OUT, "card_gen_V_black.png")).convert("RGB").resize((W, H), Image.LANCZOS)
     bowl = src.crop((150, 140, 980, 830))   # 赤い四角を含めない範囲で丼だけ
     im = Image.new("RGB", (W, H), (12, 12, 12))
@@ -23,7 +23,8 @@ def render(lab, jp, col, school, stat, no, kind="高校", season="2026年10月�
     im.paste(b, (W - b.width + 90, H - b.height - 130), mask)
     dr = ImageDraw.Draw(im); ink = (255, 255, 255); sub = (190, 180, 165)
     dr.rectangle((60, 60, 124, 124), fill=(200, 30, 30))
-    dr.text((60, 160), "学校対抗 来店バトル ｜ " + season, font=f(FM, 28), fill=sub)
+    dr.text((60, 160), f"第{round_no}回 学校対抗 来店バトル ｜ {season}", font=f(FM, 28), fill=sub)   # masa 2026-09-21「第何回もつけた方がいい」
+    v = f"VOL. {round_no:02d}"; dr.text((W - 60 - dr.textlength(v, font=f(FB, 26)), 258), v, font=f(FB, 26), fill=col)
     x = 60
     for ch in lab: dr.text((x, 250), ch, font=f(FB, 34), fill=col); x += dr.textlength(ch, font=f(FB, 34)) + 12
     dr.text((52, 300), jp, font=f(FMIN, 300 if len(jp) <= 2 else 200), fill=col)
