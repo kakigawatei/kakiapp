@@ -142,7 +142,7 @@
   .staff .amt { font-family: var(--mincho); font-size: 46px; font-weight: 700; color: #fff; }
 
   nav { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid var(--line); display: flex; z-index: 10; padding-bottom: env(safe-area-inset-bottom); }
-  nav button { flex: 1; padding: 10px 0 8px; border: none; background: none; font-size: 11px; color: #999; cursor: pointer; }
+  nav button { flex: 1; padding: 10px 0 8px; border: none; background: none; font-size: 10.5px; color: #999; cursor: pointer; white-space: nowrap; letter-spacing: -0.02em; }   /* 6タブ（ランキング追加 2026-09-21） */
   nav button .ic { display: block; height: 28px; margin: 0 auto 3px; position: relative; font-size: 20px; }
   nav button .ic img { position: absolute; left: 50%; top: 0; transform: translateX(-50%); height: 28px; width: 28px; object-fit: contain; background: #fff; }
   nav button.on { color: var(--red); font-weight: 700; }
@@ -168,17 +168,57 @@
   .page { display: none; }
   .page.on { display: block; }
   .itemrow { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; }
-  /* 高校対抗 来店バトル（2026-09-21） */
+  /* 高校対抗 来店バトル（2026-09-21・masa の参考UIに準拠） */
   .tm-sug { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .tm-sug button { font: inherit; font-size: 13px; padding: 6px 11px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); }
-  .tm-mine b { font-size: 18px; display: block; margin-bottom: 2px; }
-  .tm-row { display: flex; align-items: center; gap: 8px; padding: 8px 4px; border-bottom: 1px dashed #eee; font-size: 14px; }
-  .tm-row .no { width: 26px; font-weight: 800; color: var(--red); font-size: 16px; }
-  .tm-row .nm { flex: 1; min-width: 0; }
-  .tm-row .nm .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tm-row .bar { height: 6px; background: var(--red); border-radius: 3px; min-width: 3px; margin-top: 4px; opacity: .85; }
-  .tm-row .v { font-weight: 800; width: 52px; text-align: right; }
-  .tm-row.me { background: #fbf3ea; border-radius: 10px; }
+  .tb-head { display: flex; align-items: center; gap: 8px; }
+  .tb-head h2 { font-size: 20px; margin: 0; }
+  .tb-head svg { width: 26px; height: 26px; flex: none; }
+  .tb-sub { color: var(--gray); font-size: 12px; margin-top: 4px; }
+  .tb-tabs { display: flex; gap: 8px; margin: 12px 0 10px; }
+  .tb-tabs button { font: inherit; font-size: 13px; font-weight: 700; padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; color: var(--gray); }
+  .tb-tabs button.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+  .tb-news { display: flex; align-items: center; gap: 8px; background: #fbeae4; color: var(--red); font-size: 13px; font-weight: 700; padding: 10px 14px; border-radius: 999px; margin-bottom: 12px; }
+  .tb-news .tag { background: var(--red); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 999px; flex: none; }
+  .tb-podium { position: relative; overflow: hidden; }
+  .tb-podium .cols { display: flex; align-items: flex-end; justify-content: center; gap: 8px; padding: 10px 4px 0; }
+  .tb-podium .col { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; }
+  .tb-podium .num { font-size: 22px; font-weight: 900; color: var(--ink); line-height: 1.1; }
+  .tb-podium .col.p1 .num { color: var(--red); font-size: 26px; }
+  .tb-podium .mem { font-size: 11px; color: var(--gray); }
+  .tb-podium .nm { font-size: 13px; font-weight: 800; margin: 2px 0 8px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tb-podium .ava { position: relative; width: 62px; height: 62px; border-radius: 50%; background: var(--navy); color: #fff; font-size: 28px; font-weight: 800; display: flex; align-items: center; justify-content: center; margin-bottom: -10px; z-index: 2; box-shadow: 0 4px 10px rgba(0,0,0,.15); }
+  .tb-podium .col.p1 .ava { background: var(--red); width: 72px; height: 72px; font-size: 32px; }
+  .tb-podium .laurel { position: absolute; left: 50%; top: 50%; width: 118px; height: 118px; transform: translate(-50%, -50%); z-index: -1; opacity: .9; }
+  .tb-podium .crown { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); width: 30px; height: 30px; }
+  .tb-podium .step { width: 100%; border-radius: 12px 12px 6px 6px; color: #fff; font-size: 30px; font-weight: 900; display: flex; align-items: flex-start; justify-content: center; padding-top: 14px; text-shadow: 0 1px 2px rgba(0,0,0,.25); }
+  .tb-podium .p1 .step { height: 96px; background: linear-gradient(180deg, #f3d27a, #c4913c 60%, #a8792c); }
+  .tb-podium .p2 .step { height: 74px; background: linear-gradient(180deg, #dcdde3, #a9abb5 60%, #8d8f9a); }
+  .tb-podium .p3 .step { height: 58px; background: linear-gradient(180deg, #d9a37a, #b07850 60%, #8f5e3c); }
+  .tb-podium .empty { height: 58px; border-radius: 12px; border: 1.5px dashed var(--line); color: var(--gray); font-size: 12px; display: flex; align-items: center; justify-content: center; width: 100%; }
+  .tb-conf { position: absolute; width: 8px; height: 14px; border-radius: 2px; opacity: .85; }
+  .tb-mine { background: #fff; }
+  .tb-mine .top { display: flex; align-items: center; gap: 8px; font-weight: 800; }
+  .tb-mine .grid { display: flex; gap: 12px; margin-top: 8px; }
+  .tb-mine .rank { font-size: 44px; font-weight: 900; color: var(--red); line-height: 1; }
+  .tb-mine .rank small { font-size: 16px; }
+  .tb-mine .cell { flex: 1; border-left: 1px solid var(--line); padding-left: 12px; font-size: 12.5px; color: var(--gray); line-height: 1.6; }
+  .tb-mine .cell b { color: var(--ink); font-size: 16px; }
+  .tb-mine .cell .hot { color: var(--red); font-weight: 800; }
+  .tb-row { display: flex; align-items: center; gap: 10px; padding: 9px 6px; border-bottom: 1px dashed #eee; font-size: 14px; }
+  .tb-row .no { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; color: var(--red); font-size: 15px; flex: none; }
+  .tb-row .no.m1 { background: linear-gradient(180deg, #f3d27a, #c4913c); color: #fff; } .tb-row .no.m2 { background: linear-gradient(180deg, #dcdde3, #a9abb5); color: #fff; } .tb-row .no.m3 { background: linear-gradient(180deg, #d9a37a, #b07850); color: #fff; }
+  .tb-row .nm { flex: 1; min-width: 0; }
+  .tb-row .nm .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+  .tb-row .nm .t .mem { font-weight: 500; color: var(--gray); font-size: 12px; margin-left: 4px; }
+  .tb-row .bar { height: 7px; background: #cf6e5c; border-radius: 4px; min-width: 4px; margin-top: 5px; }
+  .tb-row.me { background: #fbeee9; border-radius: 10px; } .tb-row.me .bar { background: var(--red); }
+  .tb-row .v { font-weight: 800; width: 60px; text-align: right; flex: none; }
+  .tb-row .v small { display: block; font-size: 10px; font-weight: 700; color: var(--gray); }
+  .tb-invite { background: #fff8df; border: 1.5px solid #f0dfa0; display: flex; align-items: center; gap: 10px; }
+  .tb-invite .body { flex: 1; font-size: 14px; font-weight: 800; line-height: 1.5; }
+  .tb-invite .body small { display: block; font-weight: 500; color: var(--gray); font-size: 12px; }
+  .tb-wait { color: var(--gray); font-size: 12px; margin-top: 8px; line-height: 1.6; }
   .itemrow:last-child { border-bottom: none; }
   .pt { font-weight: 700; color: var(--red); }
 
@@ -462,12 +502,15 @@
   </main>
 </section>
 
-<!-- 高校対抗 来店バトル（2026-09-21 masa🇦・任意参加・学校名は自由入力・個人は出さず学校の合計だけ） -->
+<!-- 高校対抗 来店バトル（2026-09-21 masa🇦・任意参加・学校名は自由入力・個人は出さず学校の合計だけ。見た目は masa の参考UI 2026-09-21 に準拠） -->
 <section class="page" id="page-team">
   <main>
     <div class="card">
-      <h2>🏫 高校対抗 来店バトル <span class="muted" id="teamMonthLabel"></span></h2>
-      <p class="muted" style="margin-top:6px">参加した人の来店回数を学校ごとに合計してランキングにします。参加は任意・途中参加OK。学校名はあなたが入力したものをそのまま使い、あなたの名前や来店は表示しません。</p>
+      <div class="tb-head"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#c4913c" d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.5 10h-15z"/><rect x="4.5" y="18.5" width="15" height="2.2" rx="1" fill="#a8792c"/></svg><h2>高校対抗 来店バトル</h2></div>
+      <div class="tb-sub" id="teamSub">読み込み中…</div>
+      <div class="tb-tabs" id="teamTabs"></div>
+      <div class="tb-news" id="teamNews" style="display:none"><span class="tag">速報</span><span id="teamNewsText"></span></div>
+      <p class="muted" style="font-size:11.5px">参加した人の来店回数を学校ごとに合計してランキングにします。参加は任意・途中参加OK。学校名はあなたが入力したものをそのまま使い、あなたの名前や来店は表示しません。</p>
     </div>
     <div class="card" id="teamJoinBox">
       <h2>参加する</h2>
@@ -477,16 +520,30 @@
       <button class="small" id="btnTeamJoin" style="margin-top:10px;width:100%">この学校で参加する</button>
       <p class="muted" id="teamJoinMsg" style="min-height:1.4em"></p>
     </div>
-    <div class="card tm-mine" id="teamMineBox" style="display:none">
-      <h2>あなたの学校</h2>
-      <b id="teamMineName">—</b>
-      <div class="muted">今月のあなたの来店 <span id="teamMineVisits">0</span>回 ／ 学校の合計 <span id="teamMineTotal">0</span>回 ／ <span id="teamMineRank">—</span></div>
-      <button class="ghost" id="btnTeamLeave" style="margin-top:10px">参加をやめる／学校を変える</button>
+    <div class="card tb-podium" id="teamPodium">
+      <div class="tb-head" style="gap:6px"><svg viewBox="0 0 24 24" style="width:20px;height:20px" aria-hidden="true"><path fill="#c4913c" d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.5 10h-15z"/></svg><h2 style="font-size:15px;color:var(--gold)">TOP 3</h2></div>
+      <div class="cols" id="teamPodiumCols"></div>
+    </div>
+    <div class="card tb-mine" id="teamMineBox" style="display:none">
+      <div class="top"><svg viewBox="0 0 24 24" style="width:20px;height:20px" aria-hidden="true"><path fill="#c4913c" d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.5 10h-15z"/></svg>あなたの学校　<span id="teamMineName">—</span></div>
+      <div class="grid">
+        <div><div class="rank"><span id="teamMineRankNo">—</span><small id="teamMineRankUnit">位</small></div></div>
+        <div class="cell"><b><span id="teamMineTotal">0</span>回</b><br><span id="teamMineChase">—</span></div>
+        <div class="cell">参加 <b id="teamMineMembers">0</b>人<br><span class="hot">今日 +<span id="teamMineToday">0</span>回</span></div>
+      </div>
+      <p class="muted" style="margin-top:8px;font-size:11.5px">今月のあなたの来店 <span id="teamMineVisits">0</span>回</p>
+      <button class="ghost" id="btnTeamLeave" style="margin-top:8px">参加をやめる／学校を変える</button>
     </div>
     <div class="card">
-      <h2>ランキング <span class="muted" id="teamRankMeta"></span></h2>
+      <h2 style="display:flex;justify-content:space-between;align-items:baseline">全体ランキング <span class="muted" id="teamRankMeta"></span></h2>
       <div id="teamRank" class="muted">読み込み中…</div>
-      <p class="muted" style="font-size:11px;margin-top:8px">参加2人以上の学校から順位がつきます。1人の学校は「参加待ち」。同じ学校が2つできてしまった時はお店側でひとつにまとめます。</p>
+      <div class="tb-wait" id="teamWait"></div>
+      <p class="muted" style="font-size:11px;margin-top:8px">参加2人以上の学校から順位がつきます。同じ学校が2つできてしまった時はお店側でひとつにまとめます。</p>
+    </div>
+    <div class="card tb-invite" id="teamInvite">
+      <div style="font-size:26px">💡</div>
+      <div class="body">友達を誘って、一緒に上位を目指そう！<small>同じ学校の人が増えるほど来店数が積み上がる</small></div>
+      <button class="small" id="btnTeamShare">誘う</button>
     </div>
     <button class="ghost" id="btnTeamBack">← ホームへ</button>
   </main>
@@ -514,6 +571,7 @@
 
 <nav>
   <button data-page="home" class="on"><span class="ic">🏠<img src="assets/icon_home.png" alt="" onerror="this.remove()"></span>ホーム</button>
+  <button data-page="team"><span class="ic"><svg viewBox="0 0 24 24" style="width:24px;height:24px;display:block;margin:0 auto" aria-hidden="true"><path fill="#c4913c" d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.5 10h-15z"/><rect x="4.5" y="18.5" width="15" height="2.2" rx="1" fill="#a8792c"/></svg></span>ランキング</button>
   <button data-page="roulette"><span class="ic">🎡<img src="assets/icon_wheel.png" alt="" onerror="this.remove()"></span>ルーレット</button>
   <button data-page="gacha"><span class="ic">🏮<img src="assets/icon_lantern.png" alt="" onerror="this.remove()"></span>ガチャ</button>
   <button data-page="pay"><span class="ic">💴<img src="assets/icon_ticket.png" alt="" onerror="this.remove()"></span>つかう</button>
@@ -750,7 +808,7 @@ function show(page) {
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.page === page));
   window.scrollTo(0, 0);
 }
-document.querySelectorAll("nav button").forEach(b => b.onclick = () => show(b.dataset.page));
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => { show(b.dataset.page); if (b.dataset.page === "team" && typeof teamRender === "function") teamRender(true); });   /* ランキングタブ（masa🇦 2026-09-21・6タブ） */
 document.getElementById("btnGoRoulette").onclick = () => show("roulette");
 
 (function(){ var im = new Image(); im.onerror = function(){ document.getElementById("hero").classList.add("nophoto"); }; im.src = "assets/hero_photo.jpg"; })();
@@ -850,7 +908,7 @@ function checkin(storeId) {
     /* 高校対抗: 参加している人だけ、自分の学校の今月に+1（失敗しても本人の来店は成立） */
     if (store.s.teamId) {
       const tm = teamMonthKey(), tv = Object.assign({}, store.s.teamVisits || {}); tv[tm] = (tv[tm] || 0) + 1; store.set({ teamVisits: tv });
-      if (window.kakiTeams) window.kakiTeams.visit().catch(e => console.error("team visit", e));
+      if (window.kakiTeams) window.kakiTeams.visit(storeId).catch(e => console.error("team visit", e));
     }
   }
   /* どの店に来たかを別で数える（2026-09-03）。
@@ -1096,41 +1154,72 @@ async function shogoOpen() {
 /* ---------- 高校対抗 来店バトル（2026-09-21 masa🇦）: 表示と操作。データは auth.js の window.kakiTeams ---------- */
 function teamMonthKey() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); }
 const escT = t => String(t == null ? "" : t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let TEAM_TAB = "";   /* "" = 全体、それ以外は店ID */
+const TEAM_TABS = [{ id: "", name: "全体" }].concat((C.stores || []).map(st => ({ id: st.id, name: (st.name || "").replace(/^柿川亭\s*/, "").replace(/(本店|連坊店|店)$/, "") })));
+function teamCrownSvg(size) { return '<svg class="crown" viewBox="0 0 24 24" aria-hidden="true"><path fill="#c4913c" d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.5 10h-15z"/><rect x="4.5" y="18.5" width="15" height="2.2" rx="1" fill="#a8792c"/></svg>'; }
+const TEAM_LAUREL = '<svg class="laurel" viewBox="0 0 120 120" aria-hidden="true"><g fill="none" stroke="#c4913c" stroke-width="3" stroke-linecap="round"><path d="M30 100c-14-10-20-30-14-50"/><path d="M90 100c14-10 20-30 14-50"/></g><g fill="#c4913c"><ellipse cx="18" cy="62" rx="4" ry="9" transform="rotate(-30 18 62)"/><ellipse cx="17" cy="78" rx="4" ry="9" transform="rotate(-10 17 78)"/><ellipse cx="22" cy="92" rx="4" ry="9" transform="rotate(15 22 92)"/><ellipse cx="102" cy="62" rx="4" ry="9" transform="rotate(30 102 62)"/><ellipse cx="103" cy="78" rx="4" ry="9" transform="rotate(10 103 78)"/><ellipse cx="98" cy="92" rx="4" ry="9" transform="rotate(-15 98 92)"/></g></svg>';
+function teamConfetti() { const cols = ["#e8b4a8", "#f3d27a", "#9fb7e6", "#c9e3c1", "#f5c6d6"]; let s = ""; for (let i = 0; i < 10; i++) { const x = 4 + (i * 97) % 92, y = 6 + (i * 53) % 60, r = (i * 47) % 90 - 45; s += '<span class="tb-conf" style="left:' + x + '%;top:' + y + '%;background:' + cols[i % cols.length] + ';transform:rotate(' + r + 'deg)"></span>'; } return s; }
+function teamDaysLeft() { const d = new Date(); const end = new Date(d.getFullYear(), d.getMonth() + 1, 0); return Math.max(0, Math.round((end - d) / 86400000)); }
 async function teamRender(force) {
   const T = window.kakiTeams; if (!T) return;
   const s = store.s, m = teamMonthKey();
-  document.getElementById("teamMonthLabel").textContent = m.replace("-", "年") + "月";
-  let rows = [];
-  try { rows = await T.ranking(force); }
+  /* タブ（店が2つ以上あるときだけ） */
+  const tabs = document.getElementById("teamTabs");
+  tabs.innerHTML = TEAM_TABS.length > 2 ? TEAM_TABS.map(t => '<button type="button" data-id="' + t.id + '" class="' + (t.id === TEAM_TAB ? "on" : "") + '">' + escT(t.name) + '</button>').join("") : "";
+  tabs.querySelectorAll("button").forEach(b => b.onclick = () => { TEAM_TAB = b.dataset.id; teamRender(false); });
+  let all = [], rows = [];
+  try { all = await T.ranking(force, ""); rows = TEAM_TAB ? await T.ranking(false, TEAM_TAB) : all; }
   catch (e) { console.error("team ranking", e); document.getElementById("teamRank").textContent = "読み込めませんでした（電波の良い所でもう一度）"; return; }
-  const ranked = rows.filter(r => r.members >= 2), waiting = rows.filter(r => r.members < 2 && r.members > 0);
-  const total = rows.reduce((a, r) => a + r.members, 0);
+  const ranked = rows.filter(r => r.members >= 2), waiting = all.filter(r => r.members === 1);
+  const total = all.reduce((a, r) => a + r.members, 0), schools = all.filter(r => r.members >= 2).length;
   const max = Math.max(1, ...ranked.map(r => r.visits));
-  const myIdx = ranked.findIndex(r => r.id === s.teamId);
-  const me = rows.find(r => r.id === s.teamId);
+  const myIdx = ranked.findIndex(r => r.id === s.teamId), me = rows.find(r => r.id === s.teamId);
+  document.getElementById("teamSub").textContent = (m.slice(5).replace(/^0/, "")) + "月シーズン ｜ 参加 " + schools + "校・" + total + "人 ｜ 残り " + teamDaysLeft() + "日";
+  /* 速報＝今日いちばん来ている学校 */
+  const hot = all.filter(r => r.today > 0).sort((a, b) => b.today - a.today)[0];
+  document.getElementById("teamNews").style.display = hot ? "flex" : "none";
+  if (hot) { const hi = ranked.findIndex(r => r.id === hot.id); document.getElementById("teamNewsText").textContent = hot.name + " が今日 +" + hot.today + "回" + (hi >= 0 ? "（現在 " + (hi + 1) + "位）" : ""); }
   /* ホームのカード */
   const card = document.getElementById("teamCardText"), btn = document.getElementById("btnGoTeam");
-  if (s.teamId) { card.textContent = "あなたの学校：" + (s.team || "") + "（" + (myIdx >= 0 ? (myIdx + 1) + "位" : "参加待ち") + "）・参加" + total + "人"; btn.textContent = "ランキング"; }
-  else { card.textContent = total ? "参加" + total + "人・" + ranked.length + "校が競争中。あなたの学校で参加しよう" : "学校ごとに来店回数を競う（任意参加）。最初の1校になろう"; btn.textContent = "参加する"; }
-  /* バトル画面 */
+  const myAll = all.filter(r => r.members >= 2).findIndex(r => r.id === s.teamId);
+  if (s.teamId) { card.textContent = "あなたの学校：" + (s.team || "") + "（" + (myAll >= 0 ? (myAll + 1) + "位" : "参加待ち") + "）・参加" + total + "人"; btn.textContent = "ランキング"; }
+  else { card.textContent = total ? "参加" + total + "人・" + schools + "校が競争中。あなたの学校で参加しよう" : "学校ごとに来店回数を競う（任意参加）。最初の1校になろう"; btn.textContent = "参加する"; }
+  /* 表彰台 */
+  const pod = document.getElementById("teamPodiumCols"); const order = [1, 0, 2];
+  document.getElementById("teamPodium").style.display = ranked.length ? "block" : "none";
+  pod.innerHTML = order.map(i => { const r = ranked[i]; const cls = "col p" + (i + 1);
+    if (!r) return '<div class="' + cls + '"><div class="empty">' + (i + 1) + '位 まだ</div></div>';
+    return '<div class="' + cls + '"><div class="num">' + r.visits + '回</div><div class="mem">' + r.members + '人</div><div class="nm">' + escT(r.name) + '</div>' +
+      '<div class="ava">' + (i === 0 ? TEAM_LAUREL + teamCrownSvg() : "") + escT(String(r.name).slice(0, 1)) + '</div><div class="step">' + (i + 1) + '</div></div>'; }).join("");
+  const podCard = document.getElementById("teamPodium"); podCard.querySelectorAll(".tb-conf").forEach(e => e.remove()); podCard.insertAdjacentHTML("beforeend", teamConfetti());
+  /* 参加／自校 */
   document.getElementById("teamJoinBox").style.display = s.teamId ? "none" : "block";
   document.getElementById("teamMineBox").style.display = s.teamId ? "block" : "none";
   if (s.teamId) {
     document.getElementById("teamMineName").textContent = s.team || "—";
-    document.getElementById("teamMineVisits").textContent = (s.teamVisits && s.teamVisits[m]) || 0;
+    document.getElementById("teamMineRankNo").textContent = myIdx >= 0 ? (myIdx + 1) : "—";
+    document.getElementById("teamMineRankUnit").textContent = myIdx >= 0 ? "位" : (me && me.members < 2 ? "参加待ち" : "位");
     document.getElementById("teamMineTotal").textContent = me ? me.visits : 0;
-    document.getElementById("teamMineRank").textContent = myIdx >= 0 ? (myIdx + 1) + "位" : (me && me.members < 2 ? "あと" + (2 - me.members) + "人で順位がつきます" : "参加待ち");
+    document.getElementById("teamMineMembers").textContent = me ? me.members : 0;
+    document.getElementById("teamMineToday").textContent = me ? me.today : 0;
+    const up = myIdx > 0 ? ranked[myIdx - 1] : null;
+    document.getElementById("teamMineChase").textContent = myIdx === 0 ? "1位！このまま逃げ切ろう" : up ? (myIdx) + "位 " + up.name + "まで あと " + Math.max(1, up.visits - me.visits + 1) + "回" : (me && me.members < 2 ? "あと" + (2 - me.members) + "人で順位がつきます" : "—");
+    document.getElementById("teamMineVisits").textContent = (s.teamVisits && s.teamVisits[m]) || 0;
   }
   document.getElementById("teamRankMeta").textContent = total ? "参加" + total + "人" : "";
-  const list = document.getElementById("teamRank");
-  if (!rows.length) { list.textContent = "まだ参加した学校がありません。最初の1校になろう！"; return; }
-  list.innerHTML = (ranked.length ? ranked.map((r, i) =>
-      '<div class="tm-row' + (r.id === s.teamId ? " me" : "") + '"><span class="no">' + (i + 1) + '</span><span class="nm"><div class="t">' + escT(r.name) +
-      ' <span class="muted">' + r.members + '人</span></div><div class="bar" style="width:' + Math.max(3, Math.round(r.visits / max * 100)) + '%"></div></span><span class="v">' + r.visits + '回</span></div>').join("")
-    : '<div class="muted">まだ順位のつく学校がありません（参加2人以上で順位がつきます）</div>')
-    + (waiting.length ? '<div class="muted" style="margin-top:8px;font-size:12px">参加待ち（あと1人で順位がつく）：' + waiting.map(r => escT(r.name)).join("・") + '</div>' : "");
+  const list = document.getElementById("teamRank"), wait = document.getElementById("teamWait");
+  wait.textContent = waiting.length ? "参加待ち（あと1人で順位がつく）：" + waiting.map(r => r.name).join("・") : "";
+  if (!all.length) { list.textContent = "まだ参加した学校がありません。最初の1校になろう！"; return; }
+  const isNew = r => r.createdAt && (Date.now() - Date.parse(r.createdAt)) < 3 * 86400000;
+  list.innerHTML = ranked.length ? ranked.map((r, i) =>
+      '<div class="tb-row' + (r.id === s.teamId ? " me" : "") + '"><span class="no' + (i < 3 ? " m" + (i + 1) : "") + '">' + (i + 1) + '</span><span class="nm"><div class="t">' + escT(r.name) + '<span class="mem">' + r.members + '人</span></div><div class="bar" style="width:' + Math.max(4, Math.round(r.visits / max * 100)) + '%"></div></span><span class="v">' + r.visits + '回' + (r.today ? '<small>今日 +' + r.today + '</small>' : (isNew(r) ? '<small>NEW</small>' : '')) + '</span></div>').join("")
+    : '<div class="muted">まだ順位のつく学校がありません（参加2人以上で順位がつきます）</div>';
 }
 document.getElementById("btnGoTeam").onclick = () => { show("team"); teamRender(true); };
+document.getElementById("btnTeamShare").onclick = async () => {
+  const url = "https://kakigawatei.github.io/kakiapp/get/", text = "柿川亭アプリの「高校対抗 来店バトル」" + (store.s.team ? "、" + store.s.team + "で参加してる。" : "。") + "一緒に上位を目指そう！";
+  try { if (navigator.share) await navigator.share({ title: "柿川亭アプリ", text, url }); else { await navigator.clipboard.writeText(text + " " + url); window.kakiAlert("誘い文句とリンクをコピーしました。LINE などに貼って送ってください。"); } } catch (e) {}
+};
 document.getElementById("btnTeamBack").onclick = () => show("home");
 let teamSugTimer = null;
 document.getElementById("teamInput").addEventListener("input", () => {

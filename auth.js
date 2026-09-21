@@ -320,7 +320,11 @@ window.kakiTeams = {
   /* 入力中の候補（正規化して部分一致・統合済み/非表示は除く） */
   suggest: async q => { const n = teamNorm(q); if (!n) return []; const arr = await teamList(); return arr.filter(t => !t.mergedInto && !t.hidden && (String(t.norm || "").includes(n) || String(t.name || "").includes(q))).slice(0, 8); },
   /* 今月のランキング材料（表示側で「参加2人以上だけ順位つき」にする） */
-  ranking: async force => { const m = teamMonth(); const arr = await teamList(force); return arr.filter(t => !t.mergedInto && !t.hidden).map(t => ({ id: t.id, name: t.name, members: t.members || 0, visits: (t.visits && t.visits[m]) || 0 })).sort((a, b) => b.visits - a.visits || b.members - a.members || String(a.name).localeCompare(String(b.name), "ja")); },
+  /* storeId を渡すとその店での来店だけで並べる（タブ 長岡／仙台）。today＝今日の来店数、createdAt＝NEW 判定用 */
+  ranking: async (force, storeId) => { const m = teamMonth(), d = new Date().toISOString().slice(0, 10); const arr = await teamList(force);
+    return arr.filter(t => !t.mergedInto && !t.hidden).map(t => ({ id: t.id, name: t.name, members: t.members || 0, createdAt: t.createdAt || "",
+      visits: storeId ? ((t.visitsByStore && t.visitsByStore[m] && t.visitsByStore[m][storeId]) || 0) : ((t.visits && t.visits[m]) || 0),
+      today: (t.days && t.days[d]) || 0 })).sort((a, b) => b.visits - a.visits || b.members - a.members || String(a.name).localeCompare(String(b.name), "ja")); },
   join: async name => {
     if (!uid || !auth.currentUser) throw Object.assign(new Error("not signed in"), { code: "team/auth" });
     name = String(name || "").normalize("NFKC").replace(/\s+/g, " ").trim(); const norm = teamNorm(name);
@@ -345,7 +349,10 @@ window.kakiTeams = {
     teamCache = null; delete st.teamId; delete st.team; delete st.teamJoinedAt; window.kakiSetState(st); window.cloudPush();
   },
   /* 来店1回＝自分の学校の今月に+1（index.html の checkin から。失敗しても本人の来店は成立） */
-  visit: async () => { const st = window.kakiGetState(); if (!st.teamId) return; const u = {}; u["visits." + teamMonth()] = increment(1); u.visitsTotal = increment(1); await updateDoc(doc(db, "kakiapp_teams", st.teamId), u); teamCache = null; },
+  visit: async storeId => { const st = window.kakiGetState(); if (!st.teamId) return; const m = teamMonth(), d = new Date().toISOString().slice(0, 10); const u = {};
+    u["visits." + m] = increment(1); u.visitsTotal = increment(1); u["days." + d] = increment(1);
+    if (storeId) u["visitsByStore." + m + "." + storeId] = increment(1);
+    await updateDoc(doc(db, "kakiapp_teams", st.teamId), u); teamCache = null; },
   /* 起動時: 統合・改名されていたら自分の所属を付け替える */
   sync: async () => { const st = window.kakiGetState(); if (!st.teamId) return null; const arr = await teamList(); const t = teamResolve(arr, st.teamId); if (!t) return null; if (t.id !== st.teamId || t.name !== st.team) { const s2 = window.kakiGetState(); s2.teamId = t.id; s2.team = t.name; window.kakiSetState(s2); window.cloudPush(); } return t; },
 };
