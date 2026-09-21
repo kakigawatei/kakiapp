@@ -1290,29 +1290,20 @@ async function teamRender(force) {
    pending ＝ 店頭でスタッフが確認するまで待ち／verified ＆ 未 claimed ＝ ここで P を入れて claimed に。カード（コレクション）は第2弾その2で */
 const TIER_LABEL = { r1: "優勝", r2: "準優勝", r3: "3位", mvp: "MVP校" };
 function teamAwardRender(SEASON) {
-  const box = document.getElementById("teamAwardBox"); const aw = store.s.awards || {}, cl = store.s.awardsClaimed || {};
+  /* ポイントは締め時に運営側で加算済み。ここは表示と、初めて見た時のお祝いだけ（awardsSeen は見た目用） */
+  const box = document.getElementById("teamAwardBox"); const aw = store.s.awards || {};
   const isTestApp = /kakiapp-test/.test(location.pathname);
-  /* 本番アプリはテスト版の締めで配られた award（test:true）を無視する（エル監査③） */
   const months = Object.keys(aw).filter(m => aw[m] && aw[m].tier && (!aw[m].test || isTestApp)).sort();
   if (!months.length) { box.style.display = "none"; return; }
-  /* 未受け取りの全月を処理（最新月だけだと複数月ぶんを取り逃す・エル監査④） */
-  let granted = 0, first = null;
-  for (const m of months) {
-    const a = aw[m]; if (cl[m]) continue;
-    const pts = a.points || 0; const cl2 = Object.assign({}, store.s.awardsClaimed || {}); cl2[m] = new Date().toISOString();
-    store.set({ points: (store.s.points || 0) + pts, awardsClaimed: cl2 });
-    const rl = a.round === 0 || a.trial ? "第0回（お試し）" : "第" + a.round + "回";
-    if (pts) logTx(rl + " " + (TIER_LABEL[a.tier] || "") + "（" + (a.teamName || "") + "）", pts);
-    if (!first) first = { a, pts, rl }; granted++;
-  }
-  if (first) { if (first.pts) celebrate(first.pts, (first.a.teamName || "") + " " + (TIER_LABEL[first.a.tier] || "") + "おめでとう！"); else celebrate(0, (first.a.teamName || "") + " " + (TIER_LABEL[first.a.tier] || "") + "！カードをコレクションへ"); }
+  const seen = Object.assign({}, store.s.awardsSeen || {}); let first = null;
+  for (const m of months) { if (seen[m]) continue; seen[m] = today(); if (!first) first = aw[m]; }
+  if (first) { store.set({ awardsSeen: seen }); celebrate(first.points || 0, (first.teamName || "") + " " + (TIER_LABEL[first.tier] || "") + (first.points ? "おめでとう！" : "！カードをコレクションへ")); }
   const m = months[months.length - 1], a = aw[m];
   const rl = a.round === 0 || a.trial ? "第0回（お試し）" : "第" + a.round + "回";
   document.getElementById("teamAwardTitle").textContent = rl + " 結果：" + (a.teamName || "") + " " + (TIER_LABEL[a.tier] || "") + (a.mvpAlso ? "＋MVP校" : "");
   const pts = (a.points || 0);
-  document.getElementById("teamAwardBody").textContent = "学校の来店 " + (a.teamVisits || 0) + "回 ｜ 参加 " + (a.teamMembers || 0) + "人 ｜ あなたの来店 " + (a.myVisits || 0) + "回" + (pts ? " ｜ 報酬 " + pts + "P" : "");
-  const c = (store.s.awardsClaimed || {})[m];
-  document.getElementById("teamAwardNote").textContent = c ? "受け取り済み（" + String(c).slice(0, 10) + "）。カードはマイページのコレクションに。" : (pts ? "ポイントを入れています…" : "お試し回のため、ポイントの配布はありません。カードはコレクションに入ります。");
+  document.getElementById("teamAwardBody").textContent = "学校の来店 " + (a.teamVisits || 0) + "回 ｜ 参加 " + (a.teamMembers || 0) + "人 ｜ あなたの来店 " + (a.myVisits || 0) + "回" + (pts ? " ｜ 報酬 " + pts + "P（付与済み）" : "");
+  document.getElementById("teamAwardNote").textContent = pts ? "ポイントは結果発表のときに入っています。カードはマイページのコレクションに。" : (a.test ? "テスト版の締め（ポイントなし）。カードはコレクションに入ります。" : "お試し回のため、ポイントの配布はありません。カードはコレクションに入ります。");
   box.style.display = "block";
 }
 /* ---- 優勝カード（canvas）: docs/mock_team_battle/make_card_v2.py と同じ配置。黒地の元絵 assets/card_black.jpg に文字と名簿を重ねる ---- */

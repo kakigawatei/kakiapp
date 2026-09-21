@@ -41,7 +41,7 @@ const KEYS = ["points", "visits", "tx", "rouletteDate", "gachaDate", "qrDate", "
   "storeVisits", "lastStore", "lastStoreAt",   /* どの店に来たか。送り分けに使う 2026-09-03 */
   "createdAt", "claimed", "rankBonus",   /* 使い始めた日・キャンペーン受取・ランクアップ受取（二重取り防止）2026-09-10 */
   "teamId", "team", "teamJoinedAt", "teamVisits",   /* 学校対抗 来店バトル（任意参加・自分の学校と月別の自分の来店数）2026-09-21 */
-  "nickname", "awards", "awardsClaimed"];   /* ニックネーム／シーズン結果（awards＝運営だけが書く・本人は書けない）／受け取り済み（awardsClaimed＝本人が書く）2026-09-21 エル監査対応 */
+  "nickname", "awards", "awardsSeen"];   /* ニックネーム／シーズン結果（awards＝運営だけが書く・本人は書けない）／受け取り済み（awardsClaimed＝本人が書く）2026-09-21 エル監査対応 */
 
 
 let uid = null, ready = false, timer = null;

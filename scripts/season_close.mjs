@@ -6,8 +6,9 @@
 import fs from "node:fs";
 const base = "http://127.0.0.1:9224"; const sleep = ms => new Promise(r => setTimeout(r, ms));
 const now = new Date(); const pm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-const MONTH = process.argv[2] || (pm.getFullYear() + "-" + String(pm.getMonth() + 1).padStart(2, "0"));
-const URL = process.argv[3] || "https://kakigawatei.github.io/kakiapp/admin.html";
+const ARGS = process.argv.slice(2).filter(x => !x.startsWith("--"));   /* --yes / --force はフラグ（月と混同しない・エル再監査） */
+const MONTH = ARGS[0] || (pm.getFullYear() + "-" + String(pm.getMonth() + 1).padStart(2, "0"));
+const URL = ARGS[1] || "https://kakigawatei.github.io/kakiapp/admin.html";
 const open = await (await fetch(base + "/json/new?" + URL + "?v=" + Date.now(), { method: "PUT" })).json();
 const ws = new WebSocket(open.webSocketDebuggerUrl); let id = 0; const pend = new Map();
 ws.onmessage = ev => { const m = JSON.parse(ev.data); if (m.id && pend.has(m.id)) { pend.get(m.id)(m); pend.delete(m.id); } };
