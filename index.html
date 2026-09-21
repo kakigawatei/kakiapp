@@ -219,6 +219,19 @@
   .tb-invite .body { flex: 1; font-size: 14px; font-weight: 800; line-height: 1.5; }
   .tb-invite .body small { display: block; font-weight: 500; color: var(--gray); font-size: 12px; }
   .tb-wait { color: var(--gray); font-size: 12px; margin-top: 8px; line-height: 1.6; }
+  /* 優勝カード（コレクション） */
+  .cards { display: flex; gap: 10px; overflow-x: auto; padding: 4px 0 8px; -webkit-overflow-scrolling: touch; }
+  .cards canvas { width: 150px; height: 200px; border-radius: 10px; flex: none; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+  #cardView { position: fixed; inset: 0; background: rgba(0,0,0,.92); display: none; z-index: 80; align-items: center; justify-content: center; flex-direction: column; gap: 12px; padding: 20px; }
+  #cardView.show { display: flex; }
+  #cardView canvas { width: min(84vw, 62vh * 0.75); height: auto; border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+  #cardView .btns { display: flex; gap: 10px; }
+  #cardView button { font: inherit; font-weight: 700; font-size: 14px; padding: 10px 18px; border-radius: 999px; border: 1.5px solid #c4913c; background: transparent; color: #f3d27a; }
+  #cardView button.primary { background: #c4913c; color: #1a1612; }
+  .tb-res { display: flex; gap: 8px; align-items: flex-end; }
+  .tb-res .c { flex: 1; text-align: center; font-size: 12px; }
+  .tb-res .c b { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tb-res .c .st { border-radius: 10px 10px 4px 4px; color: #fff; font-weight: 900; font-size: 20px; padding-top: 6px; margin-top: 4px; }
   .itemrow:last-child { border-bottom: none; }
   .pt { font-weight: 700; color: var(--red); }
 
@@ -480,6 +493,11 @@
         </div>
       </div>
     </div>
+    <div class="card" id="myCardsBox" style="display:none">
+      <h2>コレクション</h2>
+      <p class="muted">学校対抗でもらったカード。タップで大きく表示・保存できます。</p>
+      <div class="cards" id="myCards"></div>
+    </div>
     <div class="card">
       <h2>ニックネーム</h2>
       <p class="muted">学校対抗のカードや参加メンバーの一覧に載る名前（任意・12文字まで）。本名でなくてOK。</p>
@@ -532,6 +550,11 @@
       <button class="small" id="btnTeamJoin" style="margin-top:10px;width:100%">この学校で参加する</button>
       <p class="muted" id="teamJoinMsg" style="min-height:1.4em"></p>
     </div>
+    <div class="card" id="teamLastBox" style="display:none">
+      <h2 id="teamLastTitle">前回の結果</h2>
+      <div class="tb-res" id="teamLastRes"></div>
+      <p class="muted" id="teamLastMvp" style="margin-top:6px"></p>
+    </div>
     <div class="card tb-podium" id="teamPodium">
       <div class="tb-head" style="gap:6px"><svg viewBox="0 0 24 24" style="width:20px;height:20px" aria-hidden="true"><path fill="#c4913c" d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.5 10h-15z"/></svg><h2 style="font-size:15px;color:var(--gold)">TOP 3</h2></div>
       <div class="cols" id="teamPodiumCols"></div>
@@ -565,6 +588,13 @@
     <button class="ghost" id="btnTeamBack">← ホームへ</button>
   </main>
 </section>
+
+<!-- 優勝カードの拡大表示 -->
+<div id="cardView">
+  <canvas id="cardViewCanvas" width="1080" height="1440"></canvas>
+  <div class="btns"><button class="primary" id="cardSave">画像を保存・共有</button><button id="cardClose">閉じる</button></div>
+  <p class="muted" id="cardHint" style="color:#bbb;font-size:11px;text-align:center"></p>
+</div>
 
 <!-- カプセル演出オーバーレイ（全抽選共通） -->
 <div id="capOverlay">
@@ -1215,7 +1245,7 @@ async function teamRender(force) {
     note.textContent = td > SEASON.entryUntil ? "今シーズンのエントリー（" + cut + "まで）は締め切りました。参加はできますが、報酬の対象は次のシーズンから。ランキングは見られます。"
       : "エントリー締切 " + cut + " ｜ 報酬の対象になるのは「参加＋そのシーズンにお店で来店チェックイン1回以上」の人です。";
   }
-  teamAwardRender(SEASON);
+  teamAwardRender(SEASON); teamLastRender().catch(() => {});
   /* 速報＝今日いちばん来ている学校 */
   const hot = all.filter(r => r.today > 0).sort((a, b) => b.today - a.today)[0];
   document.getElementById("teamNews").style.display = hot ? "flex" : "none";
@@ -1277,6 +1307,73 @@ function teamAwardRender(SEASON) {
     store.set({ points: (store.s.points || 0) + pts, awards: aw2 });
     if (pts) { logTx(rl + " " + (TIER_LABEL[a.tier] || "") + "（" + (a.teamName || "") + "）", pts); celebrate(pts, (a.teamName || "") + " " + (TIER_LABEL[a.tier] || "") + "おめでとう！"); }
   }
+}
+/* ---- 優勝カード（canvas）: docs/mock_team_battle/make_card_v2.py と同じ配置。黒地の元絵 assets/card_black.jpg に文字と名簿を重ねる ---- */
+const CARD_TIER = { r1: ["CHAMPION", "優勝", "#d6aa50"], r2: ["2ND PLACE", "準優勝", "#bec0c8"], r3: ["3RD PLACE", "3位", "#c48c60"], mvp: ["MVP SCHOOL", "MVP校", "#aa82dc"] };
+const MINCHO = '"Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif', SANS = '-apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif';
+let cardBg = null;
+function cardBgImage() { return new Promise(res => { if (cardBg) return res(cardBg); const im = new Image(); im.onload = () => { cardBg = im; res(im); }; im.onerror = () => res(null); im.src = "assets/card_black.jpg"; }); }
+async function drawAwardCard(cv, a, roster) {
+  const W = 1080, H = 1440; cv.width = W; cv.height = H; const g = cv.getContext("2d");
+  const bg = await cardBgImage(); g.fillStyle = "#0c0c0c"; g.fillRect(0, 0, W, H);
+  if (bg) { /* 丼だけを右下に小さく暗く */ g.save(); g.globalAlpha = 0.16; g.beginPath(); g.ellipse(W - 230, H - 470, 300, 250, 0, 0, Math.PI * 2); g.filter = "blur(2px)"; g.clip(); g.drawImage(bg, 150, 140, 830, 690, W - 530, H - 720, 620, 515); g.restore(); }
+  const [lab, jp, col] = CARD_TIER[a.tier] || CARD_TIER.r1; const sub = "#beb4a5", ink = "#fff";
+  g.fillStyle = "#c81e1e"; g.fillRect(60, 60, 64, 64);
+  const rl = (a.round === 0 || a.trial) ? "第0回（お試し）" : "第" + a.round + "回"; const mo = a.month ? a.month.slice(0, 4) + "年" + String(+a.month.slice(5, 7)) + "月" : "";
+  g.fillStyle = sub; g.font = "28px " + SANS; g.textBaseline = "top"; g.fillText(rl + " 学校対抗 来店バトル ｜ " + mo, 60, 160);
+  g.fillStyle = col; g.font = "bold 34px " + SANS; let x = 60; for (const ch of lab) { g.fillText(ch, x, 250); x += g.measureText(ch).width + 12; }
+  g.font = "bold 26px " + SANS; const vol = "VOL. " + String(a.round || 0).padStart(2, "0"); g.fillText(vol, W - 60 - g.measureText(vol).width, 258);
+  g.font = "bold " + (jp.length <= 2 ? 230 : 160) + "px " + MINCHO; g.fillText(jp, 52, 292);
+  const y = jp.length <= 2 ? 540 : 470;
+  g.fillStyle = col; g.fillRect(60, y + 20, W - 120, 2);
+  g.fillStyle = ink; g.font = "bold " + ((a.teamName || "").length <= 5 ? 92 : 76) + "px " + MINCHO; g.fillText(a.teamName || "", 60, y + 50);
+  g.fillStyle = sub; g.font = "28px " + SANS; g.fillText((a.tier === "mvp" && a.teamMembers ? "1人あたり " + (Math.round(a.teamVisits / a.teamMembers * 10) / 10) + "回 ｜ " : "来店 " + (a.teamVisits || 0) + "回 ｜ ") + "参加 " + (a.teamMembers || 0) + "人", 60, y + 170);
+  const members = (roster || []).slice(0, 120);
+  if (members.length) {
+    const top = y + 226; g.fillStyle = col; g.font = "bold 20px " + SANS; g.fillText("MEMBERS  " + members.length, 60, top);
+    const n = members.length, avail = 1206 - (top + 34), fs = n <= 64 ? 18 : 16, lh = fs + 8, rows = Math.max(1, Math.floor(avail / lh)), cols = Math.ceil(n / rows), colw = Math.floor((W - 120) / Math.max(cols, 1));
+    members.forEach((m, i) => { const cx = 60 + Math.floor(i / rows) * colw, cy = top + 34 + (i % rows) * lh; const me = a.nick && m === a.nick; g.fillStyle = me ? col : sub; g.font = (me ? "bold " : "") + fs + "px " + SANS; g.fillText((me ? "● " : "") + m, cx, cy); });
+  }
+  g.fillStyle = col; g.fillRect(60, 1230, W - 120, 1);
+  g.fillStyle = ink; g.font = "bold 40px " + MINCHO; g.fillText("油そば 柿川亭", 60, 1262);
+  g.fillStyle = sub; g.font = "20px " + SANS; x = 60; for (const ch of "KAKIGAWATEI") { g.fillText(ch, x, 1322); x += g.measureText(ch).width + 6; }
+  g.font = "22px " + SANS; const no = "No. " + String(a.cardNo || 0).padStart(4, "0") + " / " + (a.teamMembers || 0); g.fillText(no, W - 60 - g.measureText(no).width, 1330);
+  g.strokeStyle = col; g.lineWidth = 2; const kind = a.kind || "高校"; g.font = "bold 22px " + SANS; const kw = g.measureText(kind).width; roundRect(g, W - 60 - 150, 60, 150, 44, 22); g.stroke(); g.fillStyle = col; g.fillText(kind, W - 60 - 150 + (150 - kw) / 2, 70);
+}
+function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+async function cardsRender() {
+  const box = document.getElementById("myCardsBox"), wrap = document.getElementById("myCards"); const aw = store.s.awards || {};
+  const list = Object.keys(aw).sort().reverse().map(m => aw[m]).filter(a => a && a.tier); if (!list.length) { box.style.display = "none"; return; }
+  box.style.display = "block"; wrap.innerHTML = "";
+  for (const a of list) {
+    const cv = document.createElement("canvas"); wrap.appendChild(cv);
+    let roster = []; try { const r = window.kakiTeams && await window.kakiTeams.result(a.month); roster = (r && r.rosters && r.rosters[a.teamId]) || []; } catch (e) {}
+    await drawAwardCard(cv, a, roster);
+    cv.onclick = async () => { const big = document.getElementById("cardViewCanvas"); await drawAwardCard(big, a, roster); document.getElementById("cardHint").textContent = ""; document.getElementById("cardView").classList.add("show"); };
+  }
+}
+document.getElementById("cardClose").onclick = () => document.getElementById("cardView").classList.remove("show");
+document.getElementById("cardSave").onclick = async () => {
+  const cv = document.getElementById("cardViewCanvas"), hint = document.getElementById("cardHint");
+  try {
+    const blob = await new Promise(r => cv.toBlob(r, "image/png")); const file = new File([blob], "kakigawatei_card.png", { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "柿川亭 学校対抗 カード" }); return; }
+    const url = URL.createObjectURL(blob); const w = window.open(url, "_blank"); if (!w) { hint.textContent = "画像を長押しして保存してください"; const img = new Image(); img.src = url; img.style.cssText = "max-width:84vw;border-radius:14px"; cv.replaceWith(img); }
+  } catch (e) { hint.textContent = "保存できませんでした。スクリーンショットで保存してください"; }
+};
+/* 前回の結果（直近に締めた月）を学校対抗ページに */
+async function teamLastRender() {
+  const T = window.kakiTeams; const box = document.getElementById("teamLastBox"); if (!T) return;
+  const d = new Date(); const pm = new Date(d.getFullYear(), d.getMonth() - 1, 1); const m = pm.getFullYear() + "-" + String(pm.getMonth() + 1).padStart(2, "0");
+  let r = null; try { r = await T.result(m); } catch (e) {}
+  if (!r || !r.teams) { box.style.display = "none"; return; }
+  const ranked = r.teams.filter(t => t.rank).sort((a, b) => a.rank - b.rank); const top = [ranked[1], ranked[0], ranked[2]];
+  document.getElementById("teamLastTitle").textContent = (r.round === 0 || r.trial ? "第0回（お試し）" : "第" + r.round + "回") + " " + String(+m.slice(5, 7)) + "月の結果";
+  document.getElementById("teamLastRes").innerHTML = top.map((t, i) => { const rank = [2, 1, 3][i]; const h = [56, 76, 44][i]; const bg = ["linear-gradient(180deg,#dcdde3,#a9abb5)", "linear-gradient(180deg,#f3d27a,#c4913c)", "linear-gradient(180deg,#d9a37a,#b07850)"][i];
+    return '<div class="c">' + (t ? '<b>' + escT(t.name) + '</b><span class="muted">' + t.visits + '回・' + t.members + '人</span>' : '<b>—</b>') + '<div class="st" style="height:' + h + 'px;background:' + bg + '">' + rank + '</div></div>'; }).join("");
+  const mvp = r.winners && r.winners.mvp ? r.teams.find(t => t.id === r.winners.mvp) : null;
+  document.getElementById("teamLastMvp").textContent = mvp ? "MVP校（1人あたり最多）：" + mvp.name + "（" + mvp.per + "回／人）" : "";
+  box.style.display = "block";
 }
 document.getElementById("btnNickSave").onclick = () => {
   const v = (document.getElementById("myNick").value || "").normalize("NFKC").replace(/\s+/g, " ").trim(); const msg = document.getElementById("nickMsg");
@@ -1350,7 +1447,7 @@ window.kakiStart = function () {
   if (!applyRankBonus()) fetchCampaigns();   /* クラウドから戻した後に判定（この位置を守る）。ランク分が出た起動ではキャンペーンは次回 */
   else setTimeout(fetchCampaigns, 4000);
   /* 高校対抗: 統合・改名の反映 → ホームのカードとランキングを描く（裏で。失敗しても本体は動く） */
-  if (window.kakiTeams) window.kakiTeams.sync().catch(() => {}).then(() => teamRender(true)).catch(() => {});
+  if (window.kakiTeams) window.kakiTeams.sync().catch(() => {}).then(() => teamRender(true)).then(() => cardsRender()).catch(() => {});
 };
 
 render();

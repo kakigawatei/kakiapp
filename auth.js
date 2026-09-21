@@ -333,8 +333,16 @@ async function teamSeason(force) {
   s.rewards = Object.assign({}, cfg.defaultRewards || {}, s.rewards || {});
   return s;
 }
+/* 締めた結果（admin が kakiapp_seasons/{月} に書く）: 表彰台・名簿に使う */
+const seasonResultCache = {};
+async function teamSeasonResult(month) {
+  if (seasonResultCache[month] !== undefined) return seasonResultCache[month];
+  try { const snap = await withTimeout(getDoc(doc(db, "kakiapp_seasons", month)), 8000, "season"); seasonResultCache[month] = snap.exists() ? snap.data() : null; }
+  catch (e) { console.warn("season result", e && e.code); return null; }
+  return seasonResultCache[month];
+}
 window.kakiTeams = {
-  season: teamSeason,
+  season: teamSeason, result: teamSeasonResult,
   month: teamMonth, norm: teamNorm, list: teamList,
   /* 入力中の候補（正規化して部分一致・統合済み/非表示は除く） */
   suggest: async q => { const n = teamNorm(q); if (!n) return []; const arr = await teamList(); return arr.filter(t => !t.mergedInto && !t.hidden && (String(t.norm || "").includes(n) || String(t.name || "").includes(q))).slice(0, 8); },
