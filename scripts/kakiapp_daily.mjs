@@ -44,6 +44,12 @@ const raw = await ev(`(async () => {
     for (const t of (u.tx || [])) { const d = toJstDay(t.d); const p = Number(t.points) || 0; if (d.startsWith(MON) && p > 0) r.pointsMonthTotal += p;
       if (d !== DAY) continue; if (p < 0) { r.spentDay += -p; continue; } const k = cat(String(t.label || "")); r.pointsDay[k] = (r.pointsDay[k] || 0) + p; r.pointsDayTotal += p; }
   }
+  /* 直近14日の推移（来店回数・新規登録）＝日報の画像のグラフ用 */
+  const days = []; for (let i = 13; i >= 0; i--) { const d = new Date(Date.parse(DAY + "T00:00:00Z") - i * 86400e3); days.push(d.toISOString().slice(0, 10)); }
+  r.series = { days, visits: days.map(() => 0), newUsers: days.map(() => 0), points: days.map(() => 0) };
+  for (const u of us) { const c = toJstDay(u.createdAt); const ci = days.indexOf(c); if (ci >= 0) r.series.newUsers[ci]++;
+    for (const v of (Array.isArray(u.visits) ? u.visits : [])) { const vi = days.indexOf(String(v)); if (vi >= 0) r.series.visits[vi]++; }
+    for (const t of (u.tx || [])) { const p = Number(t.points) || 0; if (p <= 0) continue; const ti = days.indexOf(toJstDay(t.d)); if (ti >= 0) r.series.points[ti] += p; } }
   for (const t of ts) r.teamMembers += Number(t.members) || 0;
   r.teamTop = ts.map(t => ({ name: t.name, kind: t.kind, members: t.members || 0, v: (t.visits || {})[MON] || 0 })).sort((a, b) => b.v - a.v).slice(0, 3);
   return JSON.stringify(r);
