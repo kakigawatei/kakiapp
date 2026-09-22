@@ -62,7 +62,12 @@ def head(dr, y, small, en, title, sub=None):
 
 def story(r):
     W, H = 1080, 1920; im = Image.new("RGB", (W, H), BG); dr = ImageDraw.Draw(im); d = r["day"]
-    y = head(dr, 240 + 20, f"柿川亭アプリ ｜ {jp_date(d)}（{wd(d)}）", "DAILY REPORT", "アプリ日報", "みんなの来店が、毎日つみ上がっています。")
+    s_ = r.get("series") or {}; vs = s_.get("visits") or []
+    if r["newUsers"] >= 10: tag = f"きのうも {r['newUsers']}人が仲間入り。ありがとうございます。"
+    elif vs and r["visitsDay"] >= max(vs): tag = "きのうは、この2週間でいちばん来てもらえた日。"
+    elif r["visitsDay"] == 0: tag = "きょうは、あなたの一杯から。"
+    else: tag = ["みんなの来店が、毎日つみ上がっています。", "一杯ごとに、ポイントとガチャ。", "今日も、いつもの一杯を。"][int(d[8:10]) % 3]
+    y = head(dr, 240 + 20, f"柿川亭アプリ ｜ {jp_date(d)}（{wd(d)}）", "DAILY REPORT", "アプリ日報", tag)
     dr.line((60, y, W - 60, y), fill=GOLD, width=2); y += 40
     y2 = kpi(dr, 60, y, "登録者（累計）", "MEMBERS", f"{r['users']:,}", "人", f"きのう +{r['newUsers']} ／ 今月 +{r['newUsersMonth']}", big=170)
     kpi(dr, 600, y, "きのうの来店", "VISITS", r["visitsDay"], "回", f"今月 {r['visitsMonth']}回 ／ 累計 {r['visitsTotal']}回", big=170)
