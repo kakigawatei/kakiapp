@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""かきあつめアプリ 日報の画像（Instagram ストーリーズ 1080×1920）と A4 1枚 PDF。VIE トーン（黒地・金・赤1点・極細罫線）。
+"""柿川亭アプリ 日報の画像（Instagram ストーリーズ 1080×1920）と A4 1枚 PDF。VIE トーン（黒地・金・赤1点・極細罫線）。
    入力＝scripts/kakiapp_daily.mjs が書く JSON（docs/daily/YYYY-MM-DD.json）。
    使い方: PYTHONUTF8=1 python make_daily.py docs/daily/2026-09-21.json [out_dir]
    出力: daily_YYYY-MM-DD_story.png（公開用・登録者/来店/推移）, daily_YYYY-MM-DD.pdf（内部用・全部入り）"""
@@ -84,7 +84,7 @@ def story(r):
 
 def pdf_page(r):
     W, H = 1240, 1754; im = Image.new("RGB", (W, H), BG); dr = ImageDraw.Draw(im); d = r["day"]
-    y = head(dr, 70, f"かきあつめアプリ 運営日報 ｜ 対象日 {jp_date(d)}（{wd(d)}） ｜ 本番 Firestore 集計", "DAILY REPORT  /  INTERNAL", "アプリ日報")
+    y = head(dr, 70, f"柿川亭アプリ 運営日報 ｜ 対象日 {jp_date(d)}（{wd(d)}） ｜ 本番 Firestore 集計", "DAILY REPORT  /  INTERNAL", "アプリ日報")
     dr.line((60, y - 30, W - 60, y - 30), fill=GOLD, width=2)
     y2 = kpi(dr, 60, y, "登録者（累計）", "MEMBERS", f"{r['users']:,}", "人", f"当日 +{r['newUsers']} ／ 今月 +{r['newUsersMonth']}", big=120)
     kpi(dr, 460, y, "当日の来店", "VISITS", r["visitsDay"], "回", f"{r['visitorsDay']}人 ／ 今月 {r['visitsMonth']}回 ／ 累計 {r['visitsTotal']}回", big=120)
@@ -104,9 +104,10 @@ def pdf_page(r):
     yr = hbars(dr, 660, yr, colw, pd or [("付与なし", 0)], unit="P")
     dr.text((660, yr + 6), f"残高合計 {r['balanceTotal']:,}P（全員のいま使えるポイント）", font=f(FM, 22), fill=SUB); yr += 50
     y = max(yl, yr) + 30
-    dr.text((60, y), "学校対抗 来店バトル", font=f(FB, 24), fill=GOLD); y += 40
-    tt = r.get("teamTop") or []
-    dr.text((60, y), f"エントリー {r['teams']}校 ・ 参加 {r['teamMembers']}人" + ("　今月トップ: " + "／".join(f"{t['name']}（{t['kind']}）{t['v']}回" for t in tt) if tt else ""), font=f(FM, 24), fill=INK); y += 44
+    if os.environ.get("SHOW_TEAMS"):   # 学校対抗は公開まで載せない（masa 2026-09-24）
+        dr.text((60, y), "学校対抗 来店バトル", font=f(FB, 24), fill=GOLD); y += 40
+        tt = r.get("teamTop") or []
+        dr.text((60, y), f"エントリー {r['teams']}校 ・ 参加 {r['teamMembers']}人" + ("　今月トップ: " + "／".join(f"{t['name']}（{t['kind']}）{t['v']}回" for t in tt) if tt else ""), font=f(FM, 24), fill=INK); y += 44
     dr.text((60, y), "※ ダウンロード数（iOS）は App Store Connect の売上レポート接続後に追加。Android は審査通過後。", font=f(FM, 20), fill=DIM)
     footer(dr, W, H, 40, "自動生成 ｜ scripts/kakiapp_daily.mjs → pop/ig_story/make_daily.py")
     return im

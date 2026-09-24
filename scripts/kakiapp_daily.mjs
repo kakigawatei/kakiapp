@@ -1,4 +1,4 @@
-// かきあつめアプリ 日次レポート（2026-09-22 masa「ダウンロード状況・来店状況・ポイント付与状況のレポートを毎日」）
+// 柿川亭アプリ 日次レポート（名称は「柿川亭アプリ」・masa 2026-09-24）（2026-09-22 masa「ダウンロード状況・来店状況・ポイント付与状況のレポートを毎日」）
 // Mac Chrome（9224・kakigawatei@gmail.com＝運営でログイン済み）で admin.html を開き、そのページの Firebase 経由で
 // kakiapp_users / kakiapp_teams を読んで集計する（ルール上 users は運営しか読めない）。
 //   node kakiapp_daily.mjs [YYYY-MM-DD(対象日・既定=昨日 JST)] [base-url]   → 標準出力に本文、/tmp/kakiapp_daily.json に数字
@@ -59,12 +59,12 @@ const r = JSON.parse(raw); fs.writeFileSync("/tmp/kakiapp_daily.json", JSON.stri
 const STORE = { nagaoka: "長岡本店", sendai: "仙台", kakigawatei: "長岡本店", kakigawatei_sendai: "仙台" };
 const sn = k => STORE[k] || k; const fmt = o => Object.entries(o).sort((a, b) => b[1] - a[1]).map(([k, v]) => sn(k) + " " + v).join("・") || "なし";
 const lines = [
-  `📊 かきあつめアプリ 日報（${r.day} 分）`,
+  `📊 柿川亭アプリ 日報（${r.day} 分）`,
   `登録者：累計 ${r.users} 人（${r.day} の新規 ${r.newUsers} 人／今月 ${r.newUsersMonth} 人）`,
   `来店：${r.day} ${r.visitsDay} 回（${r.visitorsDay} 人）／今月 ${r.visitsMonth} 回／累計 ${r.visitsTotal} 回　店舗別（当日）: ${fmt(r.storeDay)}`,
   `　店舗別 累計: ${fmt(r.storeTotal)}　今月来店ありの人: ${r.activeMonth} 人`,
   `ポイント：${r.day} 付与 ${r.pointsDayTotal} P（${fmt(r.pointsDay)}）／使用 ${r.spentDay} P／今月付与 ${r.pointsMonthTotal} P／残高合計 ${r.balanceTotal} P`,
-  `学校対抗：${r.teams} 校・${r.teamMembers} 人` + (r.teamTop.length ? `　今月トップ: ` + r.teamTop.map(t => `${t.name}(${t.kind}) ${t.v}回`).join("／") : ""),
+  ...(process.env.SHOW_TEAMS ? [`学校対抗：${r.teams} 校・${r.teamMembers} 人` + (r.teamTop.length ? `　今月トップ: ` + r.teamTop.map(t => `${t.name}(${t.kind}) ${t.v}回`).join("／") : "")] : []),
 ];
 console.log(lines.join("\n"));
 await bye(0);
