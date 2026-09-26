@@ -565,7 +565,28 @@ const store = {
   get s() { try { return JSON.parse(localStorage.getItem("kakiapp") || "{}"); } catch { return {}; } },
   set(patch) { localStorage.setItem("kakiapp", JSON.stringify(Object.assign(this.s, patch))); render(); if (window.cloudPush) window.cloudPush(); },
 };
-const today = () => new Date().toISOString().slice(0, 10);
+/* 時計（2026-09-26 不正対策・お客様の報告「iPhone の日付を手動で進めるとルーレットが何回でも回せる」）
+   端末の時計は信用しない。Firestore の readTime（サーバー時刻）と端末時計の差を毎回取り直し、
+   「今日」はサーバー時刻の日本時間で決める。取れないとき（圏外）は 1日1回もの（ルーレット/ガチャ/ログボ）を止める。
+   差は localStorage に保存しない＝アプリを開いている間に日付を変えられても、次の操作の前に取り直す */
+let clockOffset = null;                                            /* サーバー − 端末（ms）。null＝未取得 */
+let clockFetching = null;
+function syncClock() {
+  if (clockFetching) return clockFetching;
+  clockFetching = fetch("https://firestore.googleapis.com/v1/projects/kakigawatei-franchise/databases/(default)/documents:runQuery",
+      { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
+        body: JSON.stringify({ structuredQuery: { from: [{ collectionId: "kakiapp_settings" }], limit: 1 } }) })
+    .then(r => r.json())
+    .then(j => { const t = Date.parse(j && j[0] && j[0].readTime); if (!t) throw new Error("no readTime"); clockOffset = t - Date.now(); return clockOffset; })
+    .catch(e => { console.warn("clock", e); clockOffset = null; return null; })
+    .finally(() => { clockFetching = null; });
+  return clockFetching;
+}
+const nowMs = () => Date.now() + (clockOffset || 0);
+const today = () => new Date(nowMs() + 9 * 3600e3).toISOString().slice(0, 10);   /* 日本時間の日付（以前は UTC＝朝9時で日付が変わっていた） */
+const CLOCK_MSG = "時計の確認ができませんでした。電波の良い所でもう一度お試しください。";
+syncClock();
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncClock().then(() => render()); });
 
 function logTx(label, points) {
   const s = store.s;
@@ -765,7 +786,12 @@ function playFx(src, done) {
 }
 
 let wheelTurn = 0;
-document.getElementById("btnSpin").onclick = () => {
+document.getElementById("btnSpin").onclick = async () => {
+  const btn = document.getElementById("btnSpin");
+  if (btn.disabled) return;
+  btn.disabled = true;
+  if ((await syncClock()) === null) { btn.disabled = false; document.getElementById("rouletteMsg").textContent = CLOCK_MSG; return; }   /* サーバー時刻が取れない＝回させない */
+  if (store.s.rouletteDate === today()) { render(); return; }                                                                        /* 取り直した日付でもう一度確認 */
   const i = Math.floor(Math.random() * segs.length);
   const n = segs.length;
   const target = 360 * 6 + (360 - (i + 0.5) * (360 / n));
@@ -782,6 +808,8 @@ document.getElementById("btnSpin").onclick = () => {
 
 /* 来店ガチャ */
 function checkin(storeId) {
+  /* 来店の日付もサーバー時刻で決める。取れないときは来店にしない（端末の日付を動かして来店回数を稼ぐのを防ぐ） */
+  if (clockOffset === null) { syncClock().then(off => { if (off === null) alert(CLOCK_MSG); else checkin(storeId); }); return; }
   if (store.s.gachaDate === today()) { alert("今日の来店ガチャは回済みです"); return; }
   store.set({ qrDate: today() });
   const visits = store.s.visits || [];
@@ -851,9 +879,12 @@ function autoGeoCheckin() {
 document.getElementById("btnGeoCheckin").onclick = geoCheckin;
 document.getElementById("btnGeoCheckin2").onclick = geoCheckin;
 
-document.getElementById("btnGacha").onclick = () => {
+document.getElementById("btnGacha").onclick = async () => {
   const btn = document.getElementById("btnGacha");
   if (btn.disabled) return;
+  btn.disabled = true;
+  if ((await syncClock()) === null) { btn.disabled = false; alert(CLOCK_MSG); return; }   /* サーバー時刻が取れない＝回させない */
+  if (store.s.gachaDate === today()) { render(); return; }
   const roll = Math.random();
   let acc = 0, hit = C.visitGacha.table[0];
   for (const row of C.visitGacha.table) { acc += row.rate; if (roll < acc) { hit = row; break; } }
@@ -1043,12 +1074,15 @@ window.kakiStart = function () {
   /* QRからの起動（固定QR: index.html?store=nagaoka で開いたらGPS判定へ誘導） */
   if (new URLSearchParams(location.search).get("store")) show("gacha");
 
-  /* ログボ（1日1回） */
-  const s = store.s;
-  if (s.loginDate !== today()) {
-    store.set({ points: (s.points || 0) + C.loginBonus.points, loginDate: today() });
-    logTx("ログインボーナス", C.loginBonus.points);
-  }
+  /* ログボ（1日1回）。サーバー時刻が取れた起動だけ入れる（取れない＝圏外なら今回は無し） */
+  syncClock().then(off => {
+    if (off === null) return;
+    const s = store.s;
+    if (s.loginDate !== today()) {
+      store.set({ points: (s.points || 0) + C.loginBonus.points, loginDate: today() });
+      logTx("ログインボーナス", C.loginBonus.points);
+    }
+  });
   /* 使い始めた日（キャンペーンの対象判定に使う）。無ければ履歴の最初の日、それも無ければ今日 */
   if (!store.s.createdAt) store.set({ createdAt: firstActivityDate() || today() });
   render();
