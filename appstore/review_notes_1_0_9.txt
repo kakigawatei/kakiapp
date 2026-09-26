@@ -1,0 +1,10 @@
+[Version 1.0.9 — build 23]
+
+This is a small fix. The once-a-day features (daily roulette, visit gacha, login bonus, visit record) previously used the device clock to decide "today", so a user could change the phone's date to use them repeatedly. They now use the server time (Firestore's response timestamp) converted to Japan time. If the server time cannot be fetched (offline), the action is not performed and a short message asks the user to try again with a connection. The day now changes at midnight Japan time instead of 9:00 a.m.
+
+No new permissions, no new data collection, no UI changes other than that message.
+
+Demo account (same as before): kakigawatei+appreview@gmail.com / Kakigawa2026review
+Phone verification (unchanged): test number 080-0000-0001, code 246810 — no real SMS is sent.
+
+The roulette can be spun once per day on the demo account; after spinning, the button stays disabled until midnight Japan time.
