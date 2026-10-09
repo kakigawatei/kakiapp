@@ -9,6 +9,13 @@
     "allowMixedContent": false
   },
   "plugins": {
+    "FirebaseMessaging": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    },
     "FirebaseAuthentication": {
       "skipNativeAuth": true,
       "providers": [

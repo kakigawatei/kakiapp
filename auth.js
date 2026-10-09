@@ -272,6 +272,8 @@ window.kakiDeleteAccount = async function () {
     try {
       /* データ削除。Firestoreに繋がらなくても本体(Auth)の削除には進む（残った空docは無害） */
       ready = false;
+      /* プッシュ通知: 購読をやめてトークンの控えも消す（失敗しても削除は続ける） */
+      try { if (pushPlugin) await pushDisable(); await withTimeout(deleteDoc(doc(db, PUSH_COL, u.uid)), 6000, "pushDel"); } catch (e) { console.warn("push delete", e && e.code); }
       try { await withTimeout(deleteDoc(doc(db, "kakiapp_users", u.uid)), 8000, "deleteDoc"); }
       catch (e) {
         console.error(e);
@@ -518,6 +520,87 @@ window.kakiBoard = {
   },
 };
 
+/* ---- プッシュ通知（2026-10-09 masa「店からアプリの全員に通知を送りたい」）----
+   アプリ版（iOS/Android）だけ。@capacitor-firebase/messaging で許可→FCM トークン→トピック "all" を購読。
+   送るのは運営の手元のスクリプト（scripts/push_send.mjs・サービスアカウント）で、トピック "all" に1回送れば全員に届く。
+   トークンは kakiapp_push_tokens/{uid} = {token, platform, enabled, topics, updatedAt} に控える（店別・個別に送るとき用・人数の確認用）。
+   Web 版（ブラウザ）は対象外（iPhone はホーム画面に追加した PWA だけ・別の鍵と Service Worker が要るため今回は見送り）。
+   許可のお願いは起動直後には出さない（index.html: 来店ガチャのお祝いを閉じた後に1回だけ／マイページの切り替え） */
+const PUSH_TOPIC = "all";
+const PUSH_COL = "kakiapp_push_tokens";
+const pushPlugin = (() => {
+  const C = window.Capacitor;
+  if (!C || !(C.isNativePlatform && C.isNativePlatform())) return null;
+  try {
+    if (C.isPluginAvailable && !C.isPluginAvailable("FirebaseMessaging")) return null;   /* 古いアプリ本体（プラグイン未同梱）では出さない */
+    return C.registerPlugin ? C.registerPlugin("FirebaseMessaging") : (C.Plugins && C.Plugins.FirebaseMessaging) || null;
+  } catch (_) { return null; }
+})();
+const lsGet = k => { try { return localStorage.getItem(k) || ""; } catch (_) { return ""; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
+async function pushSave(token, enabled) {
+  if (!uid || !auth.currentUser) return;
+  const platform = (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || "unknown";
+  await withTimeout(setDoc(doc(db, PUSH_COL, uid), { token: String(token || ""), platform, enabled: !!enabled, topics: enabled ? [PUSH_TOPIC] : [], updatedAt: new Date().toISOString() }), 10000, "pushSave");
+}
+/* iOS は APNs のトークンが届く前だと getToken が失敗するので、少し待って1回だけやり直す */
+async function pushToken() {
+  try { return (await withTimeout(pushPlugin.getToken(), 15000, "pushToken")).token; }
+  catch (e) { await new Promise(r => setTimeout(r, 2500)); return (await withTimeout(pushPlugin.getToken(), 15000, "pushToken")).token; }
+}
+async function pushPerm(ask) {
+  let st = (await withTimeout(pushPlugin.checkPermissions(), 8000, "pushPerm")).receive;
+  if (st !== "granted" && ask && st !== "denied") st = (await pushPlugin.requestPermissions()).receive;   /* OS の確認ダイアログ（ユーザーが押すまで待つので制限時間なし） */
+  return st;
+}
+/* 戻り値: "on"（受け取る）/"denied"（端末の設定で止まっている）/"prompt"（まだ聞いていない・断られた）/"unavailable"/"error" */
+async function pushEnable(ask) {
+  if (!pushPlugin) return "unavailable";
+  try {
+    const st = await pushPerm(ask);
+    if (st !== "granted") return st === "denied" ? "denied" : "prompt";
+    const token = await pushToken();
+    await withTimeout(pushPlugin.subscribeToTopic({ topic: PUSH_TOPIC }), 15000, "pushTopic");
+    lsSet("kakiPush", "on"); lsSet("kakiPushSyncedAt", String(Date.now()));
+    try { await pushSave(token, true); } catch (e) { console.warn("pushSave", e && e.code); }   /* 全員向けはトピックで届くので、控えの保存失敗は次の起動でやり直す */
+    return "on";
+  } catch (e) { console.error("push enable", e && (e.code || e.message)); return "error"; }
+}
+async function pushDisable() {
+  lsSet("kakiPush", "off");
+  if (!pushPlugin) return "off";
+  try { await withTimeout(pushPlugin.unsubscribeFromTopic({ topic: PUSH_TOPIC }), 15000, "pushUntopic"); } catch (e) { console.warn("push untopic", e && (e.code || e.message)); }
+  try { await withTimeout(pushPlugin.deleteToken(), 10000, "pushDelToken"); } catch (_) {}   /* 個別送信も届かないようにトークンも捨てる */
+  try { await pushSave("", false); } catch (e) { console.warn("pushSave", e && e.code); }
+  return "off";
+}
+/* 起動時: 「受け取る」の人はトークンの入れ替わりに備えて1日1回控えを更新。端末の設定で通知を切られていたら控えも OFF に */
+async function pushRefresh() {
+  if (!pushPlugin || lsGet("kakiPush") !== "on") return;
+  if (Date.now() - Number(lsGet("kakiPushSyncedAt") || 0) < 86400000) return;
+  try {
+    const st = await pushPerm(false);
+    if (st !== "granted") { await pushSave("", false); lsSet("kakiPushSyncedAt", String(Date.now())); return; }
+    await pushEnable(false);
+  } catch (e) { console.warn("push refresh", e && (e.code || e.message)); }
+}
+if (pushPlugin) {
+  try {
+    pushPlugin.addListener("tokenReceived", ev => { if (lsGet("kakiPush") === "on" && ev && ev.token) pushSave(ev.token, true).catch(() => {}); });
+    /* 通知をタップして開いたとき: data.link（"gacha" などのタブ名か https のURL）へ */
+    pushPlugin.addListener("notificationActionPerformed", ev => {
+      const link = ev && ev.notification && ev.notification.data && ev.notification.data.link;
+      if (link && window.kakiOpenLink) setTimeout(() => window.kakiOpenLink(String(link)), 600);
+    });
+  } catch (e) { console.warn("push listen", e && e.message); }
+}
+window.kakiPush = {
+  available: () => !!pushPlugin,
+  pref: () => lsGet("kakiPush"),   /* "on" / "off" / ""（まだ） */
+  enable: () => pushEnable(true),
+  disable: pushDisable,
+};
+
 /* ---- 入口 ---- */
 
 /* 見張り: 認証の初期化が黙って止まったら、裏の画面を触らせずに知らせる（原因調査用） */
@@ -553,6 +636,7 @@ onAuthStateChanged(auth, async (u) => {
     ready = true;
     hideGate();
     window.kakiStart();
+    setTimeout(() => { pushRefresh(); }, 3000);   /* プッシュ通知の控えの更新（裏で・失敗しても本体は動く） */
     refAfterLogin(u).then(() => window.kakiSetState(window.kakiGetState())).catch(e => console.warn("ref", e));   /* 紹介コードの登録・紹介の記録（裏で） */
     $("acctMail").textContent = u.email || u.displayName || (u.phoneNumber ? u.phoneNumber.replace("+81", "0") : "");
 

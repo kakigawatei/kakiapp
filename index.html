@@ -554,6 +554,14 @@
         <span>お得な情報（新メニュー・限定クーポン）をメールで受け取る</span>
       </label>
     </div>
+    <div class="card" id="pushBox" style="display:none">
+      <h2>プッシュ通知</h2>
+      <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;color:#5c5647;line-height:1.6;cursor:pointer">
+        <input type="checkbox" id="myPush" style="width:19px;height:19px;margin-top:1px;flex:none">
+        <span>お店のお知らせ（イベント・キャンペーン）を通知で受け取る</span>
+      </label>
+      <p class="muted" id="pushMsg" style="min-height:1.2em"></p>
+    </div>
     <div class="card">
       <h2>ポイント履歴</h2>
       <div id="txList" class="muted">まだ履歴がありません</div>
@@ -936,6 +944,7 @@ function render() {
   document.getElementById("myBadge").src = r.badge;
   const oi = document.getElementById("myOptIn");
   if (oi) oi.checked = store.s.mailOptIn !== false;
+  pushRender();
   const nn = document.getElementById("myNick"); if (nn && document.activeElement !== nn) nn.value = s.nickname || "";
   const tx = s.tx || [];
   document.getElementById("txList").innerHTML = tx.length
@@ -1019,6 +1028,48 @@ function celebrateNext(points, sub) {
 document.getElementById("ovClose").onclick = () => {
   document.getElementById("overlay").classList.remove("show");
   if (celebQ.length) { const n = celebQ.shift(); setTimeout(() => celebrate(n[0], n[1]), 350); }
+  else if (pushAskArmed) { pushAskArmed = false; setTimeout(pushMaybeAsk, 400); }
+};
+
+/* ---- プッシュ通知（アプリ版だけ・2026-10-09）。本体は auth.js の window.kakiPush ----
+   お願いは起動直後には出さない: 来店ガチャのお祝いを閉じた後に、まだ聞いていなければ1回だけ。あとはマイページで切り替え */
+let pushAskArmed = false;
+function pushRender() {
+  const box = document.getElementById("pushBox"), P = window.kakiPush;
+  if (!box) return;
+  if (!P || !P.available()) { box.style.display = "none"; return; }
+  box.style.display = "";
+  const cb = document.getElementById("myPush");
+  if (cb && !cb.disabled) cb.checked = P.pref() === "on";
+}
+const PUSH_DENIED_MSG = "通知が端末の設定で止まっています。\n「設定」アプリ →「通知」→「柿川亭アプリ」で「通知を許可」をオンにしてから、もう一度切り替えてください。";
+async function pushMaybeAsk() {
+  const P = window.kakiPush;
+  if (!P || !P.available() || P.pref()) return;
+  try { if (localStorage.getItem("kakiPushAsked")) return; localStorage.setItem("kakiPushAsked", today()); } catch (e) { return; }
+  const ok = await window.kakiConfirm("お店のお知らせを通知で受け取りませんか？\n（例: 学校対抗の開始、期間限定のポイント）\n\nマイページでいつでも止められます。", { okText: "受け取る" });
+  if (!ok) return;
+  const r = await P.enable();
+  if (r === "denied") window.kakiAlert(PUSH_DENIED_MSG);
+  else if (r === "error") window.kakiAlert("通知の設定ができませんでした。電波の良い場所で、マイページからもう一度お試しください。");
+  pushRender();
+}
+document.getElementById("myPush").onchange = async (e) => {
+  const P = window.kakiPush, cb = e.target, msgEl = document.getElementById("pushMsg");
+  if (!P) return;
+  cb.disabled = true; msgEl.textContent = "設定しています…";
+  try {
+    const r = cb.checked ? await P.enable() : await P.disable();
+    msgEl.textContent = r === "on" ? "通知を受け取ります" : r === "off" ? "通知を止めました" : "";
+    if (r === "denied") window.kakiAlert(PUSH_DENIED_MSG);
+    else if (r === "error") msgEl.textContent = "設定できませんでした。電波の良い場所でもう一度お試しください。";
+  } finally { cb.disabled = false; pushRender(); }
+};
+/* 通知をタップして開いたときの行き先（data.link）: タブ名ならそのタブ、https ならブラウザで開く */
+window.kakiOpenLink = (link) => {
+  const page = String(link || "").replace(/^#/, "");
+  if (/^(home|team|roulette|gacha|pay|mypage|board)$/.test(page) && document.getElementById("page-" + page)) { show(page); if (page === "team" && typeof teamRender === "function") teamRender(true); return; }
+  if (/^https:\/\//.test(link)) window.open(link, "_blank");
 };
 
 /* ルーレット盤（SVGで生成・configのマス構成） */
@@ -1199,7 +1250,7 @@ document.getElementById("btnGacha").onclick = async () => {
   setTimeout(() => {
     img.classList.remove("gshake");
     /* ② カプセルが落ちてくる（白黒赤の描画演出・2026-09-06 動画をやめた） */
-    showCapsule(hit.points >= 50, () => { celebrate(hit.points, hit.points >= 50 ? "大当たり！" : "来店ガチャ"); refQualify(); });
+    showCapsule(hit.points >= 50, () => { pushAskArmed = true; celebrate(hit.points, hit.points >= 50 ? "大当たり！" : "来店ガチャ"); refQualify(); });
   }, 1900);
 };
 
