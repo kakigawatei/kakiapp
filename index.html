@@ -583,6 +583,8 @@ function syncClock() {
   return clockFetching;
 }
 const nowMs = () => Date.now() + (clockOffset || 0);
+/* 履歴の時刻は UTC で保存されている（toISOString）→ 表示だけ日本時間に直す（2026-10-10） */
+function txJst(d) { const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(String(d || "")); if (!m) return d || ""; const j = new Date(Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5]) + 9 * 3600e3).toISOString(); return j.slice(0, 10) + " " + j.slice(11, 16); }
 const today = () => new Date(nowMs() + 9 * 3600e3).toISOString().slice(0, 10);   /* 日本時間の日付（以前は UTC＝朝9時で日付が変わっていた） */
 const CLOCK_MSG = "時計の確認ができませんでした。電波の良い所でもう一度お試しください。";
 syncClock();
@@ -706,7 +708,7 @@ function render() {
   if (oi) oi.checked = store.s.mailOptIn !== false;
   const tx = s.tx || [];
   document.getElementById("txList").innerHTML = tx.length
-    ? tx.map(t => `<div class="itemrow"><span>${t.d}　${t.label}</span><span class="pt">${t.points > 0 ? "+" : ""}${t.points}P</span></div>`).join("")
+    ? tx.map(t => `<div class="itemrow"><span>${txJst(t.d)}　${t.label}</span><span class="pt">${t.points > 0 ? "+" : ""}${t.points}P</span></div>`).join("")
     : "まだ履歴がありません";
 }
 
