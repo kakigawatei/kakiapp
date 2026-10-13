@@ -18,7 +18,7 @@
    （FirebaseMessaging ~> 11.0 が入る。FirebaseAuth/Core と同じ 11 系に揃うこと。Mac の Podfile のローカル変更＝Google サブスペック抜きは保つ。`scripts/patch-podfile.js` は古い手当て（Google サブスペック・FirebaseAuth 11.4.0 固定）を戻すので、`npm run sync` は使わない）
 4. [ ] AppDelegate.swift はコミット済み（APNs トークンをプラグインへ渡す2メソッド）。ビルド番号を +1 して TestFlight へ
 5. [ ] **Firestore ルール公開**: `docs/firestore_rules_2026-10-09_push.txt`（紹介ルール＋push 2コレクション）。🟥 掲示板ルール（firestore_rules_2026-10-08_board.txt）を先に/一緒に公開するなら、両方の追加分を合わせてから貼る
-6. [ ] **サービスアカウント鍵**: Firebase コンソール → プロジェクトの設定 → サービスアカウント → 新しい秘密鍵を生成（JSON）。リポジトリ外に保存（例: Mac `~/.kakiapp_push_sa.json`）。Discord・git に出さない
+6. [x] **サービスアカウント鍵**（✅ 2026-10-13 21:19 生成・Mac ~/.kakiapp_push_sa.json に 600 で保存済み・firebase-adminsdk-fbsvc）: Firebase コンソール → プロジェクトの設定 → サービスアカウント → 新しい秘密鍵を生成（JSON）。リポジトリ外に保存（例: Mac `~/.kakiapp_push_sa.json`）。Discord・git に出さない
 7. [ ] **試し送り（自分の iPhone 1台）**: TestFlight 版でマイページ「プッシュ通知」ON → Firestore `kakiapp_push_tokens/{自分のuid}.token` をコピー →
    `GOOGLE_APPLICATION_CREDENTIALS=~/.kakiapp_push_sa.json node scripts/push_send.mjs --request <ID> --token <トークン> --send`
    - アプリを閉じた状態・開いた状態の両方で届くか、タップで指定の画面が開くか
