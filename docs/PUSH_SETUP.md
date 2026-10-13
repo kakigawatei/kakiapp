@@ -11,7 +11,7 @@
 - Web 版（ブラウザ・PWA）は対象外（iPhone はホーム画面追加時のみ・VAPID 鍵と Service Worker が別途要るため見送り）
 
 ## 運営がやること（順番どおり）
-1. [ ] **APNs 認証キー（.p8）が Firebase に入っているか確認**: Firebase コンソール → kakigawatei-franchise → プロジェクトの設定 → Cloud Messaging → Apple アプリ構成（com.kakigawatei.app）。電話番号確認（サイレント通知）で既に登録済みの可能性が高い。無ければ Apple Developer → Keys で「Apple Push Notifications service (APNs)」キーを作り、.p8・Key ID・Team ID を登録
+1. [x] **APNs 認証キー（.p8）が Firebase に入っているか確認**（✅ 2026-10-13 21:13 確認済み: 開発用・本番用とも Key ID 8DY7UVKUXY／Team ID JTPQ37786V）: Firebase コンソール → kakigawatei-franchise → プロジェクトの設定 → Cloud Messaging → Apple アプリ構成（com.kakigawatei.app）。電話番号確認（サイレント通知）で既に登録済みの可能性が高い。無ければ Apple Developer → Keys で「Apple Push Notifications service (APNs)」キーを作り、.p8・Key ID・Team ID を登録
 2. [ ] **Push Notifications capability の確認**: `App.entitlements` には `aps-environment = production` と `UIBackgroundModes = remote-notification` が既にある。Apple Developer の App ID（com.kakigawatei.app）で Push Notifications が有効か、Xcode の Signing & Capabilities に Push Notifications が出ているかだけ見る
 3. [ ] **ネイティブのプラグインを入れる（Mac）**: `npm install` → `npx cap sync ios`。🟥 IOS_RELEASE.md の注意どおり Mac では `cap sync`（pod install）が cocoapods/ruby4 の問題で動かない。直すか、手で Podfile の `capacitor_pods` に次の1行を足して `pod install`:
    `pod 'CapacitorFirebaseMessaging', :path => '../../node_modules/@capacitor-firebase/messaging'`
