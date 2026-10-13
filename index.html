@@ -665,6 +665,7 @@
     <div class="tb-tabs" id="bdTabs"></div>
     <div id="bdList"><div class="muted">読み込み中…</div></div>
     <button class="ghost" id="btnBdMore" style="display:none">もっと見る</button>
+    <button class="ghost" id="bdBlocked" style="display:none;font-size:13px"></button>
     <button class="ghost" id="btnBdBack">← ホームへ</button>
   </main>
 </section>
@@ -1654,6 +1655,7 @@ const bdLen = t => Array.from(String(t || "")).length;   /* 絵文字も1文字�
 const bdNg = t => { const n = String(t || "").normalize("NFKC").replace(/\s+/g, "").toLowerCase(); return (BC.ngWords || []).some(w => w && n.includes(String(w).normalize("NFKC").toLowerCase())); };
 let BD_TAB = "", BD_ITEMS = [], BD_LAST = null, BD_DONE = false, BD_LOADING = false, BD_SHOP = "", BD_IMG = "", BD_BUSY = false;
 const BD_LIKED = {};
+let BD_BLOCKED = new Set();   /* ブロックした人（uid）。この人たちの投稿は自分の画面に出さない（2026-10-13） */
 function bdAgo(iso) {
   const t = Date.parse(iso); if (!t) return "";
   const m = Math.floor((nowMs() - t) / 60000);
@@ -1715,11 +1717,17 @@ async function bdMakeImg(file) {
 }
 /* 一覧 */
 const bdVisible = p => { const mine = window.kakiBoard && p.uid === window.kakiBoard.uid(); const off = p.hidden || (p.reports || 0) >= BC.hideAfterReports;
-  return (!off || mine) && (!BD_TAB || p.shop === BD_TAB); };
+  return (!off || mine) && (mine || !BD_BLOCKED.has(p.uid)) && (!BD_TAB || p.shop === BD_TAB); };
+function bdBlockedNote() {
+  const el = document.getElementById("bdBlocked"); if (!el) return;
+  el.style.display = BD_BLOCKED.size ? "block" : "none";
+  el.textContent = "ブロック中の人（" + BD_BLOCKED.size + "人）を解除する";
+}
 async function bdLoad(reset) {
   const B = window.kakiBoard; if (!B || BD_LOADING) return;
   BD_LOADING = true;
-  if (reset) { BD_ITEMS = []; BD_LAST = null; BD_DONE = false; document.getElementById("bdList").innerHTML = '<div class="muted">読み込み中…</div>'; }
+  if (reset) { BD_ITEMS = []; BD_LAST = null; BD_DONE = false; document.getElementById("bdList").innerHTML = '<div class="muted">読み込み中…</div>';
+    try { BD_BLOCKED = new Set(await B.blocks()); } catch (e) {} bdBlockedNote(); }
   const before = BD_ITEMS.filter(bdVisible).length;
   try {
     for (let i = 0; i < 5 && !BD_DONE && BD_ITEMS.filter(bdVisible).length - before < 20; i++) {
@@ -1750,7 +1758,7 @@ function bdRender() {
       '<div class="bd-meta">' + escT(p.name || "") + '　・　' + escT(bdShopName(p.shop)) + '　・　' + escT(bdAgo(p.createdAt)) + '</div>' +
       (mine && off ? '<div class="bd-note">この投稿はいま、ほかの人には見えていません（お店で確認中）</div>' : "") +
       '<div class="bd-act"><button type="button" class="bd-like' + (BD_LIKED[p.id] ? " on" : "") + '" data-act="like">♥ <span>' + (p.likes || 0) + '</span></button><span class="sp"></span>' +
-      (mine ? '<button type="button" data-act="del">削除</button>' : '<button type="button" data-act="rep">通報</button>') + '</div></div></div>';
+      (mine ? '<button type="button" data-act="del">削除</button>' : '<button type="button" data-act="rep">通報</button><button type="button" data-act="blk">ブロック</button>') + '</div></div></div>';
   }).join("");
   list.querySelectorAll("img[data-img]").forEach(im => { B.img(im.dataset.img).then(v => { if (v) im.src = v; }).catch(() => {}); });
   list.querySelectorAll(".bd-post button[data-act]").forEach(b => b.onclick = () => bdAct(b.dataset.act, b.closest(".bd-post").dataset.id));
@@ -1770,6 +1778,12 @@ async function bdAct(act, id) {
       if (await B.reported(id).catch(() => false)) { window.kakiAlert("この投稿はもう通報済みです。ありがとうございます。"); return; }
       await B.report(id); p.reports = (p.reports || 0) + 1; bdRender();
       window.kakiAlert("通報しました。ありがとうございます。");
+    } else if (act === "blk") {
+      const ok = await window.kakiConfirm("この人の投稿を、あなたの画面に出さないようにします。\n（相手には知らされません。いつでも解除できます）\n不適切な投稿なら「通報」もしてもらえると、お店で確認します。", { okText: "ブロックする", danger: true });
+      if (!ok) return;
+      BD_BLOCKED.add(p.uid); bdRender(); bdBlockedNote();
+      try { await B.setBlocks(Array.from(BD_BLOCKED)); } catch (e) { console.error("board block", e); }   /* 保存に失敗しても端末には控えてある */
+      window.kakiAlert("ブロックしました。この人の投稿は表示されません。");
     } else if (act === "del") {
       const ok = await window.kakiConfirm("この投稿を削除します。元に戻せません。\n（今日の投稿はこれで終わりです。ポイントはそのまま）", { okText: "削除する", danger: true });
       if (!ok) return;
@@ -1782,6 +1796,12 @@ document.getElementById("bdMax").textContent = BC.maxChars;
 document.getElementById("btnGoBoard").onclick = () => { show("board"); bdGate(); bdLoad(true); };
 document.getElementById("btnBdBack").onclick = () => show("home");
 document.getElementById("btnBdMore").onclick = () => bdLoad(false);
+document.getElementById("bdBlocked").onclick = async () => {
+  const ok = await window.kakiConfirm("ブロックしている " + BD_BLOCKED.size + " 人を、すべて解除しますか？\n（その人たちの投稿がまた表示されます）", { okText: "解除する" });
+  if (!ok) return;
+  BD_BLOCKED = new Set(); bdBlockedNote(); bdRender();
+  try { await window.kakiBoard.setBlocks([]); } catch (e) { console.error("board unblock", e); }
+};
 document.getElementById("bdText").addEventListener("input", bdCount);
 document.getElementById("btnBdOpen").onclick = async () => {
   if ((await syncClock()) === null) { document.getElementById("bdGateMsg").textContent = CLOCK_MSG; return; }

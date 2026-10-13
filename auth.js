@@ -513,6 +513,21 @@ window.kakiBoard = {
     b.update(doc(db, BOARD, id), { reports: increment(1) });
     await withTimeout(b.commit(), 12000, "boardReport");
   },
+  /* ブロック（2026-10-13 masa 🇧・App Store 1.2 の「相手をブロックする機能」）: ブロックした人の投稿を自分の画面に出さない。
+     kakiapp_board_blocks/{自分のuid} = {list:[uid…], updatedAt}。自分だけが読み書き・相手には知らされない。端末にも控える（電波が無い時用） */
+  blocks: async () => {
+    let ls = []; try { ls = JSON.parse(localStorage.getItem("kaki_bd_blocks") || "[]"); } catch (e) {}
+    if (!uid) return ls;
+    try { const s = await withTimeout(getDoc(doc(db, "kakiapp_board_blocks", uid)), 8000, "boardBlocks");
+      const cl = s.exists() && Array.isArray(s.data().list) ? s.data().list : [];
+      return Array.from(new Set(cl.concat(ls))); } catch (e) { return ls; }
+  },
+  setBlocks: async list => {
+    list = Array.from(new Set(list)).slice(-500);
+    try { localStorage.setItem("kaki_bd_blocks", JSON.stringify(list)); } catch (e) {}
+    if (!uid) return;
+    await withTimeout(setDoc(doc(db, "kakiapp_board_blocks", uid), { list, updatedAt: new Date().toISOString() }), 12000, "boardBlocksSet");
+  },
   /* 自分の投稿を消す（写真の doc も一緒に） */
   remove: async id => {
     const b = writeBatch(db); b.delete(doc(db, BOARD, id)); b.delete(doc(db, BOARD_IMG, id));
