@@ -38,6 +38,10 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 来店チェックイン（GPS）: @capacitor/geolocation は手動で宣言が必要。無いと Android で位置情報が取れない（2026-10-13 お客様報告） -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <!-- プッシュ通知（Android 13 以降は許可が要る）2026-10-09 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>
