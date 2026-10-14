@@ -1170,7 +1170,7 @@ function checkin(storeId) {
     setTimeout(applyRankBonus, 1200);
     /* 高校対抗: 参加している人だけ、自分の学校の今月に+1（失敗しても本人の来店は成立）。
        2026-10-14（エル監査）: シーズンの開始日（config.teams.seasons[月].start）より前の来店は数えない。1日1回はルール側（teamVisitDay）で保証 */
-    const season = ((C.teams && C.teams.seasons) || {})[teamMonthKey()];
+    const season = ((C.teamBattle && C.teamBattle.seasons) || {})[teamMonthKey()];   /* エル再監査: 設定のキーは teamBattle */
     const seasonOpen = !season || !season.start || today() >= season.start;
     if (store.s.teamId && seasonOpen && store.s.teamVisitDay !== today()) {
       const tm = teamMonthKey(), tv = Object.assign({}, store.s.teamVisits || {}); tv[tm] = (tv[tm] || 0) + 1; store.set({ teamVisits: tv });

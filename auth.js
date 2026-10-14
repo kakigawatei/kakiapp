@@ -112,22 +112,37 @@ async function write() {
   /* 2026-10-14（エル監査）: 運営が加算した直後に、開いたままの端末が古い残高で上書きしないように、
      クラウドの updatedAt が自分の知っている値と違っていたら「自分の差分」だけを足す（points のみ差分マージ） */
   const ref = doc(db, "kakiapp_users", uid);
-  let merged = null;
+  let merged = null, mergedVisits = null, mergedTx = null;
   await withTimeout(runTransaction(db, async tx => {
     const snap = await tx.get(ref);
-    if (snap.exists() && cloudBase && typeof out.points === "number") {
+    if (snap.exists() && cloudBase) {
       const d = snap.data();
-      if ((d.updatedAt || "") !== cloudBase.updatedAt && typeof d.points === "number") {
+      /* points: クラウドの実残高が自分の知っている基準と違えば（運営の増減）、自分の差分だけ足す。updatedAt は見ない（admin の increment は更新しないため・エル再監査） */
+      if (typeof d.points === "number" && typeof out.points === "number" && d.points !== cloudBase.points) {
         const delta = (Number(s.points) || 0) - cloudBase.points;
         out.points = Math.max(0, d.points + delta);
         merged = out.points;
+      }
+      /* visits / tx: クラウドにだけある項目（運営が足した来店や履歴）を消さない＝和集合にする（ジェミ再監査） */
+      if (Array.isArray(d.visits) && Array.isArray(out.visits)) {
+        const u = Array.from(new Set(d.visits.concat(out.visits))).sort();
+        if (u.length !== out.visits.length) { out.visits = u; mergedVisits = u; }
+      }
+      if (Array.isArray(d.tx) && Array.isArray(out.tx)) {
+        const key = t => JSON.stringify(t); const have = new Set(out.tx.map(key));
+        const extra = d.tx.filter(t => !have.has(key(t)));
+        if (extra.length) { out.tx = out.tx.concat(extra); mergedTx = out.tx; }
       }
     }
     tx.set(ref, out, { merge: true });
   }), 20000, "setDoc");
   cloudBase = { points: Number(out.points) || 0, updatedAt: out.updatedAt };
-  if (merged !== null && merged !== (Number(s.points) || 0)) {
-    const cur = window.kakiGetState(); cur.points = merged; window.kakiSetState(cur);
+  if (merged !== null || mergedVisits || mergedTx) {
+    const cur = window.kakiGetState();
+    if (merged !== null) cur.points = merged;
+    if (mergedVisits) cur.visits = mergedVisits;
+    if (mergedTx) cur.tx = mergedTx;
+    window.kakiSetState(cur);
   }
 }
 
@@ -412,7 +427,6 @@ window.kakiTeams = {
     b.update(doc(db, "kakiapp_teams", st.teamId), u);
     await withTimeout(b.commit(), 15000, "teamVisit");
     const cur = window.kakiGetState(); cur.teamVisitDay = d; window.kakiSetState(cur);
-    if (cloudBase) cloudBase = { points: cloudBase.points, updatedAt: "" };   /* 次の write で読み直す */
     teamCache = null; },
   /* 起動時: 統合・改名されていたら自分の所属を付け替える */
   sync: async () => { const st = window.kakiGetState(); if (!st.teamId) return null; const arr = await teamList(); const t = teamResolve(arr, st.teamId); if (!t) return null; if (t.id !== st.teamId || t.name !== st.team) { const s2 = window.kakiGetState(); s2.teamId = t.id; s2.team = t.name; window.kakiSetState(s2); window.cloudPush(); } return t; },
