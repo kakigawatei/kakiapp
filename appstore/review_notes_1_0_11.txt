@@ -1,0 +1,11 @@
+[Version 1.0.11 — build 25]
+
+This is a small security/robustness update. No new permissions, no new data collection, no UI changes.
+
+- Server-side (Firestore) rules were tightened so that point balances and visit records can only change through the app's normal daily actions. The app was updated to save the "school team visit" count in the same write as the member record (once per day), and to merge balances safely when the operator grants points.
+- Location is used only when the user opens the app or taps "check in", to confirm they are near the shop; coordinates are not stored or transmitted.
+
+Demo account (same as before): kakigawatei+appreview@gmail.com / (password: see private file, not in repo)
+Phone verification (unchanged): test number 080-0000-0001, code 246810 — no real SMS is sent.
+
+The daily roulette and visit gacha can each be used once per day on the demo account.
