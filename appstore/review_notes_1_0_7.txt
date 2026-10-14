@@ -8,7 +8,7 @@ For review, please use the test phone number registered in Firebase for this app
   Phone number: 080-0000-0001   (the app adds +81 automatically)
   Verification code: 246810
 
-Demo account (same as before): kakigawatei+appreview@gmail.com / Kakigawa2026review
+Demo account (same as before): kakigawatei+appreview@gmail.com / (password: see private file, not in repo)
 Flow: sign in with the demo account → the app asks for a phone number once → enter 080-0000-0001 → "確認コードを送る" → enter 246810 → "登録する" → the main screen opens. After that the step is not shown again for this account.
 
 The visit check-in uses the device location near our shop; outside the shop, use the demo flow described in the previous review notes (the app shows a clear message instead of failing).

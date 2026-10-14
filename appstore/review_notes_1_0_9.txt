@@ -4,7 +4,7 @@ This is a small fix. The once-a-day features (daily roulette, visit gacha, login
 
 No new permissions, no new data collection, no UI changes other than that message.
 
-Demo account (same as before): kakigawatei+appreview@gmail.com / Kakigawa2026review
+Demo account (same as before): kakigawatei+appreview@gmail.com / (password: see private file, not in repo)
 Phone verification (unchanged): test number 080-0000-0001, code 246810 — no real SMS is sent.
 
 The roulette can be spun once per day on the demo account; after spinning, the button stays disabled until midnight Japan time.

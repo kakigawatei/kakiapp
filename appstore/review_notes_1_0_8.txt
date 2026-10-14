@@ -4,7 +4,7 @@ This update makes the visit check-in automatic. When the app is opened, it silen
 
 Each recorded visit now also grants a small fixed number of points depending on the user's rank (1, 5 or 10 points; 1 point = 1 yen of value in our shop). This is in addition to the existing visit gacha.
 
-Demo account (same as before): kakigawatei+appreview@gmail.com / Kakigawa2026review
+Demo account (same as before): kakigawatei+appreview@gmail.com / (password: see private file, not in repo)
 Phone verification (unchanged from 1.0.7): test number 080-0000-0001, code 246810 — no real SMS is sent.
 
 Because the reviewer is not near our shop in Nagaoka or Sendai, the automatic check-in will simply not trigger; the app shows the normal home screen. Everything else (roulette, points history, rank titles) can be tested as before.
