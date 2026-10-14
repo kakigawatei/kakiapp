@@ -100,21 +100,22 @@ async function pull(u) {
 }
 
 let cloudBase = null;   /* 最後にクラウドと合わせたときの {points, updatedAt} */
-async function write() {
+let writeChain = Promise.resolve();
+/* 2026-10-14（エル 3回目）: 保存は1本ずつ順番に（直列化）。重なった呼び出しは前の保存が終わってから走る */
+function write() { const p = writeChain.then(() => _write()); writeChain = p.catch(() => {}); return p; }
+async function _write() {
   if (!uid || !auth.currentUser) return;
-  const s = window.kakiGetState();
-  const out = {
-    email: auth.currentUser.email || "",
-    name: auth.currentUser.displayName || "",
-    updatedAt: new Date().toISOString(),
-  };
-  KEYS.forEach(k => { if (s[k] !== undefined && k !== "awards") out[k] = s[k]; });   /* awards は運営専用（ルールで本人の書き込みを拒否）*/
   /* 2026-10-14（エル監査）: 運営が加算した直後に、開いたままの端末が古い残高で上書きしないように、
-     クラウドの updatedAt が自分の知っている値と違っていたら「自分の差分」だけを足す（points のみ差分マージ） */
+     クラウドの残高が自分の知っている基準と違っていたら「自分の差分」だけを足す（points は差分マージ・visits/tx は和集合） */
   const ref = doc(db, "kakiapp_users", uid);
-  let merged = null, mergedVisits = null, mergedTx = null;
+  let merged = null, mergedVisits = null, mergedTx = null, out = null, s = null;
   await withTimeout(runTransaction(db, async tx => {
     const snap = await tx.get(ref);
+    /* 差分は「送る直前の端末の状態」で計算する（通信中の加算・利用を落とさない） */
+    s = window.kakiGetState();
+    out = { email: auth.currentUser.email || "", name: auth.currentUser.displayName || "", updatedAt: new Date().toISOString() };
+    KEYS.forEach(k => { if (s[k] !== undefined && k !== "awards") out[k] = s[k]; });   /* awards は運営専用（ルールで本人の書き込みを拒否）*/
+    merged = null; mergedVisits = null; mergedTx = null;
     if (snap.exists() && cloudBase) {
       const d = snap.data();
       /* points: クラウドの実残高が自分の知っている基準と違えば（運営の増減）、自分の差分だけ足す。updatedAt は見ない（admin の increment は更新しないため・エル再監査） */
@@ -136,14 +137,16 @@ async function write() {
     }
     tx.set(ref, out, { merge: true });
   }), 20000, "setDoc");
-  cloudBase = { points: Number(out.points) || 0, updatedAt: out.updatedAt };
-  if (merged !== null || mergedVisits || mergedTx) {
-    const cur = window.kakiGetState();
-    if (merged !== null) cur.points = merged;
-    if (mergedVisits) cur.visits = mergedVisits;
-    if (mergedTx) cur.tx = mergedTx;
-    window.kakiSetState(cur);
-  }
+  const sentPoints = Number(out.points) || 0;
+  cloudBase = { points: sentPoints, updatedAt: out.updatedAt };
+  const cur = window.kakiGetState();
+  /* 送信中に端末側でさらに増減していたら、その分を上乗せ（基準は送った値） */
+  const drift = (Number(cur.points) || 0) - (Number(s.points) || 0);
+  if (merged !== null) cur.points = Math.max(0, merged + drift);
+  if (mergedVisits) cur.visits = Array.from(new Set(mergedVisits.concat(cur.visits || []))).sort();
+  if (mergedTx) { const key = t => JSON.stringify(t); const have = new Set((cur.tx || []).map(key)); cur.tx = (cur.tx || []).concat(mergedTx.filter(t => !have.has(key(t)))); }
+  if (merged !== null || mergedVisits || mergedTx) window.kakiSetState(cur);
+  if (drift !== 0 || mergedVisits || mergedTx) window.cloudPush();   /* 送信中の変化は次の保存で追いつく */
 }
 
 window.cloudPush = function () {
