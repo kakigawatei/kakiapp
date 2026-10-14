@@ -11,7 +11,7 @@ import {
   RecaptchaVerifier, signInWithPhoneNumber, linkWithPhoneNumber,
   PhoneAuthProvider, linkWithCredential
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, addDoc, updateDoc, increment, query, where, orderBy, limit, startAfter, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, addDoc, updateDoc, increment, query, where, orderBy, limit, startAfter, writeBatch, runTransaction } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const app = initializeApp({
   apiKey: "AIzaSyDtDZIEQtBzjujnpTDcXt1QeEU2r-wbg74",
@@ -40,7 +40,7 @@ const KEYS = ["points", "visits", "tx", "rouletteDate", "gachaDate", "qrDate", "
   "mailOptIn", "mailOptInAt",   /* 宣伝メールの同意（特定電子メール法）2026-09-03 */
   "storeVisits", "lastStore", "lastStoreAt",   /* どの店に来たか。送り分けに使う 2026-09-03 */
   "createdAt", "claimed", "rankBonus",   /* 使い始めた日・キャンペーン受取・ランクアップ受取（二重取り防止）2026-09-10 */
-  "teamId", "team", "teamJoinedAt", "teamVisits",   /* 学校対抗 来店バトル（任意参加・自分の学校と月別の自分の来店数）2026-09-21 */
+  "teamId", "team", "teamJoinedAt", "teamVisits", "teamVisitDay",   /* 学校対抗 来店バトル（任意参加・自分の学校と月別の自分の来店数）2026-09-21 */
   "nickname", "awards", "awardsSeen",
   "referredBy", "refClaimed",   /* 友だち紹介キャンペーン（下の注記） */
   "boardDate"];   /* みんなの一杯: 投稿ポイントを受け取った日（1日1回・二重取り防止）2026-10-08 */   /* 友だち紹介キャンペーン: 自分を紹介した人／紹介した人の成立分の受け取り済み（二重取り防止）2026-10-08 */   /* ニックネーム／シーズン結果（awards＝運営だけが書く・本人は書けない）／受け取り済み（awardsClaimed＝本人が書く）2026-09-21 エル監査対応 */
@@ -88,6 +88,7 @@ async function pull(u) {
   if (snap.exists()) {
     /* クラウドが正。端末に何が入っていても上書きする＝機種変更してもポイントが戻る */
     const d = snap.data(), next = {};
+    cloudBase = { points: Number(d.points) || 0, updatedAt: d.updatedAt || "" };   /* 2026-10-14: 差分マージの基準（運営の加算を古い端末が消さない） */
     KEYS.forEach(k => { if (d[k] !== undefined) next[k] = d[k]; });
     if (cur.devMode) next.devMode = cur.devMode;
     if (cur.devSkipGeo) next.devSkipGeo = cur.devSkipGeo;
@@ -98,6 +99,7 @@ async function pull(u) {
   }
 }
 
+let cloudBase = null;   /* 最後にクラウドと合わせたときの {points, updatedAt} */
 async function write() {
   if (!uid || !auth.currentUser) return;
   const s = window.kakiGetState();
@@ -107,7 +109,26 @@ async function write() {
     updatedAt: new Date().toISOString(),
   };
   KEYS.forEach(k => { if (s[k] !== undefined && k !== "awards") out[k] = s[k]; });   /* awards は運営専用（ルールで本人の書き込みを拒否）*/
-  await withTimeout(setDoc(doc(db, "kakiapp_users", uid), out, { merge: true }), 15000, "setDoc");
+  /* 2026-10-14（エル監査）: 運営が加算した直後に、開いたままの端末が古い残高で上書きしないように、
+     クラウドの updatedAt が自分の知っている値と違っていたら「自分の差分」だけを足す（points のみ差分マージ） */
+  const ref = doc(db, "kakiapp_users", uid);
+  let merged = null;
+  await withTimeout(runTransaction(db, async tx => {
+    const snap = await tx.get(ref);
+    if (snap.exists() && cloudBase && typeof out.points === "number") {
+      const d = snap.data();
+      if ((d.updatedAt || "") !== cloudBase.updatedAt && typeof d.points === "number") {
+        const delta = (Number(s.points) || 0) - cloudBase.points;
+        out.points = Math.max(0, d.points + delta);
+        merged = out.points;
+      }
+    }
+    tx.set(ref, out, { merge: true });
+  }), 20000, "setDoc");
+  cloudBase = { points: Number(out.points) || 0, updatedAt: out.updatedAt };
+  if (merged !== null && merged !== (Number(s.points) || 0)) {
+    const cur = window.kakiGetState(); cur.points = merged; window.kakiSetState(cur);
+  }
 }
 
 window.cloudPush = function () {
@@ -381,10 +402,18 @@ window.kakiTeams = {
     teamCache = null; delete st.teamId; delete st.team; delete st.teamJoinedAt; window.kakiSetState(st); window.cloudPush();
   },
   /* 来店1回＝自分の学校の今月に+1（index.html の checkin から。失敗しても本人の来店は成立） */
-  visit: async storeId => { const st = window.kakiGetState(); if (!st.teamId) return; const m = teamMonth(), d = new Date().toISOString().slice(0, 10); const u = {};
+  visit: async (storeId, day) => { const st = window.kakiGetState(); if (!st.teamId || !uid) return; const m = teamMonth(), d = day || new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10); const u = {};
     u["visits." + m] = increment(1); u.visitsTotal = increment(1); u["days." + d] = increment(1);
     if (storeId) u["visitsByStore." + m + "." + storeId] = increment(1);
-    await updateDoc(doc(db, "kakiapp_teams", st.teamId), u); teamCache = null; },
+    /* 2026-10-14（エル監査）: 学校の+1 は、本人の会員データの teamVisitDay を「今日」にする同じ batch でだけ通る（ルール teamVisitOk）＝1日1回 */
+    clearTimeout(timer); await write();   /* 先に本人データを最新にしてから */
+    const b = writeBatch(db);
+    b.update(doc(db, "kakiapp_users", uid), { teamVisitDay: d, updatedAt: new Date().toISOString() });
+    b.update(doc(db, "kakiapp_teams", st.teamId), u);
+    await withTimeout(b.commit(), 15000, "teamVisit");
+    const cur = window.kakiGetState(); cur.teamVisitDay = d; window.kakiSetState(cur);
+    if (cloudBase) cloudBase = { points: cloudBase.points, updatedAt: "" };   /* 次の write で読み直す */
+    teamCache = null; },
   /* 起動時: 統合・改名されていたら自分の所属を付け替える */
   sync: async () => { const st = window.kakiGetState(); if (!st.teamId) return null; const arr = await teamList(); const t = teamResolve(arr, st.teamId); if (!t) return null; if (t.id !== st.teamId || t.name !== st.team) { const s2 = window.kakiGetState(); s2.teamId = t.id; s2.team = t.name; window.kakiSetState(s2); window.cloudPush(); } return t; },
 };

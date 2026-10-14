@@ -23,4 +23,4 @@ How to test:
 - The visit gacha requires GPS proximity to one of our restaurants, so it cannot be tested from outside Japan. Please use the daily roulette to confirm the point-earning flow.
 - Account deletion is available at My Page > アカウントを削除する (as reviewed and approved in version 1.0).
 
-Contact: Masatoshi Oka / kakigawatei@gmail.com / +81 80 1196 6019
+Contact: Masatoshi Oka / kakigawatei@gmail.com
