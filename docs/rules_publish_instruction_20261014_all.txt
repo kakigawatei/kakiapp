@@ -16,7 +16,7 @@ service cloud.firestore {
     function newM(k) { return request.resource.data.get(k, {}); }
     function oldL(k) { return resource == null ? [] : resource.data.get(k, []); }
     function newL(k) { return request.resource.data.get(k, []); }
-    function mapGrew1(k) { return resource == null || !ch(k) || newM(k) is map && newM(k).size() == oldM(k).size() + 1 && newM(k).diff(oldM(k)).affectedKeys().size() == 1; }
+    function mapGrew1(k) { return resource == null || !ch(k) || (newM(k) is map && newM(k).size() == oldM(k).size() + 1 && newM(k).diff(oldM(k)).affectedKeys().size() == 1); }
     function rankOk() { return resource == null || !ch("rankBonus") || (mapGrew1("rankBonus") && newM("rankBonus").keys().hasOnly(["silver", "gold", "rainbow", "king", "founder"])); }
     function claimOk() { return resource == null || !ch("claimed") || (mapGrew1("claimed") && newM("claimed").size() <= 10); }
     function refAdded() { return (resource == null || !ch("refClaimed")) ? 0 : (newM("refClaimed") is map && newM("refClaimed").size() <= 10 && newM("refClaimed").size() > oldM("refClaimed").size() ? newM("refClaimed").size() - oldM("refClaimed").size() : -1000); }
