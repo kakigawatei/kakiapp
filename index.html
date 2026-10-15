@@ -792,7 +792,12 @@ function fetchAnnouncements() {
 document.getElementById("bellBtn").addEventListener("click", () => {
   annoRender();
   document.getElementById("annoPanel").classList.add("show");
-  if (!ANNO.length) fetchAnnouncements();
+  fetchAnnouncements();   /* 2026-10-15 masa: 開いたままのアプリでも新しいお知らせが出るように、🔔を押すたびに読み直す（今の一覧はすぐ出して、届いたら差し替え） */
+});
+/* 2026-10-15: 裏から戻ったときも読み直す（起動時の1回だけだと、出したお知らせが開きっぱなしの端末に届かない）。1分以内の連続は省く */
+let annoLastFetch = Date.now();
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && Date.now() - annoLastFetch > 60000) { annoLastFetch = Date.now(); fetchAnnouncements(); }
 });
 function annoClose() {
   /* 閉じたときに全部既読にする（開いている間は NEW を見せたままにする） */
