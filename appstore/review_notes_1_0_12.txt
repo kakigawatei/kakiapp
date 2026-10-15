@@ -1,0 +1,12 @@
+[Version 1.0.12 — build 26]
+
+This is a small reliability update. No new permissions, no new data collection, no new screens.
+
+- When saving the member record to the server fails (weak signal or server rejection), the app now keeps the change on the device, retries automatically (and again on the next launch), and shows a short notice at the bottom of the screen. Previously the failure was silent.
+- Fixed duplicated entries in the point history (same entry shown twice). Point balances are not changed.
+- Location is used only when the user opens the app or taps "check in", to confirm they are near the shop; coordinates are not stored or transmitted.
+
+Demo account (same as before): kakigawatei+appreview@gmail.com / (password: see private file, not in repo)
+Phone verification (unchanged): test number 080-0000-0001, code 246810 — no real SMS is sent.
+
+The daily roulette and visit gacha can each be used once per day on the demo account.

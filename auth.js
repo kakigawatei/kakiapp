@@ -82,22 +82,123 @@ function jaError(e) {
 }
 
 /* ---- 同期 ---- */
+/* ==== SYNC-CORE-BEGIN ====
+   2026-10-15 保存の失敗対策（ルールの1000式上限で来店の保存が全部拒否された件）。
+   この区間は scripts/sync_check.mjs が Node で切り出して点検する。使ってよいのは
+   window・localStorage・db/doc/getDoc/runTransaction/withTimeout/auth と、外で宣言した uid/ready/timer だけ。
+   ・保存の失敗は黙って捨てない（window.__errs に記録・画面に1回だけ短く出す・通信の失敗だけ回数上限つきで再試行）
+   ・まだクラウドに保存できていない変更があるあいだ、端末に「未保存の控え」（kakiapp_pending）を残す。
+     起動し直したとき、控えがあって中身が「今日」の分なら、クラウドで上書きせず端末の状態を残して送り直す
+     （＝保存に失敗した日に開き直して、同じ日のルーレット／ガチャ／ログボをもう一度取れる穴を塞ぐ）
+   ・控えが昨日以前の分（日付が変わった）なら、ルール上もう保存できない（日付は「今日」しか書けない）のでクラウドを正にする
+   ・tx（履歴）は d／label／points で同じものとみなす（JSON の項目の並び順に依らない）。重複は保存のたびに取り除く */
+const DAY_KEYS = ["rouletteDate", "gachaDate", "loginDate", "qrDate", "boardDate", "teamVisitDay"];   /* 1日1回もの（ルールの dayOk で「今日」しか書けない） */
+const MAP_UNION_KEYS = ["claimed", "rankBonus", "refClaimed"];   /* 受け取り済みの印（ルールで古いキーを消せない）＝和集合で残す */
+const PENDING_KEY = "kakiapp_pending";
+const RETRY_MS = [3000, 10000, 30000];   /* 通信の失敗だけ。3回まで */
+const SAVE_MSG_NET = "ポイントの保存ができませんでした。電波の良い所でアプリを開き直してください（この端末には残っています）";
+const SAVE_MSG_DENIED = "ポイントの保存ができませんでした。時間をおいてアプリを開き直してください（この端末には残っています）";
+
+const txKey = t => (t && typeof t === "object") ? [String(t.d == null ? "" : t.d), String(t.label == null ? "" : t.label), String(t.points == null ? "" : t.points)].join("\u0001") : "raw:" + JSON.stringify(t);
+/* 重複を除き（先に出たものを残す）、新しい順に並べ替える（同じ時刻は元の順のまま）。ポイント残高には触らない */
+function normTx(list) {
+  if (!Array.isArray(list)) return list;
+  const seen = new Set(), out = [];
+  list.forEach((t, i) => { const k = txKey(t); if (!seen.has(k)) { seen.add(k); out.push([t, i]); } });
+  out.sort((a, b) => { const da = String((a[0] && a[0].d) || ""), dbb = String((b[0] && b[0].d) || ""); return da < dbb ? 1 : da > dbb ? -1 : a[1] - b[1]; });
+  return out.map(x => x[0]);
+}
+const sameTx = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((t, i) => txKey(t) === txKey(b[i]));
+function unionTx(a, b) { return normTx((Array.isArray(a) ? a : []).concat(Array.isArray(b) ? b : [])); }
+
+function errCode(e) { return String((e && (e.code || e.name)) || (e && e.message) || e || "unknown"); }
+function isTransient(code) { return /unavailable|deadline|timeout|network|aborted|internal|resource-exhausted|cancelled/.test(code); }
+function isDenied(code) { return /permission-denied|unauthenticated/.test(code); }
+function logErr(kind, msgText) {
+  try {
+    const list = window.__errs || (window.__errs = []);
+    list.push(new Date().toLocaleTimeString("ja-JP") + " " + kind + ": " + String(msgText).slice(0, 300));
+    if (list.length > 30) list.shift();
+  } catch (_) {}
+  try { console.warn(kind, msgText); } catch (_) {}
+}
+const shownSaveMsg = new Set();
+function notifyOnce(kind, text) {
+  if (shownSaveMsg.has(kind)) return;   /* 同じ種類の失敗は1回の起動で1回だけ */
+  shownSaveMsg.add(kind);
+  try {
+    if (typeof window.kakiNotice === "function") { window.kakiNotice(text); return; }
+    if (typeof document === "undefined" || !document.body) return;
+    const el = document.createElement("div");
+    el.setAttribute("role", "status");
+    el.textContent = text;
+    el.style.cssText = "position:fixed;left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:99999;background:rgba(30,30,30,.92);color:#fff;font-size:14px;line-height:1.5;padding:12px 14px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.25);text-align:left";
+    el.onclick = () => el.remove();
+    document.body.appendChild(el);
+    setTimeout(() => { try { el.remove(); } catch (_) {} }, 7000);
+  } catch (_) {}
+}
+
+/* 未保存の控え: { uid, day（最後に変えた日）, base（クラウドに反映済みの端末ポイント）, since, tries:[{at, points, localPoints}]＝最近送ろうとした中身（5件まで）, denied } */
+function readPending() { try { const p = JSON.parse(localStorage.getItem(PENDING_KEY) || "null"); return p && typeof p === "object" ? p : null; } catch (_) { return null; } }
+function savePending(p) { try { if (p) localStorage.setItem(PENDING_KEY, JSON.stringify(p)); else localStorage.removeItem(PENDING_KEY); } catch (_) {} }
+const dayNow = () => { try { if (typeof window.kakiToday === "function") return window.kakiToday(); } catch (_) {} return new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10); };
+let pendingSeq = 0;   /* 端末で変更が起きるたびに+1（保存中に起きた変更を取りこぼさない） */
+function markPending() {
+  if (!uid) return;
+  pendingSeq++;
+  let p = readPending();
+  if (!p || p.uid !== uid) p = { uid, base: cloudBase ? cloudBase.points : null, since: new Date().toISOString(), tries: [] };
+  p.day = dayNow();
+  savePending(p);
+}
+let resendAfterPull = false;
+
 async function pull(u) {
   const snap = await withTimeout(getDoc(doc(db, "kakiapp_users", u.uid)), 12000, "getDoc");
   const cur = window.kakiGetState();
+  resendAfterPull = false;
   if (snap.exists()) {
-    /* クラウドが正。端末に何が入っていても上書きする＝機種変更してもポイントが戻る */
-    const d = snap.data(), next = {};
-    cloudBase = { points: Number(d.points) || 0, updatedAt: d.updatedAt || "" };   /* 2026-10-14: 差分マージの基準（運営の加算を古い端末が消さない） */
-    KEYS.forEach(k => { if (d[k] !== undefined) next[k] = d[k]; });
-    if (cur.devMode) next.devMode = cur.devMode;
-    if (cur.devSkipGeo) next.devSkipGeo = cur.devSkipGeo;
-    window.kakiSetState(next);
+    const d = snap.data();
+    const p = readPending();
+    let keep = false, today = null;
+    if (p && p.uid === u.uid && typeof p.base === "number") {
+      /* 未保存の控えがある: サーバー時刻の「今日」を取り直し（取れなければ端末の日付）、端末の1日1回ものが今日の分なら端末を残す */
+      try { if (typeof window.kakiSyncClock === "function") await withTimeout(window.kakiSyncClock(), 5000, "clock"); } catch (_) {}
+      today = dayNow();
+      keep = DAY_KEYS.every(k => { const lv = cur[k], cv = d[k]; return lv === undefined || lv === cv || (cv !== undefined && String(cv) > String(lv)) || lv === today; });
+      if (!keep) logErr("save", "未保存の控え（" + (p.day || "?") + "）は日付が変わったため送れません。クラウドの状態に戻しました");
+    }
+    if (keep) {
+      /* 端末の状態を残す。クラウドが新しいもの（別の端末で今日やった分・運営の付与）は取り込み、ポイントは次の保存で差分マージする */
+      const next = Object.assign({}, cur);
+      DAY_KEYS.forEach(k => { if (d[k] !== undefined && (next[k] === undefined || String(d[k]) > String(next[k]))) next[k] = d[k]; });
+      MAP_UNION_KEYS.forEach(k => { if (d[k] && typeof d[k] === "object") next[k] = Object.assign({}, d[k], next[k] || {}); });
+      if (d.awards !== undefined) next.awards = d.awards; else delete next.awards;
+      if (Array.isArray(d.visits) || Array.isArray(next.visits)) next.visits = Array.from(new Set((d.visits || []).concat(next.visits || []))).sort();
+      if (Array.isArray(d.tx) || Array.isArray(next.tx)) next.tx = unionTx(next.tx, d.tx);
+      cloudBase = { points: p.base, updatedAt: d.updatedAt || "" };
+      window.kakiSetState(next);
+      resendAfterPull = true;   /* 本体が動き出したら送り直す（afterReady） */
+      logErr("save", "未保存の控え（" + (p.day || "?") + "）を端末に残して送り直します");
+    } else {
+      /* クラウドが正。端末に何が入っていても上書きする＝機種変更してもポイントが戻る */
+      const next = {};
+      cloudBase = { points: Number(d.points) || 0, updatedAt: d.updatedAt || "" };   /* 2026-10-14: 差分マージの基準（運営の加算を古い端末が消さない） */
+      KEYS.forEach(k => { if (d[k] !== undefined) next[k] = d[k]; });
+      if (Array.isArray(next.tx)) { const n = normTx(next.tx); if (!sameTx(n, next.tx)) { next.tx = n; resendAfterPull = true; } }   /* 重複した履歴は次の保存で整える */
+      if (cur.devMode) next.devMode = cur.devMode;
+      if (cur.devSkipGeo) next.devSkipGeo = cur.devSkipGeo;
+      savePending(null);
+      window.kakiSetState(next);
+    }
   } else {
     /* 初回。ログイン前にこの端末で貯めていた分をそのまま引き継ぐ */
     await write();
   }
 }
+/* 本体（kakiStart）が動き出した直後に呼ぶ: 控えを送り直す／重複を除いた履歴を送る */
+function afterReady() { if (resendAfterPull) { resendAfterPull = false; window.cloudPush(); } }
 
 let cloudBase = null;   /* 最後にクラウドと合わせたときの {points, updatedAt} */
 let writeChain = Promise.resolve();
@@ -108,33 +209,41 @@ async function _write() {
   /* 2026-10-14（エル監査）: 運営が加算した直後に、開いたままの端末が古い残高で上書きしないように、
      クラウドの残高が自分の知っている基準と違っていたら「自分の差分」だけを足す（points は差分マージ・visits/tx は和集合） */
   const ref = doc(db, "kakiapp_users", uid);
-  let merged = null, mergedVisits = null, mergedTx = null, out = null, s = null;
+  let merged = null, mergedVisits = null, mergedTx = null, out = null, s = null, seq0 = 0;
   await withTimeout(runTransaction(db, async tx => {
     const snap = await tx.get(ref);
     /* 差分は「送る直前の端末の状態」で計算する（通信中の加算・利用を落とさない） */
     s = window.kakiGetState();
+    seq0 = pendingSeq;
     out = { email: auth.currentUser.email || "", name: auth.currentUser.displayName || "", updatedAt: new Date().toISOString() };
     KEYS.forEach(k => { if (s[k] !== undefined && k !== "awards") out[k] = s[k]; });   /* awards は運営専用（ルールで本人の書き込みを拒否）*/
     merged = null; mergedVisits = null; mergedTx = null;
+    const p = readPending();
     if (snap.exists() && cloudBase) {
       const d = snap.data();
-      /* points: クラウドの実残高が自分の知っている基準と違えば（運営の増減）、自分の差分だけ足す。updatedAt は見ない（admin の increment は更新しないため・エル再監査） */
-      if (typeof d.points === "number" && typeof out.points === "number" && d.points !== cloudBase.points) {
-        const delta = (Number(s.points) || 0) - cloudBase.points;
-        out.points = Math.max(0, d.points + delta);
-        merged = out.points;
+      /* 端末の基準: ふだんは最後に合わせた値。前の保存が「時間切れ」扱いでも実はクラウドに届いていた（updatedAt が控えの tries のどれかと一致）なら、その時の端末の値を基準にする（二重足し防止） */
+      let base = cloudBase.points;
+      const landed = p && p.uid === uid && Array.isArray(p.tries) ? p.tries.find(t => t && t.at && t.at === d.updatedAt && typeof t.localPoints === "number") : null;
+      if (landed) base = landed.localPoints;
+      /* points: クラウドの実残高に「自分の差分」だけ足す。updatedAt は見ない（admin の increment は更新しないため・エル再監査） */
+      if (typeof d.points === "number" && typeof out.points === "number") {
+        const np = Math.max(0, d.points + (Number(s.points) || 0) - base);
+        if (np !== out.points) { out.points = np; merged = np; }
       }
       /* visits / tx: クラウドにだけある項目（運営が足した来店や履歴）を消さない＝和集合にする（ジェミ再監査） */
       if (Array.isArray(d.visits) && Array.isArray(out.visits)) {
         const u = Array.from(new Set(d.visits.concat(out.visits))).sort();
         if (u.length !== out.visits.length) { out.visits = u; mergedVisits = u; }
       }
-      if (Array.isArray(d.tx) && Array.isArray(out.tx)) {
-        const key = t => JSON.stringify(t); const have = new Set(out.tx.map(key));
-        const extra = d.tx.filter(t => !have.has(key(t)));
-        if (extra.length) { out.tx = out.tx.concat(extra); mergedTx = out.tx; }
-      }
     }
+    /* tx: d／label／points で同じものとみなして和集合＋重複除去（2026-10-15: JSON の並び順違いで重複が増えていた） */
+    if (Array.isArray(out.tx)) {
+      const d = snap.exists() ? snap.data() : {};
+      const u = unionTx(out.tx, Array.isArray(d.tx) ? d.tx : []);
+      if (!sameTx(u, out.tx)) { out.tx = u; mergedTx = u; }
+    }
+    /* 送る直前に控えへ「いま送る中身」を書く（時間切れの後で実は届いていた、を次回見分けるため） */
+    if (p && p.uid === uid) { p.tries = (Array.isArray(p.tries) ? p.tries : []).concat([{ at: out.updatedAt, points: Number(out.points) || 0, localPoints: Number(s.points) || 0 }]).slice(-5); savePending(p); }
     tx.set(ref, out, { merge: true });
   }), 20000, "setDoc");
   const sentPoints = Number(out.points) || 0;
@@ -144,16 +253,31 @@ async function _write() {
   const drift = (Number(cur.points) || 0) - (Number(s.points) || 0);
   if (merged !== null) cur.points = Math.max(0, merged + drift);
   if (mergedVisits) cur.visits = Array.from(new Set(mergedVisits.concat(cur.visits || []))).sort();
-  if (mergedTx) { const key = t => JSON.stringify(t); const have = new Set((cur.tx || []).map(key)); cur.tx = (cur.tx || []).concat(mergedTx.filter(t => !have.has(key(t)))); }
+  if (mergedTx) cur.tx = unionTx(cur.tx, mergedTx);
   if (merged !== null || mergedVisits || mergedTx) window.kakiSetState(cur);
-  if (drift !== 0 || mergedVisits || mergedTx) window.cloudPush();   /* 送信中の変化は次の保存で追いつく */
+  /* 控え: 送信中に変更が無ければ消す。あれば基準を送った値にして残す */
+  if (pendingSeq === seq0) savePending(null);
+  else { const p = readPending(); if (p && p.uid === uid) { p.base = sentPoints; p.tries = []; savePending(p); } }
+  if (drift !== 0 || mergedVisits || (mergedTx && !sameTx(normTx(cur.tx), mergedTx)) || pendingSeq !== seq0) window.cloudPush();   /* 送信中の変化は次の保存で追いつく */
 }
 
+/* 保存（少し待ってまとめて送る）。失敗は記録して、通信の失敗だけ少し待って再試行。拒否（permission-denied）は再試行しない */
+function flushSave(attempt) {
+  write().catch(e => {
+    const code = errCode(e);
+    logErr("save", code + (attempt ? "（再試行" + attempt + "回目）" : ""));
+    if (isTransient(code) && attempt < RETRY_MS.length) { clearTimeout(timer); timer = setTimeout(() => flushSave(attempt + 1), RETRY_MS[attempt]); return; }
+    if (isDenied(code)) { const p = readPending(); if (p) { p.denied = new Date().toISOString(); savePending(p); } notifyOnce("denied", SAVE_MSG_DENIED); }
+    else notifyOnce("net", SAVE_MSG_NET);
+  });
+}
 window.cloudPush = function () {
   if (!ready) return;
+  markPending();
   clearTimeout(timer);
-  timer = setTimeout(() => { write().catch(() => {}); }, 700);
+  timer = setTimeout(() => flushSave(0), 700);
 };
+/* ==== SYNC-CORE-END ==== */
 
 /* ---- SMS（電話番号）認証・試作（?sms=1 のときだけ入口を出す） ---- */
 const SMS_ON = true;   /* 2026-09-11 masa「出して」: 全員に展開（メール登録→電話番号を1回確認→紐付け。1番号1アカウント） */
@@ -291,7 +415,7 @@ window.kakiSignOut = async function () {
     if (!ok) return;
     ready = false;
     try { await withTimeout(signOut(auth), 5000, "signOut"); } catch (e) { console.error(e); }
-    localStorage.removeItem("kakiapp");
+    localStorage.removeItem("kakiapp"); localStorage.removeItem("kakiapp_pending");
     location.reload();
   } finally { acting = false; }
 };
@@ -329,7 +453,7 @@ window.kakiDeleteAccount = async function () {
         } else { throw e; }
       }
       ready = false;
-      localStorage.removeItem("kakiapp");
+      localStorage.removeItem("kakiapp"); localStorage.removeItem("kakiapp_pending");
       await window.kakiAlert("アカウントを削除しました。ご利用ありがとうございました。");
       location.reload();
     } catch (e) {
@@ -697,6 +821,7 @@ onAuthStateChanged(auth, async (u) => {
     ready = true;
     hideGate();
     window.kakiStart();
+    afterReady();   /* 2026-10-15: 未保存の控えの送り直し・重複した履歴の整理 */
     setTimeout(() => { pushRefresh(); }, 3000);   /* プッシュ通知の控えの更新（裏で・失敗しても本体は動く） */
     refAfterLogin(u).then(() => window.kakiSetState(window.kakiGetState())).catch(e => console.warn("ref", e));   /* 紹介コードの登録・紹介の記録（裏で） */
     $("acctMail").textContent = u.email || u.displayName || (u.phoneNumber ? u.phoneNumber.replace("+81", "0") : "");
@@ -708,4 +833,4 @@ onAuthStateChanged(auth, async (u) => {
   } finally { busy(false); }
 });
 $("gRetry").onclick = () => location.reload();
-$("gLoadSignOut").onclick = async () => { try { await withTimeout(signOut(auth), 5000, "signOut"); } catch (e) {} localStorage.removeItem("kakiapp"); location.reload(); };
+$("gLoadSignOut").onclick = async () => { try { await withTimeout(signOut(auth), 5000, "signOut"); } catch (e) {} localStorage.removeItem("kakiapp"); localStorage.removeItem("kakiapp_pending"); location.reload(); };
