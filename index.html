@@ -1173,14 +1173,6 @@ function checkin(storeId) {
     const vp = currentRank(visits.length).r.visitPoints || 0;
     if (vp > 0) { store.set({ points: (store.s.points || 0) + vp }); logTx("来店ポイント", vp); }
     setTimeout(applyRankBonus, 1200);
-    /* 高校対抗: 参加している人だけ、自分の学校の今月に+1（失敗しても本人の来店は成立）。
-       2026-10-14（エル監査）: シーズンの開始日（config.teams.seasons[月].start）より前の来店は数えない。1日1回はルール側（teamVisitDay）で保証 */
-    const season = ((C.teamBattle && C.teamBattle.seasons) || {})[teamMonthKey()];   /* エル再監査: 設定のキーは teamBattle */
-    const seasonOpen = !season || !season.start || today() >= season.start;
-    if (store.s.teamId && seasonOpen && store.s.teamVisitDay !== today()) {
-      const tm = teamMonthKey(), tv = Object.assign({}, store.s.teamVisits || {}); tv[tm] = (tv[tm] || 0) + 1; store.set({ teamVisits: tv });
-      if (window.kakiTeams) window.kakiTeams.visit(storeId, today()).catch(e => console.error("team visit", e));
-    }
   }
   /* どの店に来たかを別で数える（2026-09-03）。
      visits の形は変えない＝既存ユーザーのデータを壊さないため。
@@ -1190,6 +1182,8 @@ function checkin(storeId) {
     sv[storeId] = (sv[storeId] || 0) + 1;
     store.set({ storeVisits: sv, lastStore: storeId, lastStoreAt: today() });
   }
+  /* 高校対抗: 参加している人だけ、自分の学校の今月に+1（失敗しても本人の来店は成立）→ teamCreditToday */
+  if (isNew) teamCreditToday(storeId);
   show("gacha");
 }
 document.getElementById("btnMockQR").onclick = checkin;
@@ -1429,6 +1423,29 @@ async function shogoOpen() {
 /* ここから下は auth.js（ログイン完了）から呼ばれる。
    先に走らせるとクラウドのデータで上書きされて消えるので順番を守ること */
 /* ---------- 学校対抗 来店バトル（2026-09-21 masa🇦）: 表示と操作。データは auth.js の window.kakiTeams ---------- */
+/* 学校の今日の+1（2026-10-17 masa🇦）。チェックインの直後に加えて、学校に参加した直後と起動時にも呼ぶ
+   ＝今日チェックインしてから参加した人の今日の分を足す（10/16 に5人が数えられなかった件）。
+   条件: 学校に参加している・今日の来店がある・シーズン中（config.teamBattle.seasons[月].start 以降）・今日まだ学校に足していない。
+   1日1回はルール側（teamVisitDay・同じ batch）で保証。端末の teamVisits は送れてから足す（失敗で食い違わない）。失敗しても本人の来店は壊さない */
+let teamCreditQ = Promise.resolve();   /* 呼び出しは1本ずつ順番に（起動時とチェックインが重なっても、後の方が条件を見直す） */
+function teamCreditToday(storeId) {
+  const run = async () => {
+    if (!window.kakiTeams) return false;
+    if (clockOffset === null && (await syncClock()) === null) return false;   /* 「今日」はサーバー時刻で決める */
+    const s = store.s, d = today();
+    if (!s.teamId || s.teamVisitDay === d || !(s.visits || []).includes(d)) return false;
+    const season = ((C.teamBattle && C.teamBattle.seasons) || {})[teamMonthKey()];   /* エル再監査: 設定のキーは teamBattle */
+    if (season && season.start && d < season.start) return false;
+    const sid = (typeof storeId === "string" && storeId) || (s.lastStoreAt === d ? (s.lastStore || "") : "");
+    await window.kakiTeams.visit(sid, d);
+    if (store.s.teamVisitDay !== d) return false;   /* 送っていない（未ログイン等） */
+    const tm = teamMonthKey(), tv = Object.assign({}, store.s.teamVisits || {}); tv[tm] = (tv[tm] || 0) + 1; store.set({ teamVisits: tv });
+    return true;
+  };
+  const p = teamCreditQ.then(run).catch(e => { console.error("team visit", e); return false; });
+  teamCreditQ = p;
+  return p;
+}
 function teamMonthKey() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); }
 const escT = t => String(t == null ? "" : t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 let TEAM_TAB = "";   /* "" = 全体、それ以外は店ID */
@@ -1637,8 +1654,9 @@ document.getElementById("btnTeamJoin").onclick = async () => {
   btn.disabled = true; msgEl.textContent = "登録中…";
   try {
     const t = await window.kakiTeams.join(name, TEAM_JOIN_KIND);
+    const added = await teamCreditToday();   /* 今日もうチェックイン済みなら、今日の分を学校に足す（2026-10-17 masa🇦） */
     msgEl.textContent = ""; inp.value = ""; document.getElementById("teamSug").innerHTML = "";
-    await window.kakiAlert("「" + t.name + "」で参加しました！\nお店に来てチェックインすると、学校の来店数が増えます。");
+    await window.kakiAlert("「" + t.name + "」で参加しました！\n" + (added ? "今日の来店も、学校の来店数に足しました。" : "お店に来てチェックインすると、学校の来店数が増えます。"));
     teamRender(true);
   } catch (e) {
     console.error(e);
@@ -1890,7 +1908,7 @@ window.kakiStart = function () {
   /* 友だち紹介: 紹介した側の受け取り（キャンペーンのお祝いと重ならないよう少し後）／紹介された側の取りこぼし分の成立 */
   setTimeout(() => { applyReferrals(); refQualify(); }, 5000);
   /* 高校対抗: 統合・改名の反映 → ホームのカードとランキングを描く（裏で。失敗しても本体は動く） */
-  if (window.kakiTeams) window.kakiTeams.sync().catch(() => {}).then(() => teamRender(true)).then(() => cardsRender()).catch(() => {});
+  if (window.kakiTeams) window.kakiTeams.sync().catch(() => {}).then(() => teamCreditToday()).then(() => teamRender(true)).then(() => cardsRender()).catch(() => {});
 };
 
 render();
