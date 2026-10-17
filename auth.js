@@ -11,7 +11,7 @@ import {
   RecaptchaVerifier, signInWithPhoneNumber, linkWithPhoneNumber,
   PhoneAuthProvider, linkWithCredential
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, addDoc, updateDoc, increment, query, where, orderBy, limit, startAfter, writeBatch, runTransaction } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, addDoc, updateDoc, increment, deleteField, query, where, orderBy, limit, startAfter, writeBatch, runTransaction } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const app = initializeApp({
   apiKey: "AIzaSyDtDZIEQtBzjujnpTDcXt1QeEU2r-wbg74",
@@ -435,12 +435,16 @@ window.kakiDeleteAccount = async function () {
     try {
       /* データ削除。Firestoreに繋がらなくても本体(Auth)の削除には進む（残った空docは無害） */
       ready = false;
+      /* 2026-10-17 masa🇦: 学校に入っていたら、先に「学校の人数-1 ＋ 本人の teamId を消す」を同時に書く（クラウドの teamId を見るので端末の状態に依らない・失敗しても削除は続ける） */
+      try { if (window.kakiTeams) await withTimeout(window.kakiTeams.leave(true), 15000, "teamLeaveOnDelete"); } catch (e) { console.warn("team leave on delete", e && e.code); }
       /* プッシュ通知: 購読をやめてトークンの控えも消す（失敗しても削除は続ける） */
       try { if (pushPlugin) await pushDisable(); await withTimeout(deleteDoc(doc(db, PUSH_COL, u.uid)), 6000, "pushDel"); } catch (e) { console.warn("push delete", e && e.code); }
       try { await withTimeout(deleteDoc(doc(db, "kakiapp_users", u.uid)), 8000, "deleteDoc"); }
       catch (e) {
         console.error(e);
-        try { await withTimeout(setDoc(doc(db, "kakiapp_users", u.uid), { deleted: true, points: 0, tx: [], updatedAt: new Date().toISOString() }), 4000, "setDoc"); } catch (e2) { console.error(e2); }
+        /* 2026-10-17: 本人の delete はルールで許されていない（isAdmin のみ）。丸ごと置き換える set は日付の項目（loginDate 等）を消すのでルールに拒否される
+           → ルールが許す項目だけ merge で消す／空にする（来店日・受け取り済みの印・日付はルール上消せないので残る） */
+        try { await withTimeout(setDoc(doc(db, "kakiapp_users", u.uid), { deleted: true, points: 0, tx: [], email: "", name: "", nickname: deleteField(), teamId: deleteField(), team: deleteField(), teamJoinedAt: deleteField(), mailOptIn: false, updatedAt: new Date().toISOString() }, { merge: true }), 6000, "setDoc"); } catch (e2) { console.error(e2); }
       }
       try {
         await withTimeout(deleteUser(u), 15000, "deleteUser");
@@ -509,6 +513,53 @@ async function teamSeasonResult(month) {
   catch (e) { console.warn("season result", e && e.code); return null; }
   return seasonResultCache[month];
 }
+/* 2026-10-17 masa🇦（抜けても次の起動で「参加中」に戻る・削除で人数が減らない・参加の2段書き）:
+   学校の人数（members ±1）と本人の会員データの teamId／team／teamJoinedAt を、1つのトランザクションで同時に書く（片方だけ残らない）。
+   ・人数を減らすのは「クラウドの本人データにある teamId」の学校（端末の状態ではなく）＝二重に減らさない。統合済みなら統合先をたどる。0 以下にはしない
+   ・抜けるときは teamId／team／teamJoinedAt を deleteField() ではっきり消す（ふだんの保存は値のある項目だけの merge なので、端末で消しても雲に残っていた）
+   ・teamVisitDay は消さない（ルール上「今日」以外に書けない／同じ日に別の学校で+1 し直せないように残す）
+   ・保存の列（writeChain）に並べて走らせ、成功したらその場で端末の状態も直す＝前後のふだんの保存が古い teamId を書き戻さない */
+function chained(fn) { const p = writeChain.then(fn); writeChain = p.catch(() => {}); return p; }
+async function txTeam(tx, id) {
+  let cur = id, n = 0;
+  while (cur && n++ < 6) {
+    const ref = doc(db, "kakiapp_teams", cur), s = await tx.get(ref);
+    if (!s.exists()) return null;
+    const d = s.data();
+    if (d.mergedInto && d.mergedInto !== cur && n < 6) { cur = d.mergedInto; continue; }
+    return { ref, id: cur, data: d };
+  }
+  return null;
+}
+/* target: { id } 既存の学校に入る／{ create: {...} } 新しく作って入る／null 抜ける。戻り値: 入った学校 { id, name } か null */
+async function teamMove(target) {
+  if (!uid || !auth.currentUser) throw Object.assign(new Error("not signed in"), { code: "team/auth" });
+  const userRef = doc(db, "kakiapp_users", uid), now = new Date().toISOString();
+  let res = null;
+  await withTimeout(runTransaction(db, async tx => {
+    res = null;
+    const us = await tx.get(userRef);
+    const curId = us.exists() ? String(us.data().teamId || "") : "";
+    const cur = curId ? await txTeam(tx, curId) : null;
+    let to = null;
+    if (target && target.id) { to = await txTeam(tx, target.id); if (!to) throw Object.assign(new Error("team gone"), { code: "team/gone" }); }
+    if (cur && to && cur.id === to.id) {   /* クラウドでは既にこの学校（人数はそのまま・名前と id だけ揃える） */
+      res = { id: to.id, name: to.data.name, joinedAt: us.data().teamJoinedAt || now };
+      tx.set(userRef, { teamId: res.id, team: res.name, teamJoinedAt: res.joinedAt, updatedAt: now }, { merge: true });
+      return;
+    }
+    if (cur && (Number(cur.data.members) || 0) > 0) tx.update(cur.ref, { members: increment(-1) });
+    if (to) { tx.update(to.ref, { members: increment(1) }); res = { id: to.id, name: to.data.name, joinedAt: now }; }
+    else if (target && target.create) { const ref = doc(collection(db, "kakiapp_teams")); tx.set(ref, target.create); res = { id: ref.id, name: target.create.name, joinedAt: now }; }
+    if (res) tx.set(userRef, { teamId: res.id, team: res.name, teamJoinedAt: now, updatedAt: now }, { merge: true });
+    else if (us.exists()) tx.set(userRef, { teamId: deleteField(), team: deleteField(), teamJoinedAt: deleteField(), updatedAt: now }, { merge: true });
+  }), 15000, "teamMove");
+  const s = window.kakiGetState();
+  if (res) { s.teamId = res.id; s.team = res.name; s.teamJoinedAt = res.joinedAt; } else { delete s.teamId; delete s.team; delete s.teamJoinedAt; }
+  window.kakiSetState(s);
+  teamCache = null;
+  return res;
+}
 window.kakiTeams = {
   season: teamSeason, result: teamSeasonResult,
   month: teamMonth, norm: teamNorm, list: teamList,
@@ -528,20 +579,16 @@ window.kakiTeams = {
     const arr = await teamList(true);
     let t = teamFind(arr, norm);
     if (t && t.id === st.teamId) return t;
-    if (st.teamId) { try { await updateDoc(doc(db, "kakiapp_teams", st.teamId), { members: increment(-1) }); } catch (e) { console.error(e); } }
-    if (t) { await withTimeout(updateDoc(doc(db, "kakiapp_teams", t.id), { members: increment(1) }), 12000, "teamJoin"); }
-    else {
-      const ref = await withTimeout(addDoc(collection(db, "kakiapp_teams"), { name, norm, kind: kind || "高校", members: 1, visits: {}, visitsTotal: 0, aliases: [], hidden: false, mergedInto: null, createdAt: new Date().toISOString(), createdBy: uid }), 12000, "teamCreate");
-      t = { id: ref.id, name, norm, kind: kind || "高校", members: 1, visits: {} };
-    }
-    teamCache = null;
-    const s2 = window.kakiGetState(); s2.teamId = t.id; s2.team = t.name; s2.teamJoinedAt = new Date().toISOString(); window.kakiSetState(s2); window.cloudPush();
-    return t;
+    /* 前の学校-1・新しい学校+1（または作成）・本人の teamId を1つのトランザクションで（2026-10-17） */
+    const create = t ? null : { name, norm, kind: kind || "高校", members: 1, visits: {}, visitsTotal: 0, aliases: [], hidden: false, mergedInto: null, createdAt: new Date().toISOString(), createdBy: uid };
+    const r = await chained(() => teamMove(t ? { id: t.id } : { create }));
+    return t ? Object.assign({}, t, { id: r.id, name: r.name }) : { id: r.id, name: create.name, norm, kind: create.kind, members: 1, visits: {} };
   },
-  leave: async () => {
-    const st = window.kakiGetState(); if (!st.teamId) return;
-    try { await updateDoc(doc(db, "kakiapp_teams", st.teamId), { members: increment(-1) }); } catch (e) { console.error(e); }
-    teamCache = null; delete st.teamId; delete st.team; delete st.teamJoinedAt; window.kakiSetState(st); window.cloudPush();
+  /* force＝端末に teamId が無くてもクラウドを見て抜ける（アカウント削除から） */
+  leave: async force => {
+    const st = window.kakiGetState(); if (!st.teamId && !force) return;
+    if (!uid || !auth.currentUser) return;
+    await chained(() => teamMove(null));
   },
   /* 来店1回＝自分の学校の今月に+1（index.html の checkin から。失敗しても本人の来店は成立） */
   visit: async (storeId, day) => { const st = window.kakiGetState(); if (!st.teamId || !uid) return; const m = teamMonth(), d = day || new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10); const u = {};
