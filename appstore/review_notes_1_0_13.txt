@@ -1,0 +1,14 @@
+[Version 1.0.13 — build 27]
+
+This is a small update. No new permissions, no new data collection.
+
+- School team contest: if a user checks in at the shop and then joins a school team on the same day, that day's visit is now counted for the team (once per day).
+- Leaving a school team and deleting the account are now done in a single server transaction, so the team member count and the user's record stay consistent. Account deletion (My Page > Account) removes the member data.
+- My Page has a new card with links to the official website, the shops' Instagram accounts and the shops' Google review pages. They open outside the app (external browser / app). There is no reward for writing a review.
+- Location is used only when the user opens the app or taps "check in", to confirm they are near the shop; coordinates are not stored or transmitted.
+
+Demo account (same as before): kakigawatei+appreview@gmail.com / (password: see private file, not in repo)
+Phone verification (unchanged): test number 080-0000-0001, code 246810 — no real SMS is sent.
+
+Please do not delete the demo account during review (the reviewer would no longer be able to sign in).
+The daily roulette and visit gacha can each be used once per day on the demo account.
