@@ -566,6 +566,12 @@
       <h2>ポイント履歴</h2>
       <div id="txList" class="muted">まだ履歴がありません</div>
     </div>
+    <div class="card" id="linksBox">
+      <h2>公式サイト・Instagram</h2>
+      <p class="muted">新メニューや営業日のお知らせはこちらでも。</p>
+      <button class="ghost" id="btnSite">公式サイトを見る</button>
+      <div id="igLinks"></div>
+    </div>
     <div class="card">
       <h2>アカウント</h2>
       <div class="muted" id="acctMail" style="word-break:break-all">—</div>
@@ -953,6 +959,7 @@ function render() {
   const oi = document.getElementById("myOptIn");
   if (oi) oi.checked = store.s.mailOptIn !== false;
   pushRender();
+  try { linksRender(); } catch (e) {}
   const nn = document.getElementById("myNick"); if (nn && document.activeElement !== nn) nn.value = s.nickname || "";
   const tx = s.tx || [];
   document.getElementById("txList").innerHTML = tx.length
@@ -1079,6 +1086,22 @@ window.kakiOpenLink = (link) => {
   if (/^(home|team|roulette|gacha|pay|mypage|board)$/.test(page) && document.getElementById("page-" + page)) { show(page); if (page === "team" && typeof teamRender === "function") teamRender(true); return; }
   if (/^https:\/\//.test(link)) window.open(link, "_blank");
 };
+
+/* 公式サイト・インスタ（2026-10-18 お客様の要望）。外のブラウザ／インスタのアプリで開く（kakiOpenLink と同じ window.open(_blank)。
+   Capacitor は自分以外のドメインへの移動をアプリ内で開かず、iOS は UIApplication.open・Android は ACTION_VIEW で外へ渡す）
+   インスタは最後にチェックインした店 → 来店が多い店 → config の順で上に */
+function linksRender() {
+  const L = C.links; const box = document.getElementById("linksBox");
+  if (!L || !box) { if (box) box.style.display = "none"; return; }
+  const s = store.s, sv = s.storeVisits || {};
+  const ig = (L.instagram || []).map((x, i) => ({ x, i, k: (x.id === s.lastStore ? 1e6 : 0) + (sv[x.id] || 0) }))
+    .sort((a, b) => b.k - a.k || a.i - b.i).map(o => o.x);
+  const el = document.getElementById("igLinks");
+  el.innerHTML = ig.map(x => `<button class="ghost" data-url="${x.url}">Instagram（${x.name}）</button>`).join("");
+  el.querySelectorAll("button[data-url]").forEach(b => { b.onclick = () => window.open(b.dataset.url, "_blank"); });
+  const bs = document.getElementById("btnSite");
+  if (L.site) bs.onclick = () => window.open(L.site, "_blank"); else bs.style.display = "none";
+}
 
 /* ルーレット盤（SVGで生成・configのマス構成） */
 const segs = C.roulette.segments;

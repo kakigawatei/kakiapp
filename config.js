@@ -34,6 +34,14 @@ window.KAKI_CONFIG = {
     { id: "nagaoka", name: "柿川亭 長岡本店", lat: 37.443615, lng: 138.849167, radius: 150 },  // 南町1-10-16（公式サイト住所・国土地理院ジオコーダ）
     { id: "sendai", name: "柿川亭 仙台連坊店", lat: 38.251450, lng: 140.889099, radius: 80 },  // 仙台市若林区連坊小路81 熊谷ビル103（公式サイト住所・国土地理院ジオコーダ 2026-09-03）
   ],
+  // 公式サイト・インスタ（マイページ下の「公式サイト・Instagram」・2026-10-18 お客様の要望）。店ごとのインスタは id で stores と対応
+  links: {
+    site: "https://kakigawatei.com/",
+    instagram: [
+      { id: "nagaoka", name: "長岡本店", url: "https://www.instagram.com/kakigawatei/" },
+      { id: "sendai", name: "仙台連坊店", url: "https://www.instagram.com/kakigawatei_sendai/" },
+    ],
+  },
   // 開発用: trueにするとGPS判定を常に成功させる
   devSkipGeo: false,
 
