@@ -41,6 +41,13 @@ window.KAKI_CONFIG = {
       { id: "nagaoka", name: "長岡本店", url: "https://www.instagram.com/kakigawatei/" },
       { id: "sendai", name: "仙台連坊店", url: "https://www.instagram.com/kakigawatei_sendai/" },
     ],
+    // Google の口コミを書くページ（ビジネスプロフィール「クチコミを依頼」の短縮リンク・2026-10-18 確認。
+    // 長岡本店→placeid ChIJgd_jur-p9V8RXvNCeL8Sz6Q／仙台連坊店→ChIJoz_RSQApil8RGBDSGZENxnE）。
+    // 🟥口コミの見返りにポイント・特典は出さない（Google の決まりで禁止）
+    googleReview: [
+      { id: "nagaoka", name: "長岡本店", url: "https://g.page/r/CV7zQni_Es-kEBM/review" },
+      { id: "sendai", name: "仙台連坊店", url: "https://g.page/r/CRgQ0hmRDcZxEBM/review" },
+    ],
   },
   // 開発用: trueにするとGPS判定を常に成功させる
   devSkipGeo: false,

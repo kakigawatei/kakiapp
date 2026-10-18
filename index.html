@@ -567,10 +567,11 @@
       <div id="txList" class="muted">まだ履歴がありません</div>
     </div>
     <div class="card" id="linksBox">
-      <h2>公式サイト・Instagram</h2>
+      <h2>公式サイト・Instagram・口コミ</h2>
       <p class="muted">新メニューや営業日のお知らせはこちらでも。</p>
       <button class="ghost" id="btnSite">公式サイトを見る</button>
       <div id="igLinks"></div>
+      <div id="reviewLinks"></div>
     </div>
     <div class="card">
       <h2>アカウント</h2>
@@ -1094,11 +1095,16 @@ function linksRender() {
   const L = C.links; const box = document.getElementById("linksBox");
   if (!L || !box) { if (box) box.style.display = "none"; return; }
   const s = store.s, sv = s.storeVisits || {};
-  const ig = (L.instagram || []).map((x, i) => ({ x, i, k: (x.id === s.lastStore ? 1e6 : 0) + (sv[x.id] || 0) }))
+  const order = list => (list || []).map((x, i) => ({ x, i, k: (x.id === s.lastStore ? 1e6 : 0) + (sv[x.id] || 0) }))
     .sort((a, b) => b.k - a.k || a.i - b.i).map(o => o.x);
-  const el = document.getElementById("igLinks");
-  el.innerHTML = ig.map(x => `<button class="ghost" data-url="${x.url}">Instagram（${x.name}）</button>`).join("");
-  el.querySelectorAll("button[data-url]").forEach(b => { b.onclick = () => window.open(b.dataset.url, "_blank"); });
+  const fill = (id, list, label) => {
+    const el = document.getElementById(id); if (!el) return;
+    el.innerHTML = order(list).map(x => `<button class="ghost" data-url="${x.url}">${label}（${x.name}）</button>`).join("");
+    el.querySelectorAll("button[data-url]").forEach(b => { b.onclick = () => window.open(b.dataset.url, "_blank"); });
+  };
+  fill("igLinks", L.instagram, "Instagram");
+  // Google の口コミ（2026-10-18 masa）。並びはインスタと同じ。🟥書いてもポイント・特典は付けない（Google の決まりで禁止）
+  fill("reviewLinks", L.googleReview, "Google で口コミを書く");
   const bs = document.getElementById("btnSite");
   if (L.site) bs.onclick = () => window.open(L.site, "_blank"); else bs.style.display = "none";
 }
