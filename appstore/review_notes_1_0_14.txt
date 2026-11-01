@@ -1,0 +1,13 @@
+[Version 1.0.14 — build 28]
+
+This is a small update. No new permissions, no new data collection.
+
+- Removed a hidden developer/test panel that could be opened by tapping the logo several times. It is now only available in our internal test build, never in the store build.
+- School team contest: from November the monthly contest is live. Entry for each month closes on the 15th, and rewards go only to members who visited the shop after joining their school team. The join date is now recorded consistently in Japan time.
+- Location is used only when the user opens the app or taps "check in", to confirm they are near the shop; coordinates are not stored or transmitted.
+
+Demo account (same as before): kakigawatei+appreview@gmail.com / (password: see private file, not in repo)
+Phone verification (unchanged): test number 080-0000-0001, code 246810 — no real SMS is sent.
+
+Please do not delete the demo account during review (the reviewer would no longer be able to sign in).
+The daily roulette and visit gacha can each be used once per day on the demo account.
