@@ -501,7 +501,7 @@ async function teamSeason(force) {
   const s = Object.assign({}, base || {}, ovr || {});
   const y = Number(m.slice(0, 4)), mo = Number(m.slice(5, 7)); const lastDay = new Date(y, mo, 0).getDate();
   if (s.round === undefined) { const fm = String(cfg.firstRealMonth || "2026-11"); const fy = Number(fm.slice(0, 4)), fmo = Number(fm.slice(5, 7)); s.round = Math.max(0, (y - fy) * 12 + (mo - fmo) + 1); }
-  s.month = m; s.trial = !!s.trial; s.start = s.start || m + "-01"; s.end = m + "-" + String(lastDay).padStart(2, "0"); s.entryUntil = s.entryUntil || s.end;
+  s.month = m; s.trial = !!s.trial; s.start = s.start || m + "-01"; s.end = m + "-" + String(lastDay).padStart(2, "0"); s.entryUntil = s.entryUntil || (s.trial ? s.end : m + "-" + String(Math.min(Number(cfg.defaultEntryDay) || lastDay, lastDay)).padStart(2, "0"));   /* 2026-11-01 masa 🇦: 本番は毎月15日でエントリー締切（勝ち馬に乗る防止） */
   s.rewards = Object.assign({}, cfg.defaultRewards || {}, s.rewards || {});
   return s;
 }

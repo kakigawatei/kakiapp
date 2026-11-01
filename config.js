@@ -69,6 +69,7 @@ window.KAKI_CONFIG = {
     seasons: { "2026-10": { round: 0, trial: true, start: "2026-10-15", entryUntil: "2026-10-22", rewards: { r1: 50, r2: 0, r3: 0, mvp: 0 } } },
     firstRealMonth: "2026-11",
     defaultRewards: { r1: 200, r2: 100, r3: 50, mvp: 50 },
+    defaultEntryDay: 15,   // 2026-11-01 masa 🇦: 本番の月のエントリー締切＝15日（それ以降に入った人はその月のごほうび対象外）
     minMembersForRank: 2,
   },
 

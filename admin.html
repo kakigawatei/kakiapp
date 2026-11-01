@@ -390,7 +390,7 @@
     const base = (CFG.seasons && CFG.seasons[m]) || {}, ovr = (over && over.seasons && over.seasons[m]) || {};
     const s = Object.assign({}, base, ovr); const y = +m.slice(0, 4), mo = +m.slice(5, 7); const last = new Date(y, mo, 0).getDate();
     if (s.round === undefined) { const fy = +CFG.firstRealMonth.slice(0, 4), fm = +CFG.firstRealMonth.slice(5, 7); s.round = Math.max(0, (y - fy) * 12 + (mo - fm) + 1); }
-    s.month = m; s.trial = !!s.trial; s.end = m + "-" + String(last).padStart(2, "0"); s.entryUntil = s.entryUntil || s.end; s.rewards = Object.assign({}, CFG.defaultRewards, s.rewards || {}); return s;
+    s.month = m; s.trial = !!s.trial; s.end = m + "-" + String(last).padStart(2, "0"); s.entryUntil = s.entryUntil || (s.trial ? s.end : m + "-" + String(Math.min(Number(CFG.defaultEntryDay) || last, last)).padStart(2, "0"));   /* 2026-11-01 masa 🇦: 本番は毎月15日締切 */ s.rewards = Object.assign({}, CFG.defaultRewards, s.rewards || {}); return s;
   }
   async function loadSettings(){ try { const snap = await getDoc(doc(db,"kakiapp_settings","teamBattle")); return snap.exists() ? snap.data() : {}; } catch(e){ return {}; } }
   (function(){ const d=new Date(); $("s-month").value = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); })();
@@ -435,6 +435,7 @@
         const tier = tierOf(u.teamId), isMvp = winners.mvp && u.teamId === winners.mvp; if(!tier && !isMvp) continue;
         const myV = (u.teamVisits && u.teamVisits[m]) || 0; const joined = (u.teamJoinedAt||"").slice(0,10);
         if (myV < 1 || (joined && joined > s.entryUntil)) continue;
+        const lastV = String(u.teamVisitDay || "").slice(0,10); if (!lastV || (joined && lastV < joined)) continue;   /* 2026-11-01 masa 🇦: 学校に入ってからの来店が1回以上（乗り換え前の来店では受け取れない＝勝ち馬に乗る防止） */
         const t = rows.find(r => r.id === u.teamId); const useTier = tier || "mvp"; counters[u.teamId] = (counters[u.teamId]||0)+1;
         const pts = isTestClose ? 0 : (tier ? (s.rewards[tier]||0) : 0) + (isMvp ? (s.rewards.mvp||0) : 0);   /* テスト版の締めはポイント 0（カードだけ）＝本番残高を汚さない */
         const award = { month: m, round: s.round, trial: s.trial, tier: useTier, mvpAlso: !!(tier && isMvp), teamId: u.teamId, teamName: t?t.name:"", kind: t?t.kind:"高校", teamVisits: t?t.visits:0, teamMembers: t?t.members:0, myVisits: myV, nick: u.nickname||"", cardNo: counters[u.teamId], points: pts, status: "verified", test: isTestClose, createdAt: closedAt };   /* masa 2026-09-21「学生証チェックはしない・自動で付与」。test:true は本番アプリでは無視される */
