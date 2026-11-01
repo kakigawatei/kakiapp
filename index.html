@@ -755,6 +755,8 @@ window.__errs = [];
 })();
 
 const C = window.KAKI_CONFIG;
+/* 2026-11-01 抜け道の総点検①（masa 🇦）: 開発モード（ロゴ7回タップ・来店したことにする・GPS判定スキップ）はテスト版だけ。本番・ストアのアプリでは何もしない */
+const DEV_OK = /\/kakiapp-test\//.test(location.pathname) || location.hostname === "127.0.0.1";
 /* テスト版の目印（kakigawatei.github.io/kakiapp-test/ で開いたとき。本番 kakiapp では出ない）2026-09-21 */
 if (/kakiapp-test/.test(location.pathname)) {
   document.title = "柿川亭アプリ（テスト版）";
@@ -1215,13 +1217,13 @@ function checkin(storeId) {
   if (isNew) teamCreditToday(storeId);
   show("gacha");
 }
-document.getElementById("btnMockQR").onclick = checkin;
+document.getElementById("btnMockQR").onclick = () => { if (DEV_OK) checkin(); };
 
 /* GPSで来店判定（店から半径内なら成功） */
 function geoCheckin() {
   if (store.s.gachaDate === today()) { alert("今日の来店ガチャは回済みです"); return; }
   const qrStore = new URLSearchParams(location.search).get("store");
-  if (C.devSkipGeo || store.s.devSkipGeo) { checkin(qrStore || "nagaoka"); return; }
+  if (DEV_OK && (C.devSkipGeo || store.s.devSkipGeo)) { checkin(qrStore || "nagaoka"); return; }
   if (!navigator.geolocation) { alert("この端末では位置情報が使えません。お店の方にお知らせください。"); return; }
   getPosition().then(pos => {
     const { latitude, longitude } = pos.coords;
@@ -1250,7 +1252,7 @@ function getPosition() {
    店の近くなら来店カウント＋ガチャ画面へ。近くにいない／位置情報が取れないときは何も出さない（手動ボタンは残す） */
 function autoGeoCheckin() {
   if (store.s.gachaDate === today()) return;                       /* 今日の来店ガチャは済み */
-  if (C.devSkipGeo || store.s.devSkipGeo) return;                   /* 開発用は手動のまま */
+  if (DEV_OK && (C.devSkipGeo || store.s.devSkipGeo)) return;                   /* 開発用は手動のまま */
   const cap = window.Capacitor;
   const native = cap && cap.isNativePlatform && cap.isNativePlatform();
   if (!native && !navigator.geolocation) return;
@@ -1364,7 +1366,7 @@ let devTaps = 0, devTapTimer = null;
   devTaps++;
   clearTimeout(devTapTimer);
   devTapTimer = setTimeout(() => { devTaps = 0; }, 1600);
-  if (devTaps >= 7) {
+  if (devTaps >= 7 && DEV_OK) {
     devTaps = 0;
     const on = !(store.s.devMode);
     store.set({ devMode: on });
@@ -1911,9 +1913,9 @@ window.kakiToday = today;   /* auth.js（紹介キャンペーンの期間判定
 window.kakiSyncClock = syncClock;
 window.kakiSetState = (o) => { localStorage.setItem("kakiapp", JSON.stringify(o || {})); render(); };
 window.kakiStart = function () {
-  if (store.s.devMode) document.getElementById("devPanel").style.display = "block";
-  if (store.s.devSkipGeo) document.getElementById("devGeo").textContent = "GPS判定スキップ: ON";
-  document.getElementById("btnMockQR").style.display = store.s.devMode ? "block" : "none";
+  if (DEV_OK && store.s.devMode) document.getElementById("devPanel").style.display = "block";
+  if (DEV_OK && store.s.devSkipGeo) document.getElementById("devGeo").textContent = "GPS判定スキップ: ON";
+  document.getElementById("btnMockQR").style.display = (DEV_OK && store.s.devMode) ? "block" : "none";
 
   /* QRからの起動（固定QR: index.html?store=nagaoka で開いたらGPS判定へ誘導） */
   if (new URLSearchParams(location.search).get("store")) show("gacha");
