@@ -433,7 +433,7 @@
       for (const u of users) {
         if (u.awards && u.awards[m] && !(u.awards[m].test && !isTestClose)) { kept++; continue; }   /* 再締めでも配布済みは上書きしない（二重付与防止）。ただし本番の締めはテスト版の award を上書きする */
         const tier = tierOf(u.teamId), isMvp = winners.mvp && u.teamId === winners.mvp; if(!tier && !isMvp) continue;
-        const myV = (u.teamVisits && u.teamVisits[m]) || 0; const joined = (u.teamJoinedAt||"").slice(0,10);
+        const myV = (u.teamVisits && u.teamVisits[m]) || 0; const joined = String(u.teamJoinDay || (u.teamJoinedAt ? new Date(Date.parse(u.teamJoinedAt) + 9*3600e3).toISOString() : "")).slice(0,10);   /* 2026-11-01: 参加日は日本時間（teamJoinDay＝ルールでサーバーの今日を確認済み）。古い会員は teamJoinedAt を日本時間に直して使う */
         if (myV < 1 || (joined && joined > s.entryUntil)) continue;
         const lastV = String(u.teamVisitDay || "").slice(0,10); if (!lastV || (joined && lastV < joined)) continue;   /* 2026-11-01 masa 🇦: 学校に入ってからの来店が1回以上（乗り換え前の来店では受け取れない＝勝ち馬に乗る防止） */
         const t = rows.find(r => r.id === u.teamId); const useTier = tier || "mvp"; counters[u.teamId] = (counters[u.teamId]||0)+1;

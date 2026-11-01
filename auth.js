@@ -551,7 +551,7 @@ async function teamMove(target) {
     if (cur && (Number(cur.data.members) || 0) > 0) tx.update(cur.ref, { members: increment(-1) });
     if (to) { tx.update(to.ref, { members: increment(1) }); res = { id: to.id, name: to.data.name, joinedAt: now }; }
     else if (target && target.create) { const ref = doc(collection(db, "kakiapp_teams")); tx.set(ref, target.create); res = { id: ref.id, name: target.create.name, joinedAt: now }; }
-    if (res) tx.set(userRef, { teamId: res.id, team: res.name, teamJoinedAt: now, updatedAt: now }, { merge: true });
+    if (res) tx.set(userRef, { teamId: res.id, team: res.name, teamJoinedAt: now, teamJoinDay: new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10), updatedAt: now }, { merge: true });   /* 2026-11-01 抜け道③: 参加日（日本時間）。ルールでサーバーの「今日」と一致を確かめる＝スマホの日付を戻して締切を抜けられない */
     else if (us.exists()) tx.set(userRef, { teamId: deleteField(), team: deleteField(), teamJoinedAt: deleteField(), updatedAt: now }, { merge: true });
   }), 15000, "teamMove");
   const s = window.kakiGetState();
