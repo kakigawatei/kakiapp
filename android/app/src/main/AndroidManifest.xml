@@ -44,4 +44,7 @@
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <!-- プッシュ通知（Android 13 以降は許可が要る）2026-10-09 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 店内QRの読み取り（2026-11-11）: WebView の getUserMedia で背面カメラを使う。Capacitor の BridgeWebChromeClient が実行時に許可を聞く -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 </manifest>

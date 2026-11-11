@@ -11,7 +11,7 @@ import {
   RecaptchaVerifier, signInWithPhoneNumber, linkWithPhoneNumber,
   PhoneAuthProvider, linkWithCredential
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, addDoc, updateDoc, increment, deleteField, query, where, orderBy, limit, startAfter, writeBatch, runTransaction } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, getDocFromServer, setDoc, deleteDoc, collection, getDocs, addDoc, updateDoc, increment, deleteField, query, where, orderBy, limit, startAfter, writeBatch, runTransaction } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const app = initializeApp({
   apiKey: "AIzaSyDtDZIEQtBzjujnpTDcXt1QeEU2r-wbg74",
@@ -44,7 +44,8 @@ const KEYS = ["points", "visits", "tx", "rouletteDate", "gachaDate", "qrDate", "
   "teamId", "team", "teamJoinedAt", "teamVisits", "teamVisitDay",   /* 学校対抗 来店バトル（任意参加・自分の学校と月別の自分の来店数）2026-09-21 */
   "nickname", "awards", "awardsSeen",
   "referredBy", "refClaimed",   /* 友だち紹介キャンペーン（下の注記） */
-  "boardDate"];   /* みんなの一杯: 投稿ポイントを受け取った日（1日1回・二重取り防止）2026-10-08 */   /* 友だち紹介キャンペーン: 自分を紹介した人／紹介した人の成立分の受け取り済み（二重取り防止）2026-10-08 */   /* ニックネーム／シーズン結果（awards＝運営だけが書く・本人は書けない）／受け取り済み（awardsClaimed＝本人が書く）2026-09-21 エル監査対応 */
+  "boardDate",   /* みんなの一杯 */
+  "qrTok"];   /* 店内QR（2026-11-11）: 読んだ QR のトークン＋":"＋今日。印のある人・抜き打ちに当たった日は、これが無いとルールが来店を拒否する。qrRequired（運営の印）は本人が書けないので KEYS に入れない */   /* みんなの一杯: 投稿ポイントを受け取った日（1日1回・二重取り防止）2026-10-08 */   /* 友だち紹介キャンペーン: 自分を紹介した人／紹介した人の成立分の受け取り済み（二重取り防止）2026-10-08 */   /* ニックネーム／シーズン結果（awards＝運営だけが書く・本人は書けない）／受け取り済み（awardsClaimed＝本人が書く）2026-09-21 エル監査対応 */
 
 
 let uid = null, ready = false, timer = null;
@@ -683,6 +684,20 @@ window.kakiRef = {
    ♥＝ kakiapp_board/{id}/likes/{uid}、通報＝ …/reports/{uid}。数（likes/reports）は doc の作成・削除と同じ batch で ±1（ルールで突き合わせ） */
 const BOARD = "kakiapp_board", BOARD_IMG = "kakiapp_board_img", BOARD_PAGE = 20;
 const boardImgCache = new Map();
+/* 店内QR（2026-11-11 masa 🇦「怪しい人＋5回に1回だけ店内QR」）。問い合わせ用の doc を「読めるか」で はい／いいえ を受け取る（doc は作らない）。
+   need: 今日この店で QR が要るか → true／false／null（通信できず不明）。tokOk: 読んだトークンが今のものか → true／false／null */
+window.kakiQrCheck = {
+  need: async st => {
+    if (!uid || !auth.currentUser) return false;   /* ログイン前はクラウドに保存しない＝ルールも見ない */
+    try { await withTimeout(getDocFromServer(doc(db, "kakiapp_qrcheck", st, "need", uid)), 8000, "qrNeed"); return true; }
+    catch (e) { const c = errCode(e); if (isDenied(c)) return false; logErr("qr", "need " + c); return null; }
+  },
+  tokOk: async (st, tok) => {
+    if (!uid || !auth.currentUser) return true;
+    try { await withTimeout(getDocFromServer(doc(db, "kakiapp_qrcheck", st, "tok", tok)), 8000, "qrTok"); return true; }
+    catch (e) { const c = errCode(e); if (isDenied(c)) return false; logErr("qr", "tok " + c); return null; }
+  },
+};
 window.kakiBoard = {
   uid: () => uid,
   /* 新しい順に20件。after＝前のページの最後（続きを読む） */

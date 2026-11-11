@@ -46,8 +46,8 @@ service cloud.firestore {
       let c = changed();
       let t = jstDate();
       let inc = request.resource.data.get("points", 0) - (resource == null ? 0 : resource.data.get("points", 0));
-      return !c.hasAny(["awards"]) && uDay(c, t, "rouletteDate") && uDay(c, t, "gachaDate") && uDay(c, t, "loginDate") && uDay(c, t, "qrDate") && uDay(c, t, "boardDate") && uDay(c, t, "teamVisitDay")
-        && uVisits(c, t) && uRank(c) && uClaim(c) && uKeep(c, "rankBonus") && uKeep(c, "claimed") && uKeep(c, "refClaimed") && uRefBack(c) && uPoints(c, inc) && uTeam(c) && uJoinDay(c) && uHours(c);
+      return !c.hasAny(["awards", "qrRequired"]) && uDay(c, t, "rouletteDate") && uDay(c, t, "gachaDate") && uDay(c, t, "loginDate") && uDay(c, t, "qrDate") && uDay(c, t, "boardDate") && uDay(c, t, "teamVisitDay")
+        && uVisits(c, t) && uRank(c) && uClaim(c) && uKeep(c, "rankBonus") && uKeep(c, "claimed") && uKeep(c, "refClaimed") && uRefBack(c) && uPoints(c, inc) && uTeam(c) && uJoinDay(c) && uHours(c, t);
     }
     function userDoc(u) { return /databases/$(database)/documents/kakiapp_users/$(u); }
     function monthKey() { return string(jst().year()) + "-" + (jst().month() < 10 ? "0" : "") + string(jst().month()); }
@@ -66,7 +66,18 @@ service cloud.firestore {
     //   正典 kakigawatei-aeo/entity_dictionary.md（2026-10-20）。営業時間が変わったらここと config.js の stores[].hours を同じ日に直す
     //   dayOfWeek(): 1=月 … 7=日。mi＝0:00 からの通算分（10:45 = 645）
     function openAt(st, j) { let mi = j.hours() * 60 + j.minutes(); return st == "nagaoka" ? ((mi >= 645 && mi <= 900) || (mi >= 1005 && mi <= 1245)) : (st == "sendai" && j.dayOfWeek() != 1 && ((mi >= 645 && mi <= 885) || (j.dayOfWeek() in [2, 4, 5, 6] && mi >= 1065 && mi <= 1410))); }
-    function uHours(c) { return !c.hasAny(["qrDate", "visits", "storeVisits"]) || openAt(request.resource.data.get("lastStore", ""), jst()); }
+    // 2026-11-11 masa 🇦「怪しい人＋5回に1回だけ店内QR」: 営業時間の中でも、次のどちらかなら「店内QRのトークン」が無いと来店を保存できない
+    //   (a) 運営が印を付けた人（kakiapp_users の qrRequired:true・本人は書き換え不可＝上の hasAny）
+    //   (b) 抜き打ち: crc32(uid:日付:salt) が spotMax 未満（既定 "33333333"＝5回に1回）。salt は kakiapp_qr/{店} にあり利用者は読めない＝前もって当たり日を計算できない
+    //   QR の中身は「kakiapp-qr:<店>:<token>」。アプリは qrTok＝"<token>:<今日>" を来店と同じ書き込みで送る（日付入り＝前の日の qrTok は使えない）
+    //   kakiapp_qr/{店} がまだ無い店は従来どおり（GPS＋営業時間だけ）＝ルールを先に公開しても、admin でトークンを発行するまで何も変わらない
+    //   crc32 はバイト列で返る（剰余が取れない）ので16進の文字列（大文字）にして「spotMax より小さい」で当たり＝ spotMax "33333333" で 0x33333333/2^32＝ちょうど20%。"00000000"＝抜き打ち無し・"FFFFFFFF"＝全員
+    //   1000式対策: 印は request.resource 側で見る（本人は qrRequired を変えられない＝前と同じ値）・kakiapp_qr の項目は書き込み時に形を確かめているので get(..., 既定値) を使わない
+    function qrDoc(st) { return /databases/$(database)/documents/kakiapp_qr/$(st); }
+    function qrNeed(q, flagged, t) { return flagged || hashing.crc32(request.auth.uid + ":" + t + ":" + q.salt).toHexString() < q.spotMax; }
+    function uQr(q, t) { return !qrNeed(q, request.resource.data.get("qrRequired", false), t) || request.resource.data.get("qrTok", "") == q.token + ":" + t; }
+    function uOpenQr(st, t) { let p = qrDoc(st); return openAt(st, jst()) && (!exists(p) || uQr(get(p).data, t)); }
+    function uHours(c, t) { return !c.hasAny(["qrDate", "visits", "storeVisits"]) || uOpenQr(request.resource.data.get("lastStore", ""), t); }
     function uTeam(c) { return !("teamId" in c && teamEntryClosed() && request.resource.data.get("teamId", "") != "" && !(resource != null && get(/databases/$(database)/documents/kakiapp_teams/$(resource.data.get("teamId", "x"))).data.get("mergedInto", "") == request.resource.data.get("teamId", ""))); }
     function teamVisitOk(teamId) { return request.auth != null && existsAfter(userDoc(request.auth.uid)) && getAfter(userDoc(request.auth.uid)).data.get("teamVisitDay", "") == jstDate() && (!exists(userDoc(request.auth.uid)) || get(userDoc(request.auth.uid)).data.get("teamVisitDay", "") != jstDate()) && getAfter(userDoc(request.auth.uid)).data.get("teamId", "") == teamId && (monthKey() != "2026-10" || jstDate() >= "2026-10-15"); }
     // 2026-10-08 みんなの一杯（写真の掲示板）用
@@ -146,6 +157,12 @@ match /kakiapp_refcodes/{code} { allow read: if true; allow create: if request.a
 // 変更は紹介された本人が pending→qualified にするだけ（qualifiedAt 以外は変えられない）。期限＝2026-10-31 日本時間いっぱい（= 2026-10-31 15:00 UTC）。config.js の referral.until と揃える
 match /kakiapp_referrals/{refereeId} { allow read: if request.auth != null && (resource == null || request.auth.uid == resource.data.referrer || request.auth.uid == resource.data.referee); allow create: if request.auth != null && request.auth.uid == refereeId && request.resource.data.referee == refereeId && request.resource.data.referrer is string && request.resource.data.referrer != refereeId && request.resource.data.status == "pending" && request.resource.data.keys().hasOnly(["referrer", "referee", "code", "createdAt", "status"]) && request.time < timestamp.date(2026, 10, 31) + duration.value(15, 'h'); allow update: if request.auth != null && request.auth.uid == refereeId && resource.data.referee == refereeId && resource.data.status == "pending" && request.resource.data.status == "qualified" && changed().hasOnly(["status", "qualifiedAt"]) && request.time < timestamp.date(2026, 10, 31) + duration.value(15, 'h'); allow delete: if false; }
 match /kakiapp_settings/{doc} { allow read: if true; allow write: if request.auth != null && request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"; }
+// 2026-11-11 店内QR（抜き打ち）: トークンと salt の正本。読める・書けるのは運営だけ（利用者はトークンを盗めない。ルールの get() は読み取り権限と無関係に読める）
+match /kakiapp_qr/{st} { allow read, delete: if isAdmin(); allow create, update: if isAdmin() && request.resource.data.token is string && request.resource.data.token.size() >= 16 && request.resource.data.salt is string && request.resource.data.spotMax is string && request.resource.data.spotMax.matches("^[0-9A-F]{8}$"); }
+// 問い合わせ用（doc は作らない・読むだけ）。読めた＝はい／拒否＝いいえ。
+//   need/{uid}: 今日この店で QR が要るか（本人だけ）。tok/{token}: 読んだ QR のトークンが今のものか（16文字以上のランダムなので総当たりは不可）
+match /kakiapp_qrcheck/{st}/need/{u} { allow get: if request.auth != null && request.auth.uid == u && exists(qrDoc(st)) && qrNeed(get(qrDoc(st)).data, exists(userDoc(u)) && get(userDoc(u)).data.get("qrRequired", false) == true, jstDate()); allow list, write: if false; }
+match /kakiapp_qrcheck/{st}/tok/{tk} { allow get: if request.auth != null && exists(qrDoc(st)) && get(qrDoc(st)).data.get("token", "") == tk; allow list, write: if false; }
 match /kakiapp_seasons/{doc} { allow read: if request.auth != null; allow write: if request.auth != null && request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"; }
 // 2026-10-09 プッシュ通知（案・未公開）: 端末の FCM トークンの控え。doc id＝本人の uid。書けるのは本人の1件だけ（決まった項目・形のみ）。読めるのは本人と運営（admin の「通知ONの端末」の数）
 match /kakiapp_push_tokens/{uid} { allow read: if request.auth != null && (request.auth.uid == uid || request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"); allow create, update: if request.auth != null && request.auth.uid == uid && request.resource.data.keys().hasOnly(["token", "platform", "enabled", "topics", "updatedAt"]) && request.resource.data.token is string && request.resource.data.token.size() <= 4096 && request.resource.data.enabled is bool && request.resource.data.platform in ["ios", "android", "web", "unknown"] && request.resource.data.topics is list && request.resource.data.topics.size() <= 5 && request.resource.data.updatedAt is string; allow delete: if request.auth != null && (request.auth.uid == uid || request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"); }

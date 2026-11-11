@@ -33,6 +33,8 @@
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>お店の席のそばにある来店QRを読み取るために使います。</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>お店に来ていることを確認して、来店ガチャを回せるようにするために使います。</string>
 	<key>UILaunchStoryboardName</key>

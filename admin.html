@@ -202,12 +202,32 @@
       <div id="b-list"><p class="who">読み込み中…</p></div>
       <button class="btn-primary" id="b-reload" style="background:var(--indigo)">一覧を更新</button>
     </div>
+
+    <div class="card">
+      <h2>📷 店内QR（抜き打ち・怪しい人）</h2>
+      <p class="who">ふだんは GPS＋営業時間だけ。<b>印を付けた人</b>は毎回、<b>それ以外の人</b>は抜き打ちに当たった日だけ、アプリが「店内のQRを読んでください」と出し、QR を読まないと来店ポイントが付きません（サーバーのルールで止めます）。<br>
+      トークンを発行するまでは何も変わりません。<b>月1回「新しいトークンを発行」</b>→ 印刷して席側に貼り替え（古い QR はその場で使えなくなる）。</p>
+      <div id="q-stores"><p class="who">読み込み中…</p></div>
+      <label for="q-spot">抜き打ちの割合（発行・保存した店に入ります）</label>
+      <select id="q-spot" style="width:100%;font:inherit;font-size:15px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff">
+        <option value="5">5回に1回（masa 決定 11/11）</option><option value="3">3回に1回</option><option value="10">10回に1回</option><option value="1">毎回（全員）</option><option value="0">抜き打ちしない（印の人だけ）</option>
+      </select>
+      <div class="msg" id="q-msg"></div>
+      <hr style="border:none;border-top:1px dashed var(--line);margin:14px 0">
+      <label for="q-who">印を付ける人（メールアドレス または uid）</label>
+      <input type="text" id="q-who" placeholder="example@gmail.com" autocomplete="off">
+      <button class="btn-primary" id="q-flag" style="background:var(--indigo)">この人に印を付ける（毎回 QR）</button>
+      <div class="msg" id="q-flag-msg"></div>
+      <h2 style="margin-top:16px">印のある人</h2>
+      <div id="q-list"><p class="who">読み込み中…</p></div>
+    </div>
   </div>
 
 
 </div>
 
 <script src="config.js"></script>
+<script src="assets/vendor/qrcode.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged }
@@ -258,7 +278,7 @@
       $("app").classList.remove("hidden");
       $("who-email").textContent = user.email || user.displayName || "(不明)";
       if ($("who-uid")) $("who-uid").textContent = user.uid;
-      loadList(); loadCampaigns(); loadTeams(); fillSeason(); loadVerify(); loadBoard(); loadPush();
+      loadList(); loadCampaigns(); loadTeams(); fillSeason(); loadVerify(); loadBoard(); loadPush(); loadQr();
     } else {
       $("app").classList.add("hidden");
       $("login-card").classList.remove("hidden");
@@ -469,6 +489,120 @@
     } catch(e){ wrap.innerHTML = '<p class="who">読み込み失敗：'+esc(e.code||e.message)+'（ルールで運営の kakiapp_users 読み書きが要る／複合インデックスの案内が出たらそのリンクを開く）</p>'; }
   }
   $("v-reload").addEventListener("click", loadVerify);
+
+  /* ---------- 店内QR（2026-11-11 masa 🇦「怪しい人＋5回に1回だけ店内QR」） ----------
+     正本 kakiapp_qr/{店id} = { token, salt, spotMax, spot, issuedAt, month }。読める・書けるのは運営だけ（ルール）。
+     QR の中身は「kakiapp-qr:<店id>:<token>」。spotMax＝抜き打ちの当たり基準（16進8桁・大文字。crc32 の16進がこれ未満なら当たり＝ 2^32/spot） */
+  const QSTORES = (window.KAKI_CONFIG && window.KAKI_CONFIG.stores) || [];
+  let QDOCS = {};
+  const qRand = n => { const a = new Uint8Array(n); crypto.getRandomValues(a); return a; };
+  const qToken = () => btoa(String.fromCharCode(...qRand(16))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");   /* 22文字 */
+  const qSalt = () => Array.from(qRand(12), b => b.toString(16).padStart(2,"0")).join("");
+  const qSpotMax = n => n <= 0 ? "00000000" : n === 1 ? "FFFFFFFF" : Math.floor(4294967296 / n).toString(16).toUpperCase().padStart(8,"0");
+  const qMonth = () => { const j = new Date(Date.now() + 9*3600e3); return j.getUTCFullYear() + "年" + (j.getUTCMonth()+1) + "月"; };
+  const qText = (stId, tok) => "kakiapp-qr:" + stId + ":" + tok;
+  function qMatrix(text){ const q = qrcode(0, "M"); q.addData(text); q.make(); return { n: q.getModuleCount(), dark: (r,c) => q.isDark(r,c) }; }
+  function qSvg(text){ const m = qMatrix(text), qz = 4, N = m.n + qz*2; let d = "";
+    for (let r = 0; r < m.n; r++) for (let c = 0; c < m.n; c++) if (m.dark(r,c)) d += "M"+(c+qz)+" "+(r+qz)+"h1v1h-1z";
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+N+' '+N+'" shape-rendering="crispEdges"><rect width="'+N+'" height="'+N+'" fill="#fff"/><path d="'+d+'" fill="#000"/></svg>'; }
+  /* 印刷用（A6 縦 105×148mm）。ブラウザの印刷で「PDF に保存」もできる */
+  function qPrintHtml(st, tok, month){
+    return '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>来店QR '+esc(st.name)+' '+esc(month)+'</title><style>' +
+      '@page{size:105mm 148mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0}body{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif;color:#2b241d;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+      '.p{width:105mm;height:148mm;padding:9mm 9mm 7mm;display:flex;flex-direction:column;align-items:center;background:#fffaf0;overflow:hidden}' +
+      '.k{font-size:4.2mm;letter-spacing:.3em;color:#a63a2a;font-weight:700}.t{font-size:7.2mm;font-weight:800;margin:1.5mm 0 1mm}.s{font-size:4.2mm;font-weight:700;color:#5a4a36}' +
+      '.q{width:72mm;height:72mm;margin:5mm 0 4mm;background:#fff;border:0.6mm solid #2b241d;border-radius:3mm;overflow:hidden}.q svg{width:100%;height:100%;display:block}' +
+      '.n{font-size:3.5mm;line-height:1.65;text-align:center}.f{margin-top:auto;font-size:2.8mm;color:#8a7a5c;text-align:center}' +
+      '@media screen{body{background:#ccc}.p{margin:10mm auto;box-shadow:0 2px 10px rgba(0,0,0,.2)}}' +
+      '</style></head><body><div class="p"><div class="k">KAKIGAWATEI APP</div><div class="t">柿川亭アプリ 来店QR</div><div class="s">'+esc(st.name)+'</div>' +
+      '<div class="q">'+qSvg(qText(st.id, tok))+'</div>' +
+      '<div class="n">アプリで「店内のQRを読んでください」と出たら<br>このQRを読んでください。来店ポイントが付きます。</div>' +
+      '<div class="f">'+esc(month)+'発行　毎月新しいQRに貼り替えます</div></div></body></html>';
+  }
+  window.__qPrintHtml = qPrintHtml;   /* 見本づくり（試験）用 */
+  /* PNG（A6・300dpi＝1240×1748） */
+  function qPng(st, tok, month){
+    const W = 1240, H = 1748, mm = W / 105, cv = document.createElement("canvas"); cv.width = W; cv.height = H; const g = cv.getContext("2d");
+    g.fillStyle = "#fffaf0"; g.fillRect(0,0,W,H); g.textAlign = "center"; g.textBaseline = "alphabetic";
+    const F = '"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif';
+    g.fillStyle = "#a63a2a"; g.font = "700 "+Math.round(4.2*mm)+"px "+F; g.fillText("KAKIGAWATEI APP", W/2, 14*mm);
+    g.fillStyle = "#2b241d"; g.font = "800 "+Math.round(7.2*mm)+"px "+F; g.fillText("柿川亭アプリ 来店QR", W/2, 24*mm);
+    g.fillStyle = "#5a4a36"; g.font = "700 "+Math.round(4.2*mm)+"px "+F; g.fillText(st.name, W/2, 31*mm);
+    const m = qMatrix(qText(st.id, tok)), box = 72*mm, x0 = (W-box)/2, y0 = 36*mm, N = m.n + 8, u = box / N;
+    g.fillStyle = "#fff"; g.fillRect(x0,y0,box,box); g.lineWidth = 0.6*mm; g.strokeStyle = "#2b241d"; g.strokeRect(x0,y0,box,box);
+    g.fillStyle = "#000"; for (let r = 0; r < m.n; r++) for (let c = 0; c < m.n; c++) if (m.dark(r,c)) g.fillRect(Math.floor(x0+(c+4)*u), Math.floor(y0+(r+4)*u), Math.ceil(u), Math.ceil(u));
+    g.fillStyle = "#2b241d"; g.font = "400 "+Math.round(3.5*mm)+"px "+F;
+    g.fillText("アプリで「店内のQRを読んでください」と出たら", W/2, 117*mm); g.fillText("このQRを読んでください。来店ポイントが付きます。", W/2, 123*mm);
+    g.fillStyle = "#8a7a5c"; g.font = "400 "+Math.round(2.8*mm)+"px "+F; g.fillText(month+"発行　毎月新しいQRに貼り替えます", W/2, 141*mm);
+    return cv.toDataURL("image/png");
+  }
+  window.__qPng = qPng;   /* 見本づくり（試験）用 */
+  async function loadQr(){
+    const wrap = $("q-stores"), u = auth.currentUser;
+    if(!u || u.uid !== ADMIN_UID){ wrap.innerHTML = '<p class="who">運営アカウントでログインしてください。</p>'; $("q-list").innerHTML = ""; return; }
+    QDOCS = {};
+    for (const st of QSTORES) { try { const sn = await getDoc(doc(db,"kakiapp_qr",st.id)); if (sn.exists()) QDOCS[st.id] = sn.data(); } catch(e){ QDOCS[st.id] = { _err: e.code || e.message }; } }
+    wrap.innerHTML = QSTORES.map(st => { const q = QDOCS[st.id];
+      const stat = !q ? '<span class="badge-off">未発行（今は GPS＋営業時間だけ）</span>' : q._err ? '<span class="badge-off" style="background:var(--vermillion)">読めません：'+esc(q._err)+'（ルール未公開？）</span>'
+        : '<b>'+esc(q.month||"")+'発行</b>（'+esc(String(q.issuedAt||"").slice(0,16).replace("T"," "))+' UTC）／ 抜き打ち：'+(q.spot ? (q.spot===1 ? "毎回" : q.spot+"回に1回") : "しない");
+      return '<div class="item"><div class="item-t">'+esc(st.name)+'</div><div class="item-d">'+stat+'</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' +
+        '<button class="btn-del" style="background:var(--vermillion);color:#fff;border:none" data-qact="issue" data-st="'+esc(st.id)+'">新しいトークンを発行</button>' +
+        (q && !q._err ? '<button class="btn-del" style="background:var(--indigo);color:#fff;border:none" data-qact="print" data-st="'+esc(st.id)+'">印刷用（A6・PDF）</button><button class="btn-del" data-qact="png" data-st="'+esc(st.id)+'">PNG を保存</button><button class="btn-del" data-qact="spot" data-st="'+esc(st.id)+'">抜き打ちの割合を保存</button>' : '') +
+        '</div></div>'; }).join("");
+    wrap.querySelectorAll("button[data-qact]").forEach(b => b.addEventListener("click", () => qrAct(b.dataset.qact, b.dataset.st)));
+    loadQrUsers();
+  }
+  async function qrAct(act, stId){
+    const st = QSTORES.find(x => x.id === stId), q = QDOCS[stId], spot = Number($("q-spot").value), spotLabel = $("q-spot").selectedOptions[0].textContent;
+    try {
+      if (act === "issue") {
+        if (!confirm(st.name+" の来店QRを新しくします。\n今お店に貼ってある QR は、この瞬間から使えなくなります。\n（抜き打ち："+spotLabel+"）\n続けますか？")) return;
+        await setDoc(doc(db,"kakiapp_qr",stId), { token: qToken(), salt: qSalt(), spot, spotMax: qSpotMax(spot), issuedAt: new Date().toISOString(), month: qMonth() });
+        showMsg($("q-msg"), st.name+"：新しいトークンを発行しました。「印刷用」か「PNG」で印刷して、席側の QR を貼り替えてください。", true);
+      } else if (act === "spot") {
+        await setDoc(doc(db,"kakiapp_qr",stId), Object.assign({}, q, { spot, spotMax: qSpotMax(spot) }));
+        showMsg($("q-msg"), st.name+"：抜き打ちを「"+spotLabel+"」にしました（QR は今のまま）。", true);
+      } else if (act === "print") {
+        const w = window.open("", "_blank"); if (!w) { showMsg($("q-msg"), "ポップアップが止められました。許可してからもう一度。", false); return; }
+        w.document.open(); w.document.write(qPrintHtml(st, q.token, q.month || qMonth())); w.document.close(); setTimeout(() => { try { w.focus(); w.print(); } catch(_){} }, 400);
+        return;
+      } else if (act === "png") {
+        const a = document.createElement("a"); a.href = qPng(st, q.token, q.month || qMonth()); a.download = "kakiapp_qr_"+stId+"_"+new Date(Date.now()+9*3600e3).toISOString().slice(0,7)+".png"; document.body.appendChild(a); a.click(); a.remove();
+        return;
+      }
+      loadQr();
+    } catch(e){ showMsg($("q-msg"), "失敗："+(e.code||e.message)+"（firestore.rules の kakiapp_qr が公開されているか）", false); }
+  }
+  async function loadQrUsers(){
+    const wrap = $("q-list");
+    try {
+      const snap = await getDocs(query(collection(db,"kakiapp_users"), where("qrRequired","==",true)));
+      const rows = []; snap.forEach(d => rows.push(Object.assign({ _id: d.id }, d.data())));
+      if (!rows.length) { wrap.innerHTML = '<p class="who">いません。</p>'; return; }
+      wrap.innerHTML = rows.map(r => '<div class="item"><div class="item-t">'+esc(r.nickname || r.name || "（名前なし）")+'</div>' +
+        '<div class="item-d">'+esc(r.email||"")+' ／ 来店 '+esc((r.visits||[]).length)+'回 ／ 最後 '+esc(r.lastStoreAt||"-")+' '+esc(r.lastStore||"")+(r.qrRequiredAt ? ' ／ 印 '+esc(String(r.qrRequiredAt).slice(0,10)) : '')+'</div>' +
+        '<div class="item-d" style="word-break:break-all">uid: '+esc(r._id)+'</div>' +
+        '<button class="btn-del" data-qoff="'+esc(r._id)+'">印を外す</button></div>').join("");
+      wrap.querySelectorAll("button[data-qoff]").forEach(b => b.addEventListener("click", async () => {
+        if (!confirm("この人の印を外します（次から GPS＋抜き打ちだけに戻ります）")) return;
+        try { await updateDoc(doc(db,"kakiapp_users",b.dataset.qoff), { qrRequired: false, qrRequiredAt: new Date().toISOString() }); loadQrUsers(); }
+        catch(e){ alert("失敗："+(e.code||e.message)); } }));
+    } catch(e){ wrap.innerHTML = '<p class="who">読み込み失敗：'+esc(e.code||e.message)+'</p>'; }
+  }
+  $("q-flag").addEventListener("click", async () => {
+    const v = $("q-who").value.trim(); if (!v) return;
+    try {
+      let id = null;
+      if (v.includes("@")) { const sn = await getDocs(query(collection(db,"kakiapp_users"), where("email","==",v), limit(3)));
+        if (sn.size === 0) { showMsg($("q-flag-msg"), "そのメールの会員が見つかりません。", false); return; }
+        if (sn.size > 1) { showMsg($("q-flag-msg"), "同じメールの会員が複数います。uid で指定してください。", false); return; }
+        id = sn.docs[0].id;
+      } else { const sn = await getDoc(doc(db,"kakiapp_users",v)); if (!sn.exists()) { showMsg($("q-flag-msg"), "その uid の会員が見つかりません。", false); return; } id = v; }
+      await updateDoc(doc(db,"kakiapp_users",id), { qrRequired: true, qrRequiredAt: new Date().toISOString() });
+      showMsg($("q-flag-msg"), "印を付けました。次の来店から毎回 QR が要ります。", true); $("q-who").value = ""; loadQrUsers();
+    } catch(e){ showMsg($("q-flag-msg"), "失敗："+(e.code||e.message), false); }
+  });
 
   /* ---------- みんなの一杯（写真の掲示板・2026-10-08）: 最近の投稿・通報数・非表示／表示に戻す／削除 ----------
      書き込みはルールで運営アカウント（ADMIN_UID）だけ。ここでも先に確かめて、違うアカウントならボタンを出さない */
