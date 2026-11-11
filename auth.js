@@ -39,6 +39,7 @@ if (!isNativeApp) setPersistence(auth, browserLocalPersistence).catch(() => {});
 const KEYS = ["points", "visits", "tx", "rouletteDate", "gachaDate", "qrDate", "loginDate",
   "mailOptIn", "mailOptInAt",   /* 宣伝メールの同意（特定電子メール法）2026-09-03 */
   "storeVisits", "lastStore", "lastStoreAt",   /* どの店に来たか。送り分けに使う 2026-09-03 */
+  "visitStore",   /* 日付→店 id（日報の店舗別の数え漏れ対策 2026-11-11） */
   "createdAt", "claimed", "rankBonus",   /* 使い始めた日・キャンペーン受取・ランクアップ受取（二重取り防止）2026-09-10 */
   "teamId", "team", "teamJoinedAt", "teamVisits", "teamVisitDay",   /* 学校対抗 来店バトル（任意参加・自分の学校と月別の自分の来店数）2026-09-21 */
   "nickname", "awards", "awardsSeen",

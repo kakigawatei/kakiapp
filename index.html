@@ -6,7 +6,7 @@
 <title>柿川亭アプリ</title>
 <link rel="icon" href="assets/icon.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<script src="config.js?v=20261008"></script>
+<script src="config.js?v=20261111"></script>
 <style>
   :root {
     /* masaの参考デザイン（2026-09-06）: 生成り・赤茶・紺・金 */
@@ -1191,10 +1191,30 @@ document.getElementById("btnSpin").onclick = async () => {
 };
 
 /* 来店ガチャ */
+/* 営業時間の中か（masa 決定 2026-11-11「食べていない人の来店ポイントは不正」）。config.js の stores[].hours（開店 checkinGrace.before 分前〜閉店 after 分後）。
+   時刻はサーバー時刻（nowMs）の日本時間。Firestore ルール（uHours）にも同じ判定があり、ここを通しても時間外ならサーバーが保存を拒否する＝こちらは案内のため */
+function storeHoursToday(storeId) {
+  const st = C.stores.find(x => x.id === storeId); if (!st || !Array.isArray(st.hours)) return null;
+  const dow = new Date(nowMs() + 9 * 3600e3).getUTCDay();
+  return st.hours.filter(h => (h.days || []).includes(dow));
+}
+function storeOpenNow(storeId) {
+  const hs = storeHoursToday(storeId); if (hs === null) return true;   /* 営業時間の設定が無い店は制限しない */
+  const j = new Date(nowMs() + 9 * 3600e3); const mi = j.getUTCHours() * 60 + j.getUTCMinutes();
+  const toMin = s => { const m = /^(\d{1,2}):(\d{2})$/.exec(s || ""); return m ? (+m[1]) * 60 + (+m[2]) : -1; };
+  const g = C.checkinGrace || { before: 15, after: 30 };
+  return hs.some(h => mi >= toMin(h.open) - (g.before || 0) && mi <= toMin(h.close) + (g.after || 0));
+}
+function closedMsg(storeId) {
+  const st = C.stores.find(x => x.id === storeId); const hs = storeHoursToday(storeId) || [];
+  const t = hs.length ? "本日の営業時間 " + hs.map(h => h.open + "〜" + h.close).join("／") : "本日は定休日です";
+  return "営業時間外のため来店ポイントは付きません。\n" + (st ? st.name.replace("柿川亭 ", "") + "：" : "") + t;
+}
 function checkin(storeId) {
   /* 来店の日付もサーバー時刻で決める。取れないときは来店にしない（端末の日付を動かして来店回数を稼ぐのを防ぐ） */
   if (clockOffset === null) { syncClock().then(off => { if (off === null) alert(CLOCK_MSG); else checkin(storeId); }); return; }
   if (store.s.gachaDate === today()) { alert("今日の来店ガチャは回済みです"); return; }
+  if (storeId && !storeOpenNow(storeId)) { alert(closedMsg(storeId)); return; }   /* 営業時間外＝保存せずに案内だけ（ルールでも拒否される） */
   store.set({ qrDate: today() });
   const visits = store.s.visits || [];
   const isNew = !visits.includes(today());
@@ -1211,7 +1231,9 @@ function checkin(storeId) {
   if (isNew && storeId) {
     const sv = Object.assign({}, store.s.storeVisits || {});
     sv[storeId] = (sv[storeId] || 0) + 1;
-    store.set({ storeVisits: sv, lastStore: storeId, lastStoreAt: today() });
+    /* visitStore＝「この日はどの店か」の記録（2026-11-11）。日報の店舗別が lastStore だけだと翌日に上書きされて数え漏れるため */
+    const vsm = Object.assign({}, store.s.visitStore || {}); vsm[today()] = storeId;
+    store.set({ storeVisits: sv, lastStore: storeId, lastStoreAt: today(), visitStore: vsm });
   }
   /* 高校対抗: 参加している人だけ、自分の学校の今月に+1（失敗しても本人の来店は成立）→ teamCreditToday */
   if (isNew) teamCreditToday(storeId);

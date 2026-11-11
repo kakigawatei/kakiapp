@@ -30,10 +30,15 @@ window.KAKI_CONFIG = {
   loginBonus: { points: 1 },
 
   // 来店判定（GPS）: 店舗リスト。新店はここに1行足す。半径はメートル
+  // hours＝来店チェックインを受け付ける営業時間（masa 決定 2026-11-11「食べていない人の来店ポイントは不正」）。days は 0=日 1=月 … 6=土。
+  // 受付は開店 checkinGrace.before 分前〜閉店 checkinGrace.after 分後。🟥 Firestore ルール（storeOpen）にも同じ時間が書いてある＝変えるときは両方を同じ日に直す。正典 kakigawatei-aeo/entity_dictionary.md
   stores: [
-    { id: "nagaoka", name: "柿川亭 長岡本店", lat: 37.443615, lng: 138.849167, radius: 150 },  // 南町1-10-16（公式サイト住所・国土地理院ジオコーダ）
-    { id: "sendai", name: "柿川亭 仙台連坊店", lat: 38.251450, lng: 140.889099, radius: 80 },  // 仙台市若林区連坊小路81 熊谷ビル103（公式サイト住所・国土地理院ジオコーダ 2026-09-03）
+    { id: "nagaoka", name: "柿川亭 長岡本店", lat: 37.443615, lng: 138.849167, radius: 50,  // 南町1-10-16（公式サイト住所・国土地理院ジオコーダ）。半径 150→50m（masa 2026-11-11 13:27「距離50mにして」）
+      hours: [{ days: [0, 1, 2, 3, 4, 5, 6], open: "11:00", close: "14:30" }, { days: [0, 1, 2, 3, 4, 5, 6], open: "17:00", close: "20:15" }] },   // 不定休＝曜日の制限なし
+    { id: "sendai", name: "柿川亭 仙台連坊店", lat: 38.251450, lng: 140.889099, radius: 80,  // 仙台市若林区連坊小路81 熊谷ビル103（公式サイト住所・国土地理院ジオコーダ 2026-09-03）
+      hours: [{ days: [0, 2, 3, 4, 5, 6], open: "11:00", close: "14:15" }, { days: [2, 4, 5, 6], open: "18:00", close: "23:00" }] },   // 火木金土 昼夜・水日 昼のみ・月曜定休（2026-10-20 店長確認）
   ],
+  checkinGrace: { before: 15, after: 30 },
   // 公式サイト・インスタ（マイページ下の「公式サイト・Instagram」・2026-10-18 お客様の要望）。店ごとのインスタは id で stores と対応
   links: {
     site: "https://kakigawatei.com/",
