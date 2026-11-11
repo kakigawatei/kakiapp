@@ -709,7 +709,7 @@
 
 <!-- 店内QRの読み取り（2026-11-11 masa 🇦「怪しい人＋5回に1回だけ店内QR」） -->
 <div id="qrScan" role="dialog" aria-modal="true" aria-label="店内のQRを読む">
-  <div class="qs-t">席のそばに貼ってある<br>「柿川亭アプリ 来店QR」を枠に入れてください</div>
+  <div class="qs-t">席のそばに貼ってある<br>「柿川亭アプリ」のQRを枠に入れてください</div>
   <div class="qs-box"><video id="qrScanVideo" playsinline muted autoplay></video><div class="qs-frame"></div></div>
   <div id="qrScanMsg"></div>
   <div class="qs-btns"><button id="qrScanPhoto" type="button">写真で読む</button><button id="qrScanClose" type="button">やめる</button></div>
@@ -1239,7 +1239,7 @@ function checkin(storeId) {
   /* 店内QR（2026-11-11）: 今日まだ来店していなくて、運営の印がある人／抜き打ちに当たった日は、店内のQRを読んでから保存する。要るかどうかはサーバー（ルール）が決める */
   if (storeId && store.s.qrDate !== today() && window.kakiQrCheck) {
     if (qrBusy) return; qrBusy = true;
-    window.kakiQrCheck.need(storeId).then(need => {
+    window.kakiQrCheck.need().then(need => {
       if (need === false) { qrBusy = false; checkinCommit(storeId); return; }
       qrAsk(storeId, need === null);   /* 不明（通信できない）のときも QR を案内する＝保存がサーバーで拒否されるのを防ぐ */
     });
@@ -1247,7 +1247,7 @@ function checkin(storeId) {
   }
   checkinCommit(storeId);
 }
-/* 来店の保存。qrTok＝店内QRのトークン＋":"＋今日（要るときだけ）。qrDate と同じ書き込みで送る */
+/* 来店の保存。qrTok＝"kakiapp-get:"＋今日（掲示の QR を読んだときだけ）。qrDate と同じ書き込みで送る */
 function checkinCommit(storeId, qrTok) {
   store.set(qrTok ? { qrDate: today(), qrTok } : { qrDate: today() });
   const visits = store.s.visits || [];
@@ -1274,14 +1274,15 @@ function checkinCommit(storeId, qrTok) {
   show("gacha");
 }
 document.getElementById("btnMockQR").onclick = () => { if (DEV_OK) checkin(); };
-/* ---- 店内QRの読み取り（2026-11-11 masa 🇦「怪しい人＋5回に1回だけ店内QR」） ----
-   QR の中身は「kakiapp-qr:<店id>:<トークン>」（admin で月1回発行・印刷して席側に貼る）。
+/* ---- 店内QRの読み取り（2026-11-11 masa 🇦「怪しい人＋5回に1回だけ店内QR」→ 同日「新しい QR は作らず、店に掲示済みの QR を使う」） ----
+   掲示の QR の中身＝ https://kakigawatei.github.io/kakiapp/get/（両店共通・アプリの案内ページ）。店の区別は GPS（lastStore）。
    読み取り: BarcodeDetector（Android の Chrome／WebView など）→ 無い端末（iPhone）は jsQR（assets/vendor・初回だけ読み込む）。
    カメラ: getUserMedia（Web・iOS アプリ（WKWebView 14.3〜）・Android アプリ（Capacitor が権限を聞く））。カメラが使えないときは「写真で読む」 */
+const QR_GET_RE = /^https?:\/\/kakigawatei\.github\.io\/kakiapp\/get\/?(?:[?#].*)?$/i;
 let qrBusy = false;
 function qrAsk(storeId, unknown) {
   const st = C.stores.find(x => x.id === storeId);
-  kakiConfirm("店内のQRを読んでください\n\n" + (unknown ? "通信が不安定なため、" : "今日は確認の日です（たまにお願いしています）。") + "席のそばに貼ってある「来店QR」をアプリで読むと、来店ポイントが付きます。" + (st ? "\n（" + st.name.replace("柿川亭 ", "") + "）" : ""), { okText: "QRを読む" })
+  kakiConfirm("店内のQRを読んでください\n\n" + (unknown ? "通信が不安定なため、" : "今日は確認の日です（たまにお願いしています）。") + "店内に貼ってある「柿川亭アプリ」のQR（一杯で、つながる。）をアプリで読むと、来店ポイントが付きます。" + (st ? "\n（" + st.name.replace("柿川亭 ", "") + "）" : ""), { okText: "QRを読む" })
     .then(ok => { if (ok) qrOpen(storeId); else qrBusy = false; });
 }
 let qrStream = null, qrTimer = null, qrDet = null, qrDone = false, qrLib = null;
@@ -1297,10 +1298,14 @@ async function qrDecode(src, w, h) {   /* src: video か画像。見つかった
   if (qrDet) { try { const r = await qrDet.detect(src); if (r && r[0] && r[0].rawValue) return r[0].rawValue; return null; } catch (_) { qrDet = null; } }
   const lib = await qrLoadLib();
   const cv = qrDecode.cv || (qrDecode.cv = document.createElement("canvas"));
-  const sc = Math.min(1, 800 / Math.max(w, h)); cv.width = Math.round(w * sc); cv.height = Math.round(h * sc);
-  const ctx = cv.getContext("2d", { willReadFrequently: true }); ctx.drawImage(src, 0, 0, cv.width, cv.height);
-  const r = lib(ctx.getImageData(0, 0, cv.width, cv.height).data, cv.width, cv.height, { inversionAttempts: "dontInvert" });
-  return r && r.data ? r.data : null;
+  /* カメラは 800px で1回。写真（大きい・QR が小さく写る）は 1600px → 1000px と大きさを変えて試す */
+  for (const mx of (src.tagName === "VIDEO" ? [800] : [1600, 1000])) {
+    const sc = Math.min(1, mx / Math.max(w, h)); cv.width = Math.round(w * sc); cv.height = Math.round(h * sc);
+    const ctx = cv.getContext("2d", { willReadFrequently: true }); ctx.drawImage(src, 0, 0, cv.width, cv.height);
+    const r = lib(ctx.getImageData(0, 0, cv.width, cv.height).data, cv.width, cv.height, { inversionAttempts: src.tagName === "VIDEO" ? "dontInvert" : "attemptBoth" });
+    if (r && r.data) return r.data;
+  }
+  return null;
 }
 function qrStop() { clearInterval(qrTimer); qrTimer = null; if (qrStream) { qrStream.getTracks().forEach(t => t.stop()); qrStream = null; } const v = qrEl("qrScanVideo"); v.srcObject = null; }
 function qrClose() { qrStop(); qrEl("qrScan").classList.remove("show"); qrBusy = false; }
@@ -1327,14 +1332,10 @@ async function qrOpen(storeId) {
 }
 async function qrGot(text) {
   if (qrDone) return;
-  const m = /^kakiapp-qr:([a-z0-9-]{1,20}):([A-Za-z0-9_-]{16,64})$/.exec(String(text).trim());
-  if (!m) { qrMsg("柿川亭アプリの来店QRではないようです"); return; }
-  if (m[1] !== qrStore) { qrMsg("別のお店のQRです"); return; }
-  qrDone = true; qrMsg("確認しています…");
-  const ok = await window.kakiQrCheck.tokOk(m[1], m[2]);
-  if (ok === false) { qrMsg("このQRは古いか、使えません。\nお店の方にお知らせください。"); setTimeout(() => { qrDone = false; }, 2500); return; }
+  if (!QR_GET_RE.test(String(text).trim())) { qrMsg("店内の「柿川亭アプリ」のQRではないようです"); return; }
+  qrDone = true;
   const st = qrStore; qrClose();
-  checkinCommit(st, m[2] + ":" + today());
+  checkinCommit(st, "kakiapp-get:" + today());
 }
 qrEl("qrScanClose").onclick = () => { qrClose(); alert("来店ポイントは付いていません。\n店内のQRを読むと付きます（ホームの「お店でチェックイン」からもう一度）。"); };
 qrEl("qrScanPhoto").onclick = () => qrEl("qrScanFile").click();
