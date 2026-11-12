@@ -1,0 +1,11 @@
+[Version 1.0.15 — build 29]
+
+- Camera (NEW permission): The app now asks for camera access only when the user taps the in-store QR button. The camera is used solely to scan the QR code posted inside our shops, to confirm that the customer is actually visiting the shop and credit visit points. No photos or video are saved or uploaded. Users can also choose an existing photo of the QR code instead of using the camera. If camera access is denied, the rest of the app keeps working.
+- Visit points are now credited only during the shop's business hours.
+- Bug fixes for saving visit records.
+- Location is still used only when the user opens the app or taps "check in", to confirm they are near the shop; coordinates are not stored or transmitted.
+
+Demo account (same as before): kakigawatei+appreview@gmail.com / (password: see private file, not in repo)
+Phone verification (unchanged): test number 080-0000-0001, code 246810 — no real SMS is sent.
+
+Please do not delete the demo account during review (the reviewer would no longer be able to sign in).
