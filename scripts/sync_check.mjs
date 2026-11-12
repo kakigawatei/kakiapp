@@ -221,13 +221,19 @@ if (EMU_DIR) {
   const req = createRequire(path.join(path.resolve(EMU_DIR), "package.json"));
   const rut = req("@firebase/rules-unit-testing");
   const fsm = req("firebase/firestore");
-  const rulesOk = fs.readFileSync(RULES, "utf8");
-  if (!rulesOk.includes("userWriteOk()")) throw new Error("想定したルールではありません");
+  const rulesProd = fs.readFileSync(RULES, "utf8");
+  if (!rulesProd.includes("userWriteOk()")) throw new Error("想定したルールではありません");
+  /* 2026-11-12: 営業時間の判定（openAt・サーバー時刻）だけ固定する＝試す時刻に左右されない。ほかは本番と同じ */
+  const OPEN_AT = "function uOpenQr(st, t) { return openAt(st, jst()) &&";
+  if (!rulesProd.includes(OPEN_AT)) throw new Error("営業時間の判定（uOpenQr）が見つかりません");
+  const rulesOk = rulesProd.replace(OPEN_AT, "function uOpenQr(st, t) { return true &&");        /* 営業中 */
+  const rulesClosed = rulesProd.replace(OPEN_AT, "function uOpenQr(st, t) { return false &&");   /* 営業時間外 */
   /* 来店の保存が全部拒否された 10/15 の状態をまねる: 本人の更新だけ必ず拒否 */
   const rulesDeny = rulesOk.replace("(request.auth.uid == uid && userWriteOk())", "(request.auth.uid == uid && false)");
   const envOk = await rut.initializeTestEnvironment({ projectId: "demo-kaki-sync-ok", firestore: { host: "127.0.0.1", port: 8089, rules: rulesOk } });
   const envNg = await rut.initializeTestEnvironment({ projectId: "demo-kaki-sync-ng", firestore: { host: "127.0.0.1", port: 8089, rules: rulesDeny } });
-  await envOk.clearFirestore(); await envNg.clearFirestore();
+  const envCl = await rut.initializeTestEnvironment({ projectId: "demo-kaki-sync-closed", firestore: { host: "127.0.0.1", port: 8089, rules: rulesClosed } });
+  await envOk.clearFirestore(); await envNg.clearFirestore(); await envCl.clearFirestore();
   const seed = async (env, id, data) => env.withSecurityRulesDisabled(async c => { await fsm.setDoc(fsm.doc(c.firestore(), "kakiapp_users", id), data); });
   const read = async (env, id) => { let d; await env.withSecurityRulesDisabled(async c => { d = (await fsm.getDoc(fsm.doc(c.firestore(), "kakiapp_users", id))).data(); }); return d; };
   const deps = (env, id) => ({ db: env.authenticatedContext(id, { email: "x@example.com" }).firestore(), doc: fsm.doc, getDoc: fsm.getDoc, runTransaction: fsm.runTransaction });
@@ -281,9 +287,50 @@ if (EMU_DIR) {
     const r2 = await boot(NEW, ls, T, "e6", deps(envNg, "e6")); const again = r2.app.checkinGacha(1, 50);
     await boot(NEW, ls, T, "e6", deps(envOk, "e6")); const d = await read(envOk, "e6");
     ok(!again, "来店ガチャが拒否されたまま開き直しても、同じ日にもう一度回せない");
+    ok(r1.app.s.qrDate === T && r1.app.s.points === 101 && !r1.app.notices.some(m => m.includes("来店ポイントは付きませんでした")), "全部拒否（来店が原因でない）なら外した来店分を端末に戻し、来店の知らせは出さない", { s: r1.app.s, n: r1.app.notices });
     ok(d.points === 101 && d.gachaDate === T && d.qrDate === T && d.visits.length === 2 && d.visits[1] === T && !ls.getItem("kakiapp_pending"), "直った後、来店1件＋来店1P＋ガチャ50P が本番ルールを通って保存（" + d.points + "P）", d); }
 
-  await envOk.cleanup(); await envNg.cleanup();
+  /* ---- 2026-11-12 ②: 来店だけ拒否された日に、その日のほかの保存まで全部失敗しない ---- */
+  const UNDO_MSG = "来店ポイントは付きませんでした";
+  const undoLogs = app => app.window.__errs.filter(e => e.includes("来店分（")).length;
+  // 2f 営業時間外に来店（古いアプリ）→ 拒否 → 来店分だけ外して送り直す → ルーレット・ログボは保存、知らせは1回
+  { await seed(envCl, "f1", base);
+    const ls = makeLocalStorage(); const { app, core, timers } = await boot(NEW, ls, T, "f1", deps(envCl, "f1"));
+    app.checkinGacha(1, 50); await idle(timers, core);
+    app.spin(3); await idle(timers, core);
+    let d = await read(envCl, "f1");
+    ok(d.qrDate === Y2 && d.gachaDate === Y2 && d.visits.length === 1, "時間外: 来店はクラウドに入らない", d);
+    ok(d.loginDate === T && d.rouletteDate === T && d.points === 54, "時間外: ログボ＋ルーレットは保存（" + d.points + "P＝50+1+3）", { p: d.points, l: d.loginDate, r: d.rouletteDate });
+    ok(app.s.points === 54 && app.s.qrDate === Y2 && app.s.gachaDate === Y2 && !app.s.visits.includes(T), "時間外: 端末も来店分（来店1P＋ガチャ50P）だけ外れる（" + app.s.points + "P）", app.s);
+    ok(!app.s.tx.some(x => x.label === "来店ポイント" || x.label === "来店ガチャ") && app.s.tx.some(x => x.label === "毎日ルーレット"), "時間外: 履歴から来店ポイント・来店ガチャだけ消える", app.s.tx);
+    ok(app.notices.filter(m => m.includes(UNDO_MSG)).length === 1 && !app.notices.some(m => m.includes("ポイントの保存ができません")), "時間外: 「来店ポイントは付きませんでした」が1回だけ・保存失敗の知らせは出ない", app.notices);
+    ok(undoLogs(app) === 1 && !ls.getItem("kakiapp_pending"), "時間外: 外したのは1回だけ・控えは消える", app.window.__errs);
+    app.set({ mailOptIn: true }); await idle(timers, core); d = await read(envCl, "f1");
+    ok(d.mailOptIn === true && undoLogs(app) === 1 && app.notices.length === 1, "時間外: その後の保存も通り、二重に外さない・知らせも増えない", { n: app.notices, e: app.window.__errs });
+    // 開き直しても来店ガチャは回せる状態（＝来店していない扱い）。ポイントは増えない
+    const r2 = await boot(NEW, ls, T, "f1", deps(envCl, "f1"));
+    ok(r2.app.s.points === 54 && r2.app.s.gachaDate === Y2 && r2.app.notices.length === 0, "時間外: 開き直してもクラウドと同じ 54P", r2.app.s); }
+  // 2g 印のある人（qrRequired）が営業中に QR 無しで来店＋ランクアップ → 来店分・ランクアップ分を外して保存 → QR を読んでやり直すと保存できる
+  { await seed(envOk, "g1", Object.assign({}, base, { qrRequired: true, visits: ["2026-10-01", "2026-10-02", "2026-10-03", Y2] }));
+    const ls = makeLocalStorage(); const { app, core, timers } = await boot(NEW, ls, T, "g1", deps(envOk, "g1"));
+    app.checkinGacha(1, 50); app.set({ rankBonus: { silver: T }, points: app.s.points + 50 }); app.logTx("ランクアップ「シルバー」", 50); await idle(timers, core);
+    app.spin(3); await idle(timers, core);
+    let d = await read(envOk, "g1");
+    ok(d.qrDate === Y2 && d.visits.length === 4 && !(d.rankBonus || {}).silver && d.points === 54 && d.rouletteDate === T, "印あり QR 無し: 来店・ランクアップは入らず、ログボ＋ルーレットは保存（" + d.points + "P）", d);
+    ok(app.s.points === 54 && !(app.s.rankBonus || {}).silver && !app.s.tx.some(x => /ランクアップ|来店/.test(x.label)), "印あり QR 無し: 端末から来店1P・ガチャ50P・ランク50P と履歴が外れる（" + app.s.points + "P）", app.s);
+    ok(app.notices.filter(m => m.includes(UNDO_MSG)).length === 1 && undoLogs(app) === 1, "印あり QR 無し: 知らせ1回・外したのは1回", app.notices);
+    app.set({ qrTok: "kakiapp-get:" + T }); app.checkinGacha(1, 50); await idle(timers, core); d = await read(envOk, "g1");
+    ok(d.qrDate === T && d.visits.length === 5 && d.gachaDate === T && d.points === 105 && undoLogs(app) === 1, "印あり: その後 QR を読んでやり直すと来店が保存される（" + d.points + "P）", d); }
+  // 2h 前のアプリで拒否されたまま止まっていた人（控えに今日の来店）が新しいアプリで開く → 来店分を外して、今日のルーレット等を保存
+  { await seed(envCl, "h1", base);
+    const st = Object.assign({}, base, { points: 104, qrDate: T, gachaDate: T, rouletteDate: T, loginDate: T, visits: [Y2, T], storeVisits: { nagaoka: 1 }, lastStore: "nagaoka",
+      tx: [{ d: "2026-01-01 00:00", label: "来店ガチャ", points: 50 }, { d: "2026-01-01 00:00", label: "来店ポイント", points: 1 }, { d: "2026-01-01 00:00", label: "毎日ルーレット", points: 3 }].map(x => Object.assign(x, { d: T + " 01:00" })) });
+    const ls = makeLocalStorage({ kakiapp: JSON.stringify(st), kakiapp_pending: JSON.stringify({ uid: "h1", day: T, base: 50, tries: [] }) });
+    const { app } = await boot(NEW, ls, T, "h1", deps(envCl, "h1")); const d = await read(envCl, "h1");
+    ok(d.points === 53 && d.rouletteDate === T && d.loginDate === T && d.qrDate === Y2 && !(d.storeVisits || {}).nagaoka && app.s.points === 53, "止まっていた人: 開き直すと来店分（51P）を外して、ルーレット3P等を保存（クラウド " + d.points + "P）", d);
+    ok(app.notices.filter(m => m.includes(UNDO_MSG)).length === 1 && !ls.getItem("kakiapp_pending"), "止まっていた人: 知らせ1回・控えは消える", app.notices); }
+
+  await envOk.cleanup(); await envNg.cleanup(); await envCl.cleanup();
 }
 
 console.log("\n結果: OK " + pass + " / NG " + fail);

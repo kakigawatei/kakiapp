@@ -263,14 +263,83 @@ async function _write() {
   if (drift !== 0 || mergedVisits || (mergedTx && !sameTx(normTx(cur.tx), mergedTx)) || pendingSeq !== seq0) window.cloudPush();   /* 送信中の変化は次の保存で追いつく */
 }
 
-/* 保存（少し待ってまとめて送る）。失敗は記録して、通信の失敗だけ少し待って再試行。拒否（permission-denied）は再試行しない */
-function flushSave(attempt) {
-  write().catch(e => {
+/* ---- 拒否された来店だけ外す（2026-11-12 masa 決定「①②とも直す」） ----
+   端末は保存のたびに状態をまるごと送る。ルールが来店（営業時間外・店内QRが要る日に qrTok 無し）を拒否すると、
+   端末に残った「今日来店した」（qrDate/visits/storeVisits）が毎回いっしょに送られ、その日のルーレット・ログボ等も全部保存できなくなっていた。
+   → 拒否されたら、端末の今日の来店分（qrDate・qrTok・visits・storeVisits・visitStore・来店ガチャの印・ランクアップの印と、
+     来店ポイント／来店ガチャ／ランクアップの履歴とポイント）をクラウドの値に戻して1回だけ送り直す。
+     送り直しが通れば「来店が原因」だったので、来店ポイントが付かなかったことを1回だけ知らせる。
+     送り直しも拒否なら来店は原因ではない（ルール全体の不具合など）→ 外した分を端末に戻し、今までどおり控えを残す。
+   ポイントは端末の値から外した分を引くだけ（基準 cloudBase・控えの base/tries はそのまま＝差分マージと矛盾しない）。
+   外すのは端末の qrDate が今日で、クラウドの qrDate が今日でないときだけ＝外した後は qrDate が今日でなくなるので二重に外さない */
+const SAVE_MSG_VISIT_UNDO = "営業時間外（または店内QRの確認が必要な日）のため、来店ポイントは付きませんでした。来店以外のポイントはそのまま貯まります";
+const VISIT_KEYS = ["qrDate", "qrTok", "visits", "storeVisits", "visitStore"];
+async function undoVisit() {
+  if (!uid) return null;
+  const t = dayNow(), s = window.kakiGetState();
+  if (s.qrDate !== t) return null;
+  const snap = await withTimeout(getDoc(doc(db, "kakiapp_users", uid)), 12000, "getDoc");
+  if (!snap.exists()) return null;
+  const d = snap.data();
+  if (d.qrDate === t) return null;   /* クラウドに今日の来店がある＝拒否の原因は来店ではない */
+  const cur = window.kakiGetState();   /* 読んでいる間の変更も含めて外す */
+  if (cur.qrDate !== t) return null;
+  const rec = { day: t, keys: {}, rank: {}, tx: [], points: 0 };
+  const next = Object.assign({}, cur);
+  const back = k => { rec.keys[k] = cur[k]; if (d[k] === undefined) delete next[k]; else next[k] = d[k]; };
+  VISIT_KEYS.forEach(back);
+  if (cur.gachaDate === t && d.gachaDate !== t) back("gachaDate");
+  const cloudRank = (d.rankBonus && typeof d.rankBonus === "object") ? d.rankBonus : {};
+  if (cur.rankBonus && typeof cur.rankBonus === "object") {
+    const rb = Object.assign({}, cur.rankBonus);
+    Object.keys(rb).forEach(k => { if (rb[k] === t && !(k in cloudRank)) { rec.rank[k] = rb[k]; delete rb[k]; } });
+    next.rankBonus = rb;
+  }
+  /* 履歴とポイント: クラウドに無い（＝保存できていない）来店ポイント・来店ガチャ・ランクアップを、外した印の数だけ新しい方から外す */
+  const inCloud = new Set((Array.isArray(d.tx) ? d.tx : []).map(txKey));
+  const want = { "来店ポイント": cur.visits && cur.visits.includes(t) && !(Array.isArray(d.visits) && d.visits.includes(t)) ? 1 : 0, "来店ガチャ": "gachaDate" in rec.keys ? 1 : 0, rank: Object.keys(rec.rank).length };
+  next.tx = (Array.isArray(cur.tx) ? cur.tx : []).filter(x => {
+    if (!x || typeof x !== "object" || inCloud.has(txKey(x))) return true;
+    const kind = x.label === "来店ポイント" || x.label === "来店ガチャ" ? x.label : /^ランクアップ「/.test(String(x.label || "")) ? "rank" : null;
+    if (!kind || !(want[kind] > 0)) return true;
+    want[kind]--; rec.tx.push(x); rec.points += Number(x.points) || 0; return false;
+  });
+  next.points = Math.max(0, (Number(cur.points) || 0) - rec.points);
+  window.kakiSetState(next);
+  logErr("save", "拒否されたため今日の来店分（" + rec.points + "P）を外して送り直します");
+  return rec;
+}
+/* 外しても拒否された＝来店は原因ではなかった → 外した分を戻す（この間に同じ日の来店をやり直していたら戻さない） */
+function redoVisit(rec) {
+  const cur = window.kakiGetState();
+  if (!rec || cur.qrDate === rec.day) return;
+  const next = Object.assign({}, cur);
+  Object.keys(rec.keys).forEach(k => { if (rec.keys[k] === undefined) delete next[k]; else next[k] = rec.keys[k]; });
+  if (Array.isArray(rec.keys.visits) || Array.isArray(cur.visits)) next.visits = Array.from(new Set((cur.visits || []).concat(rec.keys.visits || []))).sort();
+  if (Object.keys(rec.rank).length) next.rankBonus = Object.assign({}, cur.rankBonus || {}, rec.rank);
+  next.tx = unionTx(cur.tx, rec.tx);
+  next.points = (Number(cur.points) || 0) + rec.points;
+  window.kakiSetState(next);
+  logErr("save", "来店分を外しても拒否されたため、端末に戻しました");
+}
+function deniedSave() { const p = readPending(); if (p) { p.denied = new Date().toISOString(); savePending(p); } notifyOnce("denied", SAVE_MSG_DENIED); }
+
+/* 保存（少し待ってまとめて送る）。失敗は記録して、通信の失敗だけ少し待って再試行。拒否（permission-denied）は再試行しない
+   （来店分を外せたときだけ1回送り直す。undo＝外した中身。送り直しの最中だけ持つ＝送り直しの拒否で再び外すことはない） */
+function flushSave(attempt, undo) {
+  write().then(() => { if (undo) notifyOnce("visitUndo", SAVE_MSG_VISIT_UNDO); }, e => {
     const code = errCode(e);
-    logErr("save", code + (attempt ? "（再試行" + attempt + "回目）" : ""));
-    if (isTransient(code) && attempt < RETRY_MS.length) { clearTimeout(timer); timer = setTimeout(() => flushSave(attempt + 1), RETRY_MS[attempt]); return; }
-    if (isDenied(code)) { const p = readPending(); if (p) { p.denied = new Date().toISOString(); savePending(p); } notifyOnce("denied", SAVE_MSG_DENIED); }
-    else notifyOnce("net", SAVE_MSG_NET);
+    logErr("save", code + (attempt ? "（再試行" + attempt + "回目）" : "") + (undo ? "（来店分を外した送り直し）" : ""));
+    if (isTransient(code) && attempt < RETRY_MS.length) { clearTimeout(timer); timer = setTimeout(() => flushSave(attempt + 1, undo), RETRY_MS[attempt]); return; }
+    if (isDenied(code)) {
+      if (undo) { redoVisit(undo); deniedSave(); return; }
+      /* 外すのも保存と同じ順番待ちの中で（保存と重ならない） */
+      const p = writeChain.then(undoVisit); writeChain = p.catch(() => {});
+      p.then(rec => { if (rec) { markPending(); clearTimeout(timer); flushSave(0, rec); } else deniedSave(); },
+        e2 => { logErr("save", "来店分を外せませんでした " + errCode(e2)); deniedSave(); });
+      return;
+    }
+    notifyOnce("net", SAVE_MSG_NET);
   });
 }
 window.cloudPush = function () {

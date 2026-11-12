@@ -1240,8 +1240,10 @@ function checkin(storeId) {
   if (storeId && store.s.qrDate !== today() && window.kakiQrCheck) {
     if (qrBusy) return; qrBusy = true;
     window.kakiQrCheck.need().then(need => {
-      if (need === false) { qrBusy = false; checkinCommit(storeId); return; }
-      qrAsk(storeId, need === null);   /* 不明（通信できない）のときも QR を案内する＝保存がサーバーで拒否されるのを防ぐ */
+      /* 2026-11-12 masa 決定: 問い合わせの失敗（時間切れ・通信エラー＝null）は「要らない」扱いでそのまま保存する（印の無い人に QR を求めない）。
+         印のある人はルールが qrTok 無しの来店を拒否する＝守りは残る。拒否されたら auth.js が来店分だけ取り消して、ルーレット等は保存し直す */
+      if (need !== true) { qrBusy = false; checkinCommit(storeId); return; }
+      qrAsk(storeId);
     });
     return;
   }
@@ -1280,9 +1282,9 @@ document.getElementById("btnMockQR").onclick = () => { if (DEV_OK) checkin(); };
    カメラ: getUserMedia（Web・iOS アプリ（WKWebView 14.3〜）・Android アプリ（Capacitor が権限を聞く））。カメラが使えないときは「写真で読む」 */
 const QR_GET_RE = /^https?:\/\/kakigawatei\.github\.io\/kakiapp\/get\/?(?:[?#].*)?$/i;
 let qrBusy = false;
-function qrAsk(storeId, unknown) {
+function qrAsk(storeId) {
   const st = C.stores.find(x => x.id === storeId);
-  kakiConfirm("店内のQRを読んでください\n\n" + (unknown ? "通信が不安定なため、" : "今日は確認の日です（たまにお願いしています）。") + "店内に貼ってある「柿川亭アプリ」のQR（一杯で、つながる。）をアプリで読むと、来店ポイントが付きます。" + (st ? "\n（" + st.name.replace("柿川亭 ", "") + "）" : ""), { okText: "QRを読む" })
+  kakiConfirm("店内のQRを読んでください\n\n今日は確認の日です（たまにお願いしています）。店内に貼ってある「柿川亭アプリ」のQR（一杯で、つながる。）をアプリで読むと、来店ポイントが付きます。" + (st ? "\n（" + st.name.replace("柿川亭 ", "") + "）" : ""), { okText: "QRを読む" })
     .then(ok => { if (ok) qrOpen(storeId); else qrBusy = false; });
 }
 let qrStream = null, qrTimer = null, qrDet = null, qrDone = false, qrLib = null;
