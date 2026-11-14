@@ -87,7 +87,7 @@ window.KAKI_CONFIG = {
   // maxChars＝ひとことの文字数（🟥 Firestore ルールの text.size() <= 30 と揃える）。hideAfterReports＝この数の通報で自動的に見えなくなる（admin で表示に戻せる）
   // ngWords＝投稿できない言葉（ひとこと・ニックネーム）。masa が足したいときはここに1語ずつ足す（ひらがな・カタカナは別々に書く）
   board: {
-    points: 20, maxChars: 30, hideAfterReports: 2,
+    points: 15, igBonus: 5, maxChars: 30, hideAfterReports: 2,   // 2026-11-14 masa 🇦: 投稿 15P＋インスタ紹介OK で +5P（計 20P）
     ngWords: ["死ね", "しね", "殺す", "ころす", "うんこ", "セックス", "ちんこ", "まんこ", "バカ", "ばか", "アホ", "あほ", "キモい", "きもい"],
   },
 };

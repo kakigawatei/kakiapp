@@ -245,6 +245,7 @@
   .bd-in { width: 100%; font: inherit; font-size: 16px; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); }
   .bd-ig { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; color: #5c5647; cursor: pointer; }
   .bd-ig input { width: 19px; height: 19px; flex: none; }
+  .bd-igpt { margin-left: auto; padding: 3px 10px; border-radius: 999px; background: var(--red); color: #fff; font-size: 15px; font-weight: 800; white-space: nowrap; }  /* 2026-11-14 masa 🇦: チェックは自分で入れる・横に +5P を大きく */
   .bd-post { padding: 0; overflow: hidden; }
   .bd-ph { background: #f3eee6; min-height: 160px; }
   .bd-ph img { display: block; width: 100%; height: auto; }
@@ -661,7 +662,7 @@
   <main>
     <div class="card">
       <h2>みんなの一杯</h2>
-      <p class="muted">お店で食べた一杯を写真でシェア。来店チェックインした日に1日1回投稿できて、投稿すると <b id="bdPts">20</b>P。</p>
+      <p class="muted">お店で食べた一杯を写真でシェア。来店チェックインした日に1日1回投稿できて、投稿すると <b id="bdPts">15</b>P（お店のインスタで紹介OKなら +<b id="bdIgPts">5</b>P）。</p>
       <button class="primary" id="btnBdOpen" style="margin-top:10px">写真を投稿する</button>
       <p class="muted" id="bdGateMsg" style="margin-top:6px;text-align:center"></p>
     </div>
@@ -675,7 +676,7 @@
       <input id="bdName" class="bd-in" maxlength="12" autocomplete="off" placeholder="例：ゆうき">
       <div class="bd-lab"><span>お店</span></div>
       <div class="tb-tabs" id="bdShop" style="margin:4px 0 0"></div>
-      <label class="bd-ig"><input type="checkbox" id="bdIg"><span>お店のインスタで紹介してもOK</span></label>
+      <label class="bd-ig"><input type="checkbox" id="bdIg"><span>お店のインスタで紹介してもOK</span><b class="bd-igpt">+<span id="bdIgPts2">5</span>P</b></label>
       <button class="primary" id="btnBdPost" style="margin-top:14px">投稿する</button>
       <button class="ghost" id="btnBdCancel">やめる</button>
       <p class="muted" id="bdMsg" style="min-height:1.2em;margin-top:6px"></p>
@@ -1838,7 +1839,7 @@ document.getElementById("btnTeamLeave").onclick = async () => {
  * 投稿できるのは「今日（サーバー時刻）来店チェックインした人」だけ・1日1件。投稿で C.board.points を1日1回（boardDate で二重取り防止）。
  * 一覧は新しい順に20件ずつ。非表示（hidden）と通報 hideAfterReports 件以上は出さない（自分の投稿だけは「見えていません」と出す）。
  * 店のタブ（全部／長岡／仙台）は読み込んだ分を手元で絞る＝Firestore の複合インデックスを作らなくて済む（絞った時は20件たまるまで続きを読む） */
-const BC = Object.assign({ points: 20, maxChars: 30, hideAfterReports: 2, ngWords: [] }, C.board || {});
+const BC = Object.assign({ points: 15, igBonus: 5, maxChars: 30, hideAfterReports: 2, ngWords: [] }, C.board || {});
 const BD_SHOPS = (C.stores || []).map(st => ({ id: st.id, name: (st.name || "").replace(/^柿川亭\s*/, "").replace(/(本店|連坊店|店)$/, "") }));
 const bdShopName = id => (BD_SHOPS.find(x => x.id === id) || {}).name || "";
 const bdLen = t => Array.from(String(t || "")).length;   /* 絵文字も1文字で数える（ルールの size() と揃える） */
@@ -1859,11 +1860,12 @@ function bdGate() {
   const btn = document.getElementById("btnBdOpen"), msg = document.getElementById("bdGateMsg"); if (!btn) return;
   const s = store.s, t = today();
   document.getElementById("bdPts").textContent = BC.points;
-  document.getElementById("boardCardText").textContent = s.qrDate === t && s.boardDate !== t ? "今日は来店した日。写真を投稿すると +" + BC.points + "P" : "お店で食べた一杯を写真でシェア（来店した日に投稿で " + BC.points + "P）";
+  ["bdIgPts", "bdIgPts2"].forEach(k => { const e = document.getElementById(k); if (e) e.textContent = BC.igBonus; });
+  document.getElementById("boardCardText").textContent = s.qrDate === t && s.boardDate !== t ? "今日は来店した日。写真を投稿すると +" + BC.points + "P（インスタ紹介OKで +" + (BC.points + BC.igBonus) + "P）" : "お店で食べた一杯を写真でシェア（来店した日に投稿で " + BC.points + "P・インスタ紹介OKで " + (BC.points + BC.igBonus) + "P）";
   if (!window.kakiBoard) { btn.disabled = true; msg.textContent = "ログインすると使えます"; return; }
   if (s.boardDate === t) { btn.disabled = true; msg.textContent = "今日はもう投稿しました。また来店した日に！"; return; }
   if (s.qrDate !== t) { btn.disabled = true; msg.textContent = "お店で来店チェックインした日に投稿できます（ホームの「お店でチェックイン」）"; return; }
-  btn.disabled = false; msg.textContent = "今日の投稿で +" + BC.points + "P";
+  btn.disabled = false; msg.textContent = "今日の投稿で +" + BC.points + "P（インスタ紹介OKで +" + (BC.points + BC.igBonus) + "P）";
 }
 function bdShopChips() {
   const s = store.s, known = s.lastStoreAt === today() && BD_SHOPS.some(x => x.id === s.lastStore) ? s.lastStore : "";
@@ -2027,11 +2029,14 @@ document.getElementById("btnBdPost").onclick = async () => {
   btn.disabled = true; msg.textContent = "送っています…";
   try {
     if (await B.exists(B.uid() + "_" + t)) { msg.textContent = "今日はもう投稿しています。"; return; }
-    await B.post({ name, text, shop: BD_SHOP, igOk: document.getElementById("bdIg").checked, dataUrl: BD_IMG, day: t, createdAt: new Date(nowMs()).toISOString() });
+    const igOk = document.getElementById("bdIg").checked;
+    await B.post({ name, text, shop: BD_SHOP, igOk, dataUrl: BD_IMG, day: t, createdAt: new Date(nowMs()).toISOString() });
     if (store.s.boardDate !== t) {
-      store.set({ points: (store.s.points || 0) + BC.points, boardDate: t });
-      logTx("みんなの一杯 投稿", BC.points);
-      celebrate(BC.points, "みんなの一杯に投稿しました！");
+      /* 2026-11-14 masa 🇦: 投稿 15P＋インスタ紹介OK で +5P（チェックは最初は外したまま・自分で入れる） */
+      const pts = BC.points + (igOk ? BC.igBonus : 0);
+      store.set({ points: (store.s.points || 0) + pts, boardDate: t });
+      logTx(igOk ? "みんなの一杯 投稿（インスタ紹介OK）" : "みんなの一杯 投稿", pts);
+      celebrate(pts, "みんなの一杯に投稿しました！");
     }
     bdFormReset(); document.getElementById("bdForm").style.display = "none"; bdGate();
     BD_TAB = ""; bdLoad(true);
