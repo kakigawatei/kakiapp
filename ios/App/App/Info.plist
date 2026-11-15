@@ -35,6 +35,8 @@
 	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>お店の席のそばにある来店QRを読み取るために使います。</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>みんなの一杯に投稿した写真を、写真アプリに保存するために使います（Google マップの口コミに添えるため）。</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>お店に来ていることを確認して、来店ガチャを回せるようにするために使います。</string>
 	<key>UILaunchStoryboardName</key>

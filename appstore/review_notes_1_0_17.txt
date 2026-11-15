@@ -1,0 +1,10 @@
+[Version 1.0.17 — build 31]
+
+- New: after posting a photo to the in-app photo board ("みんなの一杯"), the app shows an optional prompt that opens the shop's Google Maps review page in the browser. No points or rewards are given for reviews, and the prompt does not ask for a positive review. Users can choose "already wrote" or "not now".
+- New: the user can save the photo they just posted to their device (via the system share sheet) so they can attach it to the Google review. If the user chooses "Save Image" in the share sheet, iOS asks for permission to add the photo to the Photos library (NSPhotoLibraryAddUsageDescription, add-only; the app never reads the library).
+- New: badges ("titles") based on how many photos the user has posted to the board (1 / 5 / 10 / 30 posts). Display only, no points.
+
+Demo account (same as before): kakigawatei+appreview@gmail.com / (password: see private file, not in repo)
+Phone verification (unchanged): test number 080-0000-0001, code 246810 — no real SMS is sent.
+
+Please do not delete the demo account during review (the reviewer would no longer be able to sign in).
