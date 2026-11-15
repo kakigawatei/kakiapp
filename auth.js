@@ -11,7 +11,7 @@ import {
   RecaptchaVerifier, signInWithPhoneNumber, linkWithPhoneNumber,
   PhoneAuthProvider, linkWithCredential
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { initializeFirestore, doc, getDoc, getDocFromServer, setDoc, deleteDoc, collection, getDocs, addDoc, updateDoc, increment, deleteField, query, where, orderBy, limit, startAfter, writeBatch, runTransaction } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, getDocFromServer, setDoc, deleteDoc, collection, getDocs, addDoc, updateDoc, increment, deleteField, query, where, orderBy, limit, startAfter, writeBatch, runTransaction, getCountFromServer } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const app = initializeApp({
   apiKey: "AIzaSyDtDZIEQtBzjujnpTDcXt1QeEU2r-wbg74",
@@ -39,6 +39,7 @@ if (!isNativeApp) setPersistence(auth, browserLocalPersistence).catch(() => {});
 const KEYS = ["points", "visits", "tx", "rouletteDate", "gachaDate", "qrDate", "loginDate",
   "mailOptIn", "mailOptInAt",   /* 宣伝メールの同意（特定電子メール法）2026-09-03 */
   "storeVisits", "lastStore", "lastStoreAt",   /* どの店に来たか。送り分けに使う 2026-09-03 */
+  "lastCheckinMs", "gReview",   /* gReview＝Googleマップ口コミ案内の店ごとの記録（端末をまたいで共通）2026-11-15 */
   "visitStore",   /* 日付→店 id（日報の店舗別の数え漏れ対策 2026-11-11） */
   "createdAt", "claimed", "rankBonus",   /* 使い始めた日・キャンペーン受取・ランクアップ受取（二重取り防止）2026-09-10 */
   "teamId", "team", "teamJoinedAt", "teamVisits", "teamVisitDay",   /* 学校対抗 来店バトル（任意参加・自分の学校と月別の自分の来店数）2026-09-21 */
@@ -753,6 +754,13 @@ window.kakiRef = {
    ♥＝ kakiapp_board/{id}/likes/{uid}、通報＝ …/reports/{uid}。数（likes/reports）は doc の作成・削除と同じ batch で ±1（ルールで突き合わせ） */
 const BOARD = "kakiapp_board", BOARD_IMG = "kakiapp_board_img", BOARD_PAGE = 20;
 const boardImgCache = new Map();
+/* Googleマップ口コミ案内の表示数・タップ数（誰が押したかは記録しない・月ごとの合計だけ）。キー＝a|b _ shown|write|done|later|tap _ 店ID */
+window.kakiReviewStat = async key => {
+  try { if (!uid || !/^(a_(shown|write|done|later)_v[123]|b_(shown|tap)_v[123])_[a-z0-9]+$/.test(key)) return;
+    const ym = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 7);
+    await withTimeout(setDoc(doc(db, "kakiapp_review_stats", ym), { [key]: increment(1) }, { merge: true }), 8000, "reviewStat");
+  } catch (e) { console.warn("reviewStat", e && e.code); }
+};
 /* 店内QR（2026-11-11 masa 🇦「怪しい人＋5回に1回だけ店内QR」）。問い合わせ用の doc を「読めるか」で はい／いいえ を受け取る（doc は作らない）。
    need: 今日 QR が要るか（印のある人・抜き打ちの日）→ true／false／null（通信できず不明） */
 window.kakiQrCheck = {
@@ -764,6 +772,8 @@ window.kakiQrCheck = {
 };
 window.kakiBoard = {
   uid: () => uid,
+  /* 自分の投稿の数（2026-11-15 称号用）。サーバーで数える＝端末で増やせない。投稿はルールで1日1件（id＝uid_日付）。消した投稿は数えない */
+  myCount: async () => { if (!uid) return null; const r = await withTimeout(getCountFromServer(query(collection(db, BOARD), where("uid", "==", uid))), 8000, "boardCount"); return r.data().count; },
   /* 新しい順に20件。after＝前のページの最後（続きを読む） */
   page: async after => {
     const base = collection(db, BOARD);

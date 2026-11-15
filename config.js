@@ -83,11 +83,21 @@ window.KAKI_CONFIG = {
   // 🟥 until を延ばすときは Firestore ルール（kakiapp_referrals の期限）も同じ日に直す
   referral: { from: "2026-10-08", until: "2026-10-31", points: 50, maxPerReferrer: 10 },
 
+  // Google マップの口コミへの案内（masa 決定 2026-11-15）。ポイントは付けない・見返りを匂わせない（Google 規約）。
+  // places＝店の口コミ入力画面 https://search.google.com/local/writereview?placeid=<ID> の Place ID（Google 検索の店パネルから取得・2026-11-15。writereview が正しい店に開くことを確認）。無い店は出さない。
+  // A＝みんなの一杯の投稿直後のシート（11/15 作り変え。afterMin は廃止・未使用）・店ごとに maxPerStore 回まで・gapDays 日あける・「もう書いた」で以後出さない）／B＝みんなの一杯の投稿後のボタン
+  googleReview: {
+    afterMin: 30, maxPerStore: 3, gapDays: 14,
+    places: { nagaoka: "ChIJgd_jur-p9V8RXvNCeL8Sz6Q", sendai: "ChIJoz_RSQApil8RGBDSGZENxnE" },
+  },
+
   // みんなの一杯（写真の掲示板・masa 決定 2026-09-21／2026-10-08 確認）: その日に来店チェックインした人だけ・1日1投稿・投稿で points（1日1回）。
   // maxChars＝ひとことの文字数（🟥 Firestore ルールの text.size() <= 30 と揃える）。hideAfterReports＝この数の通報で自動的に見えなくなる（admin で表示に戻せる）
   // ngWords＝投稿できない言葉（ひとこと・ニックネーム）。masa が足したいときはここに1語ずつ足す（ひらがな・カタカナは別々に書く）
   board: {
     points: 15, igBonus: 5, maxChars: 30, hideAfterReports: 2,   // 2026-11-14 masa 🇦: 投稿 15P＋インスタ紹介OK で +5P（計 20P）
+    // 投稿回数の称号（masa 2026-11-15）。n＝その回数の投稿で取れる。ポイントは付けない。口コミとは無関係
+    titles: [{ n: 1, name: "はじめの一杯" }, { n: 5, name: "一杯の常連" }, { n: 10, name: "一杯の語り部" }, { n: 30, name: "一杯の伝道師" }],
     ngWords: ["死ね", "しね", "殺す", "ころす", "うんこ", "セックス", "ちんこ", "まんこ", "バカ", "ばか", "アホ", "あほ", "キモい", "きもい"],
   },
 };

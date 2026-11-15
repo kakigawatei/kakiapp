@@ -128,6 +128,14 @@
   /* 演出オーバーレイ */
   #overlay { position: fixed; inset: 0; background: rgba(43,36,29,.9); display: none; align-items: center; justify-content: center; z-index: 50; flex-direction: column; gap: 14px; }
   #overlay.show { display: flex; }
+  #overlay .big.word { font-size: 34px; line-height: 1.4; text-align: center; padding: 0 20px; }
+  .bt-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+  .bt-row:first-child { border-top: none; }
+  .bt-row .bt-mark { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; background: #f6f3ee; color: #b9ad9c; flex: none; }
+  .bt-row.got .bt-mark { background: var(--red); color: #fff; }
+  .bt-row .bt-name { font-family: var(--mincho); font-weight: 700; font-size: 15.5px; }
+  .bt-row:not(.got) .bt-name { color: #b9ad9c; }
+  .bt-row .bt-need { margin-left: auto; font-size: 12px; color: var(--muted, #9c9384); }
   #overlay .big { font-family: var(--mincho); font-size: 64px; font-weight: 700; color: #f4efe6; letter-spacing: -.02em; }
   #overlay .sub { color: var(--gold); font-size: 20px; font-weight: 700; letter-spacing: .08em; }
   #overlay button { padding: 12px 32px; border-radius: 999px; border: none; background: #f4efe6; color: var(--ink); font-size: 15px; font-weight: 700; }
@@ -258,6 +266,16 @@
   .bd-act button.bd-like { font-size: 15px; font-weight: 700; border: 1.5px solid var(--line); border-radius: 999px; padding: 6px 14px; background: #fff; color: var(--gray); }
   .bd-act button.bd-like.on { color: #fff; background: var(--red); border-color: var(--red); }
   .bd-note { font-size: 11.5px; color: var(--red); margin-top: 4px; }
+
+  /* Googleマップ口コミ案内（食後シート）。3つのボタンは同じ大きさ・同じ見た目 */
+  #grSheet { position: fixed; inset: 0; z-index: 70; display: none; background: rgba(40,28,20,.45); }
+  #grSheet.show { display: block; }
+  #grSheet .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--bg, #faf7f2); border-radius: 18px 18px 0 0; padding: 20px 18px calc(18px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 24px rgba(58,42,32,.25); }
+  #grSheet h2 { font-family: var(--mincho); font-size: 19px; font-weight: 700; line-height: 1.5; }
+  #grSheet .rec { margin: 8px 0 14px; font-size: 13.5px; color: var(--ink); opacity: .8; }
+  #grSheet .msg { margin: 8px 0 0; font-size: 14px; line-height: 1.7; color: var(--ink); }
+  #grSheet button { display: block; width: 100%; height: 48px; margin-top: 8px; border-radius: 12px; border: 1.5px solid #d9cfbf; background: #fff; color: var(--ink); font-size: 15px; font-weight: 700; cursor: pointer; }
+  .gr-small { display: block; margin: 10px auto 0; background: none; border: none; color: #8a7d6e; font-size: 12px; text-decoration: underline; }
 
   /* 画面内ダイアログ（ネイティブの alert/confirm はiOSアプリで固まるので使わない） */
   #kdlg { position: fixed; inset: 0; background: rgba(43,36,29,.55); display: none; align-items: center; justify-content: center; z-index: 300; padding: 24px; }
@@ -399,6 +417,18 @@
   </div>
 </div>
 
+<!-- Googleマップ口コミ案内（食後シート・2026-11-15 masa 🇦）。ポイントなし・文章の下書きなし -->
+<div id="grSheet" aria-hidden="true">
+  <div class="sheet" role="dialog" aria-label="Googleマップの口コミ">
+    <h2 id="grTitle"></h2>
+    <p class="msg" id="grMsg"></p>
+    <div class="rec" id="grRec"></div>
+    <button type="button" id="grWrite">書く</button>
+    <button type="button" id="grDone">もう書いた</button>
+    <button type="button" id="grLater">今はしない</button>
+  </div>
+</div>
+
 <!-- ホーム -->
 <section class="page on" id="page-home">
   <div class="hero" id="hero">
@@ -537,6 +567,11 @@
           <div class="muted">累計来店 <span id="myVisits">0</span>回</div>
         </div>
       </div>
+    </div>
+    <div class="card" id="bdTitleBox" style="display:none">
+      <h2>みんなの一杯の称号</h2>
+      <p class="muted" id="bdTitleNow"></p>
+      <div id="bdTitleList" style="margin-top:6px"></div>
     </div>
     <div class="card" id="refBox" style="display:none">
       <h2 id="refTitle">友だち紹介キャンペーン</h2>
@@ -681,6 +716,13 @@
       <button class="ghost" id="btnBdCancel">やめる</button>
       <p class="muted" id="bdMsg" style="min-height:1.2em;margin-top:6px"></p>
       <p class="muted" style="font-size:11px">写真は小さくしてから送ります（撮った場所などの情報は消えます）。ほかのお客さんの顔が写った写真は避けてください。</p>
+    </div>
+    <div class="card" id="bdGoogle" style="display:none">
+      <h3 id="bdGoogleTitle" style="display:none;font-family:var(--mincho);font-size:17px;font-weight:700;line-height:1.5"></h3>
+      <p id="bdGoogleMsg" style="display:none;margin:6px 0 12px;font-size:14px;line-height:1.7;color:var(--ink)"></p>
+      <button class="ghost" id="btnBdGoogle" style="margin-top:0">同じ写真を Google マップにも載せる</button>
+      <p class="muted" id="bdGoogleSaved" style="display:none;font-size:12.5px;margin-top:8px;text-align:center;color:var(--ink)"></p>
+      <p class="muted" id="bdGoogleNote" style="font-size:11.5px;margin-top:6px;text-align:center">写真は Google マップの画面で選べます。</p>
     </div>
     <div class="tb-tabs" id="bdTabs"></div>
     <div id="bdList"><div class="muted">読み込み中…</div></div>
@@ -981,6 +1023,7 @@ function render() {
   document.getElementById("myVisits").textContent = visits;
   document.getElementById("myRankName").textContent = r.name;
   document.getElementById("myBadge").src = r.badge;
+  try { btRender(); } catch (e) {}
   const oi = document.getElementById("myOptIn");
   if (oi) oi.checked = store.s.mailOptIn !== false;
   pushRender();
@@ -1050,13 +1093,16 @@ function show(page) {
   document.getElementById("page-" + page).classList.add("on");
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.page === page));
   window.scrollTo(0, 0);
+  if (page !== "board") { const g = document.getElementById("bdGoogle"); if (g) g.style.display = "none"; }
 }
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => { show(b.dataset.page); if (b.dataset.page === "team" && typeof teamRender === "function") teamRender(true); });   /* ランキングタブ（masa🇦 2026-09-21・6タブ） */
 document.getElementById("btnGoRoulette").onclick = () => show("roulette");
 
 (function(){ var im = new Image(); im.onerror = function(){ document.getElementById("hero").classList.add("nophoto"); }; im.src = "assets/hero_photo.jpg"; })();
 function celebrate(points, sub) {
-  document.getElementById("ovBig").textContent = "+" + points + "P";
+  /* points が文字なら（称号など）そのまま大きく出す */
+  const big = document.getElementById("ovBig"), word = typeof points === "string";
+  big.textContent = word ? points : "+" + points + "P"; big.classList.toggle("word", word);
   document.getElementById("ovSub").textContent = sub;
   document.getElementById("overlay").classList.add("show");
 }
@@ -1068,6 +1114,7 @@ function celebrateNext(points, sub) {
 document.getElementById("ovClose").onclick = () => {
   document.getElementById("overlay").classList.remove("show");
   if (celebQ.length) { const n = celebQ.shift(); setTimeout(() => celebrate(n[0], n[1]), 350); }
+  else if (typeof GR_PENDING !== "undefined" && GR_PENDING) setTimeout(grPendingRun, 700);   /* みんなの一杯の投稿後: ポイント演出のあとにお願いシート */
   else if (pushAskArmed) { pushAskArmed = false; setTimeout(pushMaybeAsk, 400); }
 };
 
@@ -1270,7 +1317,7 @@ function checkinCommit(storeId, qrTok) {
     sv[storeId] = (sv[storeId] || 0) + 1;
     /* visitStore＝「この日はどの店か」の記録（2026-11-11）。日報の店舗別が lastStore だけだと翌日に上書きされて数え漏れるため */
     const vsm = Object.assign({}, store.s.visitStore || {}); vsm[today()] = storeId;
-    store.set({ storeVisits: sv, lastStore: storeId, lastStoreAt: today(), visitStore: vsm });
+    store.set({ storeVisits: sv, lastStore: storeId, lastStoreAt: today(), visitStore: vsm, lastCheckinMs: nowMs() });
   }
   /* 高校対抗: 参加している人だけ、自分の学校の今月に+1（失敗しても本人の来店は成立）→ teamCreditToday */
   if (isNew) teamCreditToday(storeId);
@@ -2031,6 +2078,7 @@ document.getElementById("btnBdPost").onclick = async () => {
     if (await B.exists(B.uid() + "_" + t)) { msg.textContent = "今日はもう投稿しています。"; return; }
     const igOk = document.getElementById("bdIg").checked;
     await B.post({ name, text, shop: BD_SHOP, igOk, dataUrl: BD_IMG, day: t, createdAt: new Date(nowMs()).toISOString() });
+    const cntP = btLoad();   /* 投稿回数の称号: 今の投稿を含めてサーバーで数え直す */
     if (store.s.boardDate !== t) {
       /* 2026-11-14 masa 🇦: 投稿 15P＋インスタ紹介OK で +5P（チェックは最初は外したまま・自分で入れる） */
       const pts = BC.points + (igOk ? BC.igBonus : 0);
@@ -2038,19 +2086,165 @@ document.getElementById("btnBdPost").onclick = async () => {
       logTx(igOk ? "みんなの一杯 投稿（インスタ紹介OK）" : "みんなの一杯 投稿", pts);
       celebrate(pts, "みんなの一杯に投稿しました！");
     }
+    const postedShop = BD_SHOP;
+    GR_PHOTO = { shop: postedShop, dataUrl: BD_IMG, at: nowMs() };   /* 口コミ画面へ持っていく写真（メモリだけ） */
     bdFormReset(); document.getElementById("bdForm").style.display = "none"; bdGate();
     BD_TAB = ""; bdLoad(true);
+    grBoardShow(postedShop);
+    const cnt = await cntP, tt = cnt == null ? null : BT.find(x => x.n === cnt);
+    if (tt) celebrateNext("称号「" + tt.name + "」", "みんなの一杯 " + cnt + "回目の投稿！");   /* 15P のお祝いを閉じたら出る */
+    grAfterPost(postedShop);   /* 15P のお祝いを閉じたあとに、Google マップのお願いシートを出す */
   } catch (e) {
     console.error("board post", e);
     msg.textContent = String(e && e.code).includes("permission") ? "投稿できませんでした。今日の来店チェックインが確認できないか、もう投稿済みです。" : "送れませんでした。電波の良い所でもう一度お試しください。";
   } finally { btn.disabled = false; }
 };
 
+
+/* ---------- みんなの一杯の称号（2026-11-15 masa「そっちにして」）----------
+ * 投稿回数＝サーバーで数えた本人の投稿の数（kakiBoard.myCount）。端末に回数は持たない（改ざんで増やせない）。
+ * 取れた瞬間＝投稿の直後に、数がちょうど段階の回数になったとき celebrateNext で出す。ポイントは付けない */
+const BT = (Array.isArray(BC.titles) && BC.titles.length ? BC.titles : [{ n: 1, name: "はじめの一杯" }, { n: 5, name: "一杯の常連" }, { n: 10, name: "一杯の語り部" }, { n: 30, name: "一杯の伝道師" }]).slice().sort((a, b) => a.n - b.n);
+let BT_COUNT = null;
+async function btLoad() {
+  try { const B = window.kakiBoard; if (!B || !B.myCount) return null; const n = await B.myCount(); if (typeof n === "number") { BT_COUNT = n; btRender(); } return n; }
+  catch (e) { console.warn("boardCount", e && e.code); return null; }
+}
+function btRender() {
+  const box = document.getElementById("bdTitleBox"); if (!box) return;
+  if (BT_COUNT == null) { box.style.display = "none"; return; }
+  box.style.display = "";
+  const n = BT_COUNT, got = BT.filter(x => n >= x.n), next = BT.find(x => n < x.n);
+  document.getElementById("bdTitleNow").textContent = "投稿 " + n + "回" + (got.length ? "・いまの称号「" + got[got.length - 1].name + "」" : "") + (next ? "・次まで あと" + (next.n - n) + "回" : "・すべて取りました！");
+  const list = document.getElementById("bdTitleList"); list.textContent = "";
+  BT.forEach(x => {
+    const row = document.createElement("div"), ok = n >= x.n; row.className = "bt-row" + (ok ? " got" : "");
+    const m = document.createElement("div"); m.className = "bt-mark"; m.textContent = ok ? "✓" : "";
+    const nm = document.createElement("div"); nm.className = "bt-name"; nm.textContent = x.name;
+    const nd = document.createElement("div"); nd.className = "bt-need"; nd.textContent = x.n + "回";
+    row.append(m, nm, nd); list.appendChild(row);
+  });
+}
+
+/* ---------- Googleマップ口コミ案内（2026-11-15 masa 🇦／追加仕様: 口コミは1人1回・店ごと） ----------
+ * A＝みんなの一杯の投稿が成功した直後の下からのシート（11/15 作り変え。以前の「来店30分後」は廃止）。B＝投稿後のカードのボタン。
+ * 記録は state.gReview[店ID] = { n: 出した回数, last: 最後に出した日, wrote: 「書く」を押した, done: 「もう書いた」 }（Firestore のユーザー文書へ同期＝端末をまたいで共通）
+ * done の店では A は二度と出さず B は小さな文字リンクに。wrote の店では A は「もう書いた／今はしない」の2択。ポイントは付けない */
+const GR = Object.assign({ afterMin: 30, maxPerStore: 3, gapDays: 14, places: {} }, C.googleReview || {});
+const grUrl = id => GR.places[id] ? "https://search.google.com/local/writereview?placeid=" + encodeURIComponent(GR.places[id]) : "";
+const grRec = id => Object.assign({ n: 0, last: "", wrote: false, done: false }, (store.s.gReview || {})[id] || {});
+function grSet(id, patch) { const all = Object.assign({}, store.s.gReview || {}); all[id] = Object.assign(grRec(id), patch); store.set({ gReview: all }); }
+const grStat = k => { try { if (window.kakiReviewStat) window.kakiReviewStat(k); } catch (e) {} };
+const grOpen = id => { const u = grUrl(id); if (u) window.open(u, "_blank"); };
+/* 文言は3通り（masa 11/15「A・B・C 全部やって反応を比べたい」）。uid のハッシュ % 3 で1人に1つ固定。集計キーに v1〜v3 の印を付ける。良い評価だけを頼む文は入れない */
+const GR_TEXT = [
+  { h: "どうか、お願いします！", m: "Googleマップでたくさんの人に見つけてもらうには、口コミがいちばんの力になります。あなたの一言が、次のお客さんを連れてきてくれます。1分だけ、力を貸してください！" },
+  { h: "力を貸してください！", m: "口コミを書いていただくことで、たくさんの人に柿川亭を知っていただくことができます。ひと言でも、写真1枚でも大歓迎です。どうか、協力をお願いします！" },
+  { h: "お願いがあります", m: "いつも来てくださるあなたにだからこそ、お願いしたいです。Googleマップに一言だけ、柿川亭のことを書いてもらえませんか？それが何よりの応援です。" },
+];
+function grVariant() {
+  const u = window.kakiBoard && window.kakiBoard.uid && window.kakiBoard.uid();
+  if (!u) return 0;   /* 未ログイン（uid なし）は出さない */
+  let h = 0; for (const c of String(u)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return (h % 3) + 1;
+}
+const grA = (ev, id) => grStat("a_" + ev + "_v" + (GR_V || 0) + "_" + id);
+let GR_ID = "", GR_V = 0, GR_PENDING = "";
+function grDaysAgo(d) { return d ? Math.floor((Date.parse(today()) - Date.parse(d)) / 86400e3) : 9999; }
+/* 2026-11-15 作り変え（masa「食後30分とかでアプリ開かない。投稿するときにそのまま Google マップへのお願いも」）:
+ * 以前の「来店30分後にホームを開いたら出す」起動は廃止（lastCheckinMs は記録だけ残す）。
+ * いまは みんなの一杯の投稿が成功したあと、15P のお祝いを閉じてから下からシートを出す（grAfterPost → grPendingRun）。
+ * 集計キー a_* は「投稿直後のシート」の意味（キー名は変えていない）。b_* は投稿後のカードのボタン。 */
+function grAfterPost(id) { GR_PENDING = id; grPendingRun(); }
+function grPendingRun() {
+  const id = GR_PENDING; if (!id) return;
+  if (document.querySelector("#overlay.show, #kdlg.show, #cardView.show, #capOverlay.show")) return;   /* ポイントの演出が終わってから（閉じたあと grPendingRun を再度呼ぶ） */
+  GR_PENDING = "";
+  if (!grUrl(id)) return;
+  const s = store.s, t = today(), r = grRec(id);
+  if (r.done || r.n >= GR.maxPerStore || grDaysAgo(r.last) < GR.gapDays) return;
+  GR_V = (typeof GR_FORCE_V !== "undefined" && GR_FORCE_V) || grVariant(); if (!GR_V) return;
+  GR_ID = id;
+  document.getElementById("grTitle").textContent = GR_TEXT[GR_V - 1].h; document.getElementById("grMsg").textContent = GR_TEXT[GR_V - 1].m;
+  const st = (C.stores || []).find(x => x.id === id), cnt = (s.storeVisits || {})[id] || (s.visits || []).length;
+  document.getElementById("grRec").textContent = "あなたの記録：" + cnt + "回目・" + (st ? st.name : "");
+  document.getElementById("grWrite").style.display = r.wrote ? "none" : "";
+  grSet(id, { n: r.n + 1, last: t }); grA("shown", id);
+  document.getElementById("grSheet").classList.add("show");
+}
+const grClose = () => document.getElementById("grSheet").classList.remove("show");
+/* 「書く」＝B のボタンと同じ流れ（写真を保存 → その店の口コミ画面 → 「保存しました」の1行はカードに出る）。b_tap は二重に数えない */
+document.getElementById("grWrite").onclick = () => { grA("write", GR_ID); grClose(); grBoardGo(GR_ID, true); };
+document.getElementById("grDone").onclick = () => { grSet(GR_ID, { done: true }); grA("done", GR_ID); grClose(); };
+document.getElementById("grLater").onclick = () => { grA("later", GR_ID); grClose(); };
+document.getElementById("grSheet").addEventListener("click", e => { if (e.target.id === "grSheet") grClose(); });
+
+/* B の1タップ: ① 今投稿した写真を端末に保存（共有シートの「画像を保存」／ダウンロード）→ ② その店の口コミ画面を開く。
+ * 写真は投稿直後の dataUrl をメモリにだけ持つ（アプリを閉じる・60分たつと無い＝保存を飛ばして口コミ画面だけ）。
+ * アプリ版: @capacitor/filesystem＋@capacitor/share が入っていればそれで共有シートを出す（未導入なら navigator.share＝既存の学校カード保存と同じ方式）。
+ * ブラウザ版: navigator.share({files}) → 使えない端末は写真をダウンロード。保存の可否は端末の共有シート次第なので文言は「保存しました」止まり（実機確認が要る） */
+let GR_PHOTO = null;   /* { shop, dataUrl, at } */
+const grPhotoFor = id => GR_PHOTO && GR_PHOTO.shop === id && nowMs() - GR_PHOTO.at < 60 * 60000 ? GR_PHOTO : null;
+async function grSavePhoto(p) {
+  /* 戻り値: "saved"（共有シートを出し終えた／ダウンロードした）, "cancel"（共有シートを閉じた）, "none"（保存できない） */
+  const blob = await (await fetch(p.dataUrl)).blob();
+  const file = new File([blob], "kakigawatei_ichibai.jpg", { type: blob.type || "image/jpeg" });
+  const cap = window.Capacitor, P = cap && cap.Plugins;
+  if (cap && cap.isNativePlatform && cap.isNativePlatform() && P && P.Filesystem && P.Share && cap.isPluginAvailable("Filesystem") && cap.isPluginAvailable("Share")) {
+    try {
+      const b64 = String(p.dataUrl).split(",")[1] || "";
+      const w = await P.Filesystem.writeFile({ path: "kakigawatei_ichibai.jpg", data: b64, directory: "CACHE" });
+      await P.Share.share({ files: [w.uri] });
+      return "saved";
+    } catch (e) { return /cancel/i.test(String(e && (e.message || e))) ? "cancel" : "none"; }
+  }
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: "柿川亭 みんなの一杯" }); return "saved"; }
+    catch (e) { if (e && e.name === "AbortError") return "cancel"; }
+  }
+  try { const u = URL.createObjectURL(blob), a = document.createElement("a"); a.href = u; a.download = "kakigawatei_ichibai.jpg"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 10000); return "saved"; }
+  catch (e) { return "none"; }
+}
+async function grBoardGo(id, fromSheet) {
+  const btn = document.getElementById("btnBdGoogle"), line = document.getElementById("bdGoogleSaved");
+  if (btn.dataset.busy === "1") return;
+  /* 前回、保存のあとブラウザに口コミ画面を止められたときの2回目のタップ＝開くだけ */
+  if (btn.dataset.openOnly === "1") { btn.dataset.openOnly = ""; grOpen(id); return; }
+  btn.dataset.busy = "1";
+  if (!fromSheet) grStat("b_tap_v" + (btn.dataset.v || 0) + "_" + id); if (!grRec(id).done) grSet(id, { wrote: true });
+  let res = "none"; const ph = grPhotoFor(id);
+  line.style.display = "none";
+  try { if (ph) res = await grSavePhoto(ph); } catch (e) { res = "none"; }
+  if (res === "saved") { line.textContent = "保存しました。Google の画面で写真を選んでください"; line.style.display = ""; }
+  const u = grUrl(id), w = u ? window.open(u, "_blank") : 1;
+  if (!w) { btn.dataset.openOnly = "1"; btn.textContent = "Google の口コミ画面を開く"; }   /* 共有シートのあとでブラウザが新しい画面を止めたとき */
+  btn.dataset.busy = "";
+}
+/* B: 投稿完了後。その店で done / wrote の人には目立たない文字リンクに */
+function grBoardShow(id) {
+  const card = document.getElementById("bdGoogle"), btn = document.getElementById("btnBdGoogle"), note = document.getElementById("bdGoogleNote");
+  if (!card || !grUrl(id)) return;
+  const r = grRec(id), quiet = r.done || r.wrote;
+  btn.className = quiet ? "gr-small" : "ghost"; btn.style.marginTop = quiet ? "" : "0";
+  btn.textContent = quiet ? "Googleの口コミに写真を足す" : "同じ写真を Google マップにも載せる";
+  note.style.display = quiet ? "none" : "";
+  card.style.cssText = quiet ? "display:block;background:none;box-shadow:none;border:none;padding:0" : "display:block";
+  btn.dataset.openOnly = ""; document.getElementById("bdGoogleSaved").style.display = "none";
+  btn.onclick = () => grBoardGo(id);
+  /* A と同じ文言（その人に割り当てた v1〜v3）をボタンの上に。「もう書いた／書く済み」の文字リンクの時は出さない */
+  const v = (typeof GR_FORCE_V !== "undefined" && GR_FORCE_V) || grVariant(), tt = document.getElementById("bdGoogleTitle"), mm = document.getElementById("bdGoogleMsg");
+  btn.dataset.v = v || "";
+  tt.style.display = mm.style.display = !quiet && v ? "" : "none";
+  if (v) { tt.textContent = GR_TEXT[v - 1].h; mm.textContent = GR_TEXT[v - 1].m; }
+  if (v) grStat("b_shown_v" + v + "_" + id);
+}
+
 window.kakiGetState = () => store.s;
 window.kakiToday = today;   /* auth.js（紹介キャンペーンの期間判定）がサーバー時刻の「今日」を使う */
 window.kakiSyncClock = syncClock;
 window.kakiSetState = (o) => { localStorage.setItem("kakiapp", JSON.stringify(o || {})); render(); };
 window.kakiStart = function () {
+  setTimeout(btLoad, 2500);   /* みんなの一杯の称号（投稿回数をサーバーで数える・裏で） */
   if (DEV_OK && store.s.devMode) document.getElementById("devPanel").style.display = "block";
   if (DEV_OK && store.s.devSkipGeo) document.getElementById("devGeo").textContent = "GPS判定スキップ: ON";
   document.getElementById("btnMockQR").style.display = (DEV_OK && store.s.devMode) ? "block" : "none";
