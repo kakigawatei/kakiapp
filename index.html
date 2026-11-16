@@ -1518,18 +1518,35 @@ function hideRedeem() {
   document.getElementById("payInput").style.display = "block";
   document.getElementById("payConfirm").style.display = "none";
 }
+/* 2026-11-16 masa 🇦「ポイント交換はサーバーで確定する形にする」: 引換券（4けたのコード）を出す前に、ポイントの減算と交換の記録を
+   サーバーへ書いて届いたのを確かめる（auth.js の kakiRedeem.commit）。電波が無い・確かめられないときは交換しない。
+   前は端末の中だけで減らしていた＝電波を切って交換→ログアウト→ログインで残高が戻った。お店の流れ（コードと残り時間を見せる）はそのまま */
+const REDEEM_NET_MSG = "交換できませんでした。\n電波の良い所でもう一度お試しください。\n（交換はしていません。ポイントはそのままです）";
+const REDEEM_UNKNOWN_MSG = "交換できたか確認できませんでした。\n電波の良い所で「つかう」を開き直してください。\n（交換が済んでいたら引換券が出ます。済んでいなければポイントはそのままです）";
+let payBusy = false;
 document.getElementById("btnPayShow").onclick = async () => {
+  if (payBusy) return;
   if (!pay) { alert("使うポイント数を入力するか、メニューをタップしてください"); return; }
   if (pay > (store.s.points || 0)) { alert("ポイントが足りません（残高 " + (store.s.points || 0) + "P）"); return; }
   const nm = payName && C.itemCatalog.some(x => x.points === pay && x.name === payName) ? payName : (pay + "P分");
-  const ok = await kakiConfirm("注文するときに押してください。\n" + pay + "P を使って「" + nm + "」と交換します。取り消せません。", { okText: "交換する" });
-  if (!ok) return;
-  const at = Date.now();
-  const code = String(1000 + (at % 9000));
-  store.set({ points: (store.s.points || 0) - pay, redeem: { code, name: nm, pts: pay, at } });
-  logTx("お店で交換 " + nm + "（" + code + "）", -pay);
-  pay = 0; payName = ""; document.getElementById("payAmt").textContent = 0;
-  showRedeem(store.s.redeem);
+  const amt = pay;
+  const ok = await kakiConfirm("注文するときに押してください。\n" + amt + "P を使って「" + nm + "」と交換します。取り消せません。", { okText: "交換する" });
+  if (!ok || payBusy) return;
+  if (!window.kakiRedeem || navigator.onLine === false) { window.kakiAlert(REDEEM_NET_MSG); return; }
+  const btn = document.getElementById("btnPayShow"), label = btn.textContent;
+  payBusy = true; btn.disabled = true; btn.textContent = "サーバーに確認しています…";
+  try {
+    const code = String(1000 + Math.floor(Math.random() * 9000));
+    await window.kakiRedeem.commit({ pts: amt, name: nm, code });   /* 届いたら store.s.redeem に引換券の中身・points と履歴も反映済み */
+    pay = 0; payName = ""; document.getElementById("payAmt").textContent = 0;
+    const r = store.s.redeem;
+    if (r && Date.now() - r.at < 600000) showRedeem(r);
+  } catch (e) {
+    const c = String((e && e.code) || "");
+    console.warn("redeem", c);
+    if (c === "redeem/short") window.kakiAlert("ポイントが足りません（サーバーに保存済みの残高 " + (Number(e.have) || 0) + "P）。\n少し待ってから、もう一度お試しください。");
+    else window.kakiAlert(c === "redeem/unknown" ? REDEEM_UNKNOWN_MSG : REDEEM_NET_MSG);
+  } finally { payBusy = false; btn.disabled = false; btn.textContent = label; }
 };
 document.getElementById("btnPayCancel").onclick = () => { hideRedeem(); show("home"); };
 const _showOrig = show;
@@ -1538,6 +1555,8 @@ show = function (page) {
   if (page === "pay") {
     const r = store.s.redeem;
     if (r && Date.now() - r.at < 600000) showRedeem(r); else hideRedeem();
+    /* 前の交換が「届いたか分からない」まま終わっていたら、サーバーに聞いて、届いていれば引換券を出す */
+    if (window.kakiRedeem && !payBusy) window.kakiRedeem.recover().then(x => { if (x && !payBusy && document.getElementById("page-pay").classList.contains("on")) showRedeem(store.s.redeem); }).catch(() => {});
   }
 };
 
@@ -2279,6 +2298,8 @@ window.kakiStart = function () {
   else setTimeout(fetchCampaigns, 4000);
   /* 友だち紹介: 紹介した側の受け取り（キャンペーンのお祝いと重ならないよう少し後）／紹介された側の取りこぼし分の成立 */
   setTimeout(() => { applyReferrals(); refQualify(); }, 5000);
+  /* 交換: 前回「届いたか分からない」まま閉じた交換があれば確かめる（届いていれば「つかう」に引換券が出る） */
+  if (window.kakiRedeem) setTimeout(() => { window.kakiRedeem.recover().catch(() => {}); }, 2000);
   /* 高校対抗: 統合・改名の反映 → ホームのカードとランキングを描く（裏で。失敗しても本体は動く） */
   if (window.kakiTeams) window.kakiTeams.sync().catch(() => {}).then(() => teamCreditToday()).then(() => teamRender(true)).then(() => cardsRender()).catch(() => {});
 };

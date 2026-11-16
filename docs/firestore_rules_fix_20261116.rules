@@ -1,0 +1,299 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 2026-09-26 不正対策（端末の日付を動かして 1日1回ものを何度も回す）: 日付フィールドはサーバー時刻の日本時間「今日」だけ書ける／ポイントは1回の書き込みで +1000 まで
+    function jst() { return request.time + duration.value(9, 'h'); }
+    function jstDate() { return string(jst().year()) + "-" + (jst().month() < 10 ? "0" : "") + string(jst().month()) + "-" + (jst().day() < 10 ? "0" : "") + string(jst().day()); }
+    function changed() { return request.resource.data.diff(resource == null ? {} : resource.data).affectedKeys(); }
+    function dayOk(k) { return !(k in changed()) || (k in request.resource.data && request.resource.data[k] == jstDate()); }
+    // 2026-11-16 ポイントの抜け穴をふさぐ（masa 11/16 🇦・点検 docs/points_loophole_audit_20261116.md の ❌2〜6）
+    //   ① 新規作成（resource==null）も「空のデータからの変更」として同じ検査を通す（前は中身を見ず +1000 まで・来店数も何件でも入った）
+    //   ② キャンペーン受取 claimed: 足したキーが kakiapp_campaigns に実在・停止中でない・期間内（終了日の翌日まで猶予）・来店回数の条件を満たすときだけ。もらえるのはそのキャンペーンの points まで
+    //   ③ 紹介した側 refClaimed: 足したキー（紹介された人の uid）ごとに kakiapp_referrals/{uid} の referrer が本人・status が qualified のときだけ（1件 50）
+    //   ④ ガチャの加点は qrDate が今日（＝来店チェックインと同じ日）のときだけ／みんなの一杯の加点は今日の自分の投稿 kakiapp_board/{uid}_{今日} があるときだけ
+    //   ⑤ teamVisitDay を今日にできるのは qrDate が今日のときだけ（学校の+1 は下の teamVisitOk）
+    //   あわせて: ランクアップは段ごとの本来の額まで（常連100・猛者150・油神250・伝説350・米油500。前は全段 500）／来店ポイントは足した来店1件につき 10 まで（前は 20）
+    //   上限の内訳: ルーレット10・ログイン1・ガチャ100（来店日だけ）・来店10×件数（未同期の過去日1件を含め2件まで）・ランク（段ごと）・キャンペーン（その額）・紹介50/件・紹介された50・投稿20
+    //   学校対抗の報酬は admin が increment で加算（本人は書かない）。🟥 config.js の ranks[].minVisits・bonus・visitPoints・referral.points・board.points を上げるときは、ここも同じ日に直す
+    //   🟥 1回の判定で使える式は 1000 まで（10/15 に来店の保存が全部拒否された原因）。前より軽くしてある: 新旧のデータ n／o・変わった項目 c・今日 t を userWriteOk で1回だけ作って渡す。
+    //      めったに変わらない項目（ランク・キャンペーン・紹介・学校）の検査は、その項目が変わった書き込みのときだけ中に入る。直すときは docs/rules_test_20261116/margin.mjs で余裕を測り直す
+    function isDay(v) { return v is string && v.matches("^[0-9]{4}-[0-9]{2}-[0-9]{2}$"); }
+    function ymd(ts) { return string(ts.year()) + "-" + (ts.month() < 10 ? "0" : "") + string(ts.month()) + "-" + (ts.day() < 10 ? "0" : "") + string(ts.day()); }
+    // 1日1回ものの日付（6項目）: 変えるなら「今日」だけ（消すのも不可）。式の数を減らすため、6項目とも「今日」の map と比べて1回で見る
+    //   d.changedKeys()＝6項目のうち値が今日でないもの／d.removedKeys()＝6項目のうち新しいデータに無いもの → どちらも「変わった項目 c」に入っていてはいけない
+    function uDays(c, d) { return !c.hasAny(d.changedKeys()) && !c.hasAny(d.removedKeys()); }
+    // 受け取りの印（map）にキーがちょうど1つ増えた（古いキーは消えていない・値も変わっていない）
+    function grew1(nm, om) { return nm is map && nm.size() == om.size() + 1 && nm.diff(om).affectedKeys().size() == 1; }
+    // ランクアップ: 1回に1段・その段の来店数を満たすときだけ（知らないキーは通さない）
+    function rankMin(k) { return {"silver": 5, "gold": 15, "rainbow": 40, "king": 100, "founder": 200}.get(k, 100000000); }
+    function rankPts(k) { return {"silver": 100, "gold": 150, "rainbow": 250, "king": 350, "founder": 500}.get(k, 0); }
+    function uRank(nr, orb, nv) { return nr == orb || (grew1(nr, orb) && nv >= rankMin(nr.keys().removeAll(orb.keys())[0])); }
+    // キャンペーン: 足したキーが実在のキャンペーンで、今もらえる条件のときだけ（target の new/before は使い始めた日が自己申告のためここでは見ない）。実在しなければ get() が失敗＝拒否
+    function campDoc(k) { return /databases/$(database)/documents/kakiapp_campaigns/$(k); }
+    function campOk(d, t, nv) { return d.get("active", true) != false && (d.get("from", "") == "" || t >= d.from) && (d.get("until", "") == "" || ymd(request.time - duration.value(15, 'h')) <= d.until) && nv >= d.get("minVisits", 0); }
+    function uClaim(nc, oc, t, nv) { return nc == oc || (grew1(nc, oc) && campOk(get(campDoc(nc.keys().removeAll(oc.keys())[0])).data, t, nv)); }
+    // 紹介した側: 足したキーを1件ずつ紹介の記録と照合（最大10件）。読み取りは1件につき get() 1回だけ（1回の書き込みで読める数に上限があるため exists() と重ねない。記録が無ければ get() が失敗＝拒否）
+    function refDoc(k) { return /databases/$(database)/documents/kakiapp_referrals/$(k); }
+    function refIs(d) { return d.referrer == request.auth.uid && d.status == "qualified"; }
+    function refAll(a, z) { return z >= 1 && z <= 10 && refIs(get(refDoc(a[0])).data) && (z < 2 || refIs(get(refDoc(a[1])).data)) && (z < 3 || refIs(get(refDoc(a[2])).data)) && (z < 4 || refIs(get(refDoc(a[3])).data)) && (z < 5 || refIs(get(refDoc(a[4])).data)) && (z < 6 || refIs(get(refDoc(a[5])).data)) && (z < 7 || refIs(get(refDoc(a[6])).data)) && (z < 8 || refIs(get(refDoc(a[7])).data)) && (z < 9 || refIs(get(refDoc(a[8])).data)) && (z < 10 || refIs(get(refDoc(a[9])).data)); }
+    function refGrew(nm, om, a, z) { return nm.size() <= 10 && nm.size() == om.size() + z && nm.diff(om).affectedKeys().size() == z && refAll(a, z); }
+    function uRefClaim(nm, om) { return nm == om || (nm is map && refGrew(nm, om, nm.keys().removeAll(om.keys()), nm.keys().removeAll(om.keys()).size())); }
+    function uRefBack(n, o) { return o.get("referredBy", {}).get("status", "") != "qualified" || n.get("referredBy", {}).get("status", "") == "qualified"; }
+    function uReferredNow(c, n, o) { return "referredBy" in c && n.get("referredBy", {}).get("status", "") == "qualified" && o.get("referredBy", {}).get("status", "") != "qualified" && get(/databases/$(database)/documents/kakiapp_referrals/$(request.auth.uid)).data.get("status", "") == "qualified"; }
+    // visits を増やせるのは「qrDate が今日に変わる書き込み」1回だけ（ジェミ 10/14）。足せるのは 1〜2件・いずれも YYYY-MM-DD 形・最後の古い日付より後・末尾は今日。新規作成でも同じ
+    //   a／b＝新旧の件数
+    function uVisitsAdd(t, nv, ov, a, b, nq, oq) { return nv is list && nq == t && oq != t && nv[a - 1] == t && ((a == b + 1 && (b == 0 || nv[b] > ov[b - 1])) || (a == b + 2 && isDay(nv[b]) && (b == 0 || nv[b] > ov[b - 1]) && nv[b] < t)); }
+    function uVisits(n, o, t) { return n.get("visits", []) == o.get("visits", []) || uVisitsAdd(t, n.get("visits", []), o.get("visits", []), n.get("visits", []).size(), o.get("visits", []).size(), n.get("qrDate", ""), o.get("qrDate", "")); }
+    // めったに変わらない項目（ランク・キャンペーン・紹介・学校）。変わった項目だけ検査する
+    function uRare(c, n, o, t) {
+      return (!("rankBonus" in c) || uRank(n.get("rankBonus", {}), o.get("rankBonus", {}), n.get("visits", []).size()))
+        && (!("claimed" in c) || uClaim(n.get("claimed", {}), o.get("claimed", {}), t, n.get("visits", []).size()))
+        && (!("refClaimed" in c) || uRefClaim(n.get("refClaimed", {}), o.get("refClaimed", {})))
+        && (!("referredBy" in c) || uRefBack(n, o))
+        && (!("teamVisitDay" in c) || n.get("qrDate", "") == t)
+        && uTeam(c) && uJoinDay(c);
+    }
+    // めったに変わらない項目の加点（uRare を通ったあとで呼ぶ）
+    function rankGain(nr, orb) { return nr == orb ? 0 : rankPts(nr.keys().removeAll(orb.keys())[0]); }
+    function campGain(nc, oc) { return nc == oc ? 0 : get(campDoc(nc.keys().removeAll(oc.keys())[0])).data.points; }
+    function uRarePts(c, n, o) {
+      return ("rankBonus" in c ? rankGain(n.get("rankBonus", {}), o.get("rankBonus", {})) : 0)
+        + ("claimed" in c ? campGain(n.get("claimed", {}), o.get("claimed", {})) : 0)
+        + ("refClaimed" in c ? 50 * (n.get("refClaimed", {}).size() - o.get("refClaimed", {}).size()) : 0)
+        + (uReferredNow(c, n, o) ? 50 : 0);
+    }
+    function boardToday(t) { return exists(/databases/$(database)/documents/kakiapp_board/$(request.auth.uid + "_" + t)); }
+    function uPoints(c, n, o, t, inc) {
+      return inc <= 0 || inc <= ("rouletteDate" in c ? 10 : 0) + ("loginDate" in c ? 1 : 0)
+        + (("gachaDate" in c && n.get("qrDate", "") == t) ? 100 : 0)
+        + ("visits" in c ? 10 * (n.get("visits", []).size() - o.get("visits", []).size()) : 0)
+        + (("boardDate" in c && boardToday(t)) ? 20 : 0)
+        + (c.hasAny(["rankBonus", "claimed", "refClaimed", "referredBy"]) ? uRarePts(c, n, o) : 0);
+    }
+    function userWriteOk() {
+      let n = request.resource.data;
+      let o = resource == null ? {} : resource.data;
+      let c = n.diff(o).affectedKeys();
+      let t = ymd(request.time + duration.value(9, 'h'));
+      return !c.hasAny(["awards", "qrRequired"])
+        && uDays(c, n.diff({"rouletteDate": t, "gachaDate": t, "loginDate": t, "qrDate": t, "boardDate": t, "teamVisitDay": t}))
+        && (!("visits" in c) || uVisits(n, o, t))
+        && (!c.hasAny(["rankBonus", "claimed", "refClaimed", "referredBy", "teamId", "teamVisitDay"]) || uRare(c, n, o, t))
+        && uPoints(c, n, o, t, n.get("points", 0) - o.get("points", 0))
+        && uHours(c, t);
+    }
+    function userDoc(u) { return /databases/$(database)/documents/kakiapp_users/$(u); }
+    function monthKey() { return string(jst().year()) + "-" + (jst().month() < 10 ? "0" : "") + string(jst().month()); }
+    // 学校の来店+1: 本人の会員データの teamVisitDay が「今日」に変わる同じ batch の中だけ（＝1日1回）。2026-10 は 10/15 開始
+    // 2026-11-16 抜け穴⑤: さらに、本人の qrDate が今日（＝今日の来店チェックインがサーバーに保存済み）のときだけ。家から毎日 +1 を止める
+    // 旧ビルド（本人データと同一 batch でない学校+1）は通さない＝同日の繰り返しを許さないため（エル 10/14 3回目）。旧ビルドは次のアプリ更新で新方式になる
+    // 2026-10-24 masa「締切後の学校登録そのものも止める」: 第0回の締切 10/22 のあと（10/23 00:00〜11/1 00:00 日本時間）は、学校を新しく作る・学校に入る（members+1）を受け付けない。抜ける（-1）と来店の加算はそのまま。11月のシーズンが決まったら日付を足す
+    // 2026-11-01 抜け道③（masa 🇦）: 本番は毎月16日0時（日本時間）〜月末がエントリー締切中（10月お試しの日付固定から変更）
+    function teamEntryClosed() { return jst().day() >= 16; }
+    // 学校を新しく選ぶ書き込みは、参加時刻 teamJoinedAt（スマホの時計・世界標準時）の日付がサーバーの今日（世界標準時）と同じときだけ＝スマホの日付を戻して締切を抜けられない（古いアプリ版もこの項目は送っている）
+    function utcDate() { return string(request.time.year()) + "-" + (request.time.month() < 10 ? "0" : "") + string(request.time.month()) + "-" + (request.time.day() < 10 ? "0" : "") + string(request.time.day()); }
+    function uJoinDay(c) { return !("teamId" in c) || request.resource.data.get("teamId", "") == "" || (request.resource.data.get("teamJoinedAt", "") is string && request.resource.data.get("teamJoinedAt", "").matches(utcDate() + "T.*")); }
+    // 2026-11-11 masa 承認（ずんだ部屋 🇦「OK・公開して」）: 来店チェックイン（qrDate が今日に変わる／visits・storeVisits が増える書き込み）は、lastStore が店の id で、
+    //   その店の営業時間（開店15分前〜閉店30分後・日本時間・サーバー時刻）の中だけ受け付ける＝食べていない時間の来店ポイントを止める。端末の時計は見ない
+    //   長岡本店: 毎日 11:00〜14:30／17:00〜20:15（不定休＝曜日の制限なし）→ 10:45〜15:00／16:45〜20:45
+    //   仙台連坊店: 火木金土 11:00〜14:15／18:00〜23:00・水日 11:00〜14:15 のみ・月曜定休 → 10:45〜14:45／（火木金土）17:45〜23:30
+    //   正典 kakigawatei-aeo/entity_dictionary.md（2026-10-20）。営業時間が変わったらここと config.js の stores[].hours を同じ日に直す
+    //   dayOfWeek(): 1=月 … 7=日。mi＝0:00 からの通算分（10:45 = 645）
+    function openAt(st, j) { let mi = j.hours() * 60 + j.minutes(); return st == "nagaoka" ? ((mi >= 645 && mi <= 900) || (mi >= 1005 && mi <= 1245)) : (st == "sendai" && j.dayOfWeek() != 1 && ((mi >= 645 && mi <= 885) || (j.dayOfWeek() in [2, 4, 5, 6] && mi >= 1065 && mi <= 1410))); }
+    // 2026-11-11 masa 🇦「怪しい人＋5回に1回だけ店内QR」→ 同日 16:4x 決定「新しい QR は作らない。店に掲示済みの QR（https://kakigawatei.github.io/kakiapp/get/・両店共通）を店内の証明に使う」
+    //   営業時間の中でも、次のどちらかなら qrTok＝"kakiapp-get:<今日>"（アプリが掲示の QR を読んだときだけ付ける）が無いと来店を保存できない。店の区別は今までどおり GPS（lastStore）
+    //   (a) 運営が印を付けた人（kakiapp_users の qrRequired:true・本人は書き換え不可＝上の hasAny）
+    //   (b) 抜き打ち: kakiapp_qr/config（運営だけ読める）の spotMax が "00000000" 以外のとき、crc32(uid:日付:salt) の16進（大文字）が spotMax 未満の日。既定（doc 無し）＝抜き打ちしない
+    //   🟥 URL は公開物なので強い秘密ではない（読まずに qrTok を作れる改造アプリは防げない）。日付入りなので前の日の値は使えない
+    //   1000式対策: 要るかを先に見る（ふつうの来店＝印なし・抜き打ち外れは qrTok を見ない）・印は request.resource 側（本人は変えられない＝前と同じ値）
+    function qrCfg() { return /databases/$(database)/documents/kakiapp_qr/config; }
+    function qrSpot(t) { return exists(qrCfg()) && hashing.crc32(request.auth.uid + ":" + t + ":" + get(qrCfg()).data.salt).toHexString() < get(qrCfg()).data.spotMax; }
+    function uOpenQr(st, t) { return openAt(st, jst()) && (!(request.resource.data.get("qrRequired", false) || qrSpot(t)) || request.resource.data.get("qrTok", "") == "kakiapp-get:" + t); }
+    function uHours(c, t) { return !c.hasAny(["qrDate", "visits", "storeVisits"]) || uOpenQr(request.resource.data.get("lastStore", ""), t); }
+    function uTeam(c) { return !("teamId" in c && teamEntryClosed() && request.resource.data.get("teamId", "") != "" && !(resource != null && get(/databases/$(database)/documents/kakiapp_teams/$(resource.data.get("teamId", "x"))).data.get("mergedInto", "") == request.resource.data.get("teamId", ""))); }
+    function teamVisitOk(teamId) { return request.auth != null && existsAfter(userDoc(request.auth.uid)) && getAfter(userDoc(request.auth.uid)).data.get("teamVisitDay", "") == jstDate() && (!exists(userDoc(request.auth.uid)) || get(userDoc(request.auth.uid)).data.get("teamVisitDay", "") != jstDate()) && getAfter(userDoc(request.auth.uid)).data.get("teamId", "") == teamId && getAfter(userDoc(request.auth.uid)).data.get("qrDate", "") == jstDate() && (monthKey() != "2026-10" || jstDate() >= "2026-10-15"); }
+    // 2026-10-08 みんなの一杯（写真の掲示板）用
+    function isAdmin() { return request.auth != null && request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"; }
+    function boardDoc(p) { return /databases/$(database)/documents/kakiapp_board/$(p); }
+    function boardSub(p, kind) { return /databases/$(database)/documents/kakiapp_board/$(p)/$(kind)/$(request.auth.uid); }
+match /announcements/{doc} {
+  allow read: if true;
+  allow write: if request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2";
+}
+match /stats_spot/{doc} { allow read: if false; allow write: if request.auth != null; }
+match /stats_shop/{doc} { allow read: if false; allow write: if request.auth != null; }
+match /survey_results/{doc} { allow read: if false; allow write: if request.auth != null; }
+match /surveys/{doc} { allow read: if true; allow write: if false; }
+    // お宝カードのシリアル番号（何番目の発見者か）
+    match /cards/{cardId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // 友達紹介コード
+    match /refcodes/{code} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
+    }
+
+    // 友達紹介の成立記録
+    match /referrals/{referredUid} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && referredUid == request.auth.uid
+                    && request.resource.data.referrerUid is string;
+    }
+
+    // プレイヤーの稼働記録（自分の分だけ書ける／読み取りは禁止）
+    match /users/{uid} {
+      allow read: if false;
+      allow write: if request.auth != null && uid == request.auth.uid;
+    }
+
+    // 「このアカウントはどのお店か」の紐付け（運営がコンソールから作る）
+    match /shopOwners/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // お店の混雑ステータス（アプリは誰でも読める／書けるのは紐付いた店だけ）
+    match /crowd/{shopId} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && get(/databases/$(database)/documents/shopOwners/$(request.auth.uid)).data.shopId == shopId
+        && request.resource.data.keys().hasOnly(['level', 'updatedAt', 'source'])
+        && request.resource.data.level in ['green', 'yellow', 'red', 'off'];
+    }
+    
+    match /shime_docs/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 柿川亭アプリ（ポイント）の会員データ。本人だけが自分の1件を読み書きできる
+    // ＝他人のポイントは見えないし、書き換えられない
+
+
+   
+match /kakiapp_announcements/{doc} {
+      allow read: if true;
+      allow write: if request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2";
+    }
+
+match /kakiapp_users/{uid} { allow read: if request.auth != null && (request.auth.uid == uid || isAdmin()); allow delete: if isAdmin(); allow create, update: if request.auth != null && (isAdmin() || (request.auth.uid == uid && userWriteOk())); }
+// 2026-11-16 抜け穴①（masa 🇦「ポイント交換はサーバーで確定する形にする」）: 交換の記録 kakiapp_redeems/{id} = { uid, pts, name, code, at }
+//   作れるのは本人だけ。同じ書き込み（トランザクション）の中で、会員データの points がちょうど pts 減り、会員データの lastRedeem がこの id になっているときだけ
+//   ＝「残高は減っていないのに交換の記録だけ作る」「1回の減算で記録を2つ作る」はできない。at はサーバー時刻。書き換え不可。読めるのは本人と運営、消せるのは運営だけ
+//   アプリ（auth.js の kakiRedeem）は、この書き込みがサーバーに届いたのを確かめてから 4けたのコードを画面に出す
+match /kakiapp_redeems/{id} {
+  allow read: if request.auth != null && (isAdmin() || resource == null || resource.data.uid == request.auth.uid);
+  allow create: if request.auth != null
+    && request.resource.data.keys().hasOnly(["uid", "pts", "name", "code", "at"])
+    && request.resource.data.uid == request.auth.uid
+    && request.resource.data.pts is int && request.resource.data.pts > 0
+    && request.resource.data.name is string && request.resource.data.name.size() <= 60
+    && request.resource.data.code is string && request.resource.data.code.matches("^[0-9]{4}$")
+    && request.resource.data.at == request.time
+    && exists(userDoc(request.auth.uid))
+    && getAfter(userDoc(request.auth.uid)).data.lastRedeem == id
+    && getAfter(userDoc(request.auth.uid)).data.points == get(userDoc(request.auth.uid)).data.points - request.resource.data.pts;
+  allow update: if false;
+  allow delete: if isAdmin();
+}
+match /kakiapp_campaigns/{doc} { allow read: if true; allow write: if request.auth != null && request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"; }
+match /kakiapp_teams/{doc} { allow read: if request.auth != null; allow create: if request.auth != null && !teamEntryClosed() && request.resource.data.name is string && request.resource.data.name.size() <= 40 && request.resource.data.norm is string && request.resource.data.members == 1 && request.resource.data.get("visits", {}) == {} && request.resource.data.get("visitsTotal", 0) == 0 && !request.resource.data.keys().hasAny(["days", "visitsByStore"]); allow update: if request.auth != null && (request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2" || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(["members", "visits", "visitsByStore", "days", "visitsTotal"]) && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["visits", "visitsByStore", "days", "visitsTotal"]) || teamVisitOk(doc)) && request.resource.data.visitsTotal <= resource.data.visitsTotal + 1 && request.resource.data.members <= resource.data.members + 1 && !(request.resource.data.members > resource.data.members && teamEntryClosed()) && request.resource.data.members >= resource.data.members - 1 && (!("visits" in request.resource.data.diff(resource.data).affectedKeys()) || (request.resource.data.visits.diff(resource.data.get("visits", {})).affectedKeys().hasOnly([string((request.time + duration.value(9, 'h')).year()) + "-" + ((request.time + duration.value(9, 'h')).month() < 10 ? "0" : "") + string((request.time + duration.value(9, 'h')).month())]) && request.resource.data.visits[string((request.time + duration.value(9, 'h')).year()) + "-" + ((request.time + duration.value(9, 'h')).month() < 10 ? "0" : "") + string((request.time + duration.value(9, 'h')).month())] <= resource.data.get("visits", {}).get(string((request.time + duration.value(9, 'h')).year()) + "-" + ((request.time + duration.value(9, 'h')).month() < 10 ? "0" : "") + string((request.time + duration.value(9, 'h')).month()), 0) + 1)) && (!("days" in request.resource.data.diff(resource.data).affectedKeys()) || request.resource.data.days.diff(resource.data.get("days", {})).affectedKeys().size() <= 1) && (!("visitsByStore" in request.resource.data.diff(resource.data).affectedKeys()) || request.resource.data.visitsByStore.diff(resource.data.get("visitsByStore", {})).affectedKeys().hasOnly([string((request.time + duration.value(9, 'h')).year()) + "-" + ((request.time + duration.value(9, 'h')).month() < 10 ? "0" : "") + string((request.time + duration.value(9, 'h')).month())])))); allow delete: if request.auth != null && request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"; }
+// 2026-10-08 友だち紹介キャンペーン（案・未公開）: 紹介コードの引き当て表（本人が作るだけ・誰でも読める・書き換え/削除なし）
+match /kakiapp_refcodes/{code} { allow read: if true; allow create: if request.auth != null && request.auth.uid == request.resource.data.uid && request.resource.data.keys().hasOnly(["uid", "createdAt"]); allow update, delete: if false; }
+// 紹介の記録 doc id＝紹介された人の uid（1人1回）。読めるのは紹介した人・された人だけ。作るのは紹介された本人（自分以外を紹介者に・pending で）。
+// 変更は紹介された本人が pending→qualified にするだけ（qualifiedAt 以外は変えられない）。期限＝2026-10-31 日本時間いっぱい（= 2026-10-31 15:00 UTC）。config.js の referral.until と揃える
+match /kakiapp_referrals/{refereeId} { allow read: if request.auth != null && (resource == null || request.auth.uid == resource.data.referrer || request.auth.uid == resource.data.referee); allow create: if request.auth != null && request.auth.uid == refereeId && request.resource.data.referee == refereeId && request.resource.data.referrer is string && request.resource.data.referrer != refereeId && request.resource.data.status == "pending" && request.resource.data.keys().hasOnly(["referrer", "referee", "code", "createdAt", "status"]) && request.time < timestamp.date(2026, 10, 31) + duration.value(15, 'h'); allow update: if request.auth != null && request.auth.uid == refereeId && resource.data.referee == refereeId && resource.data.status == "pending" && request.resource.data.status == "qualified" && changed().hasOnly(["status", "qualifiedAt"]) && request.time < timestamp.date(2026, 10, 31) + duration.value(15, 'h'); allow delete: if false; }
+// Googleマップ口コミ案内の集計（2026-11-15）: 月ごとの合計だけ。1回の書き込みで1項目を+1（誰が押したかは持たない）。読めるのは運営だけ
+match /kakiapp_review_stats/{ym} { allow read: if request.auth != null && request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"; allow create, update: if request.auth != null && request.resource.data.diff(resource == null ? {} : resource.data).affectedKeys().size() == 1 && request.resource.data.keys().hasOnly(["a_shown_v1_nagaoka", "a_shown_v1_sendai", "a_shown_v2_nagaoka", "a_shown_v2_sendai", "a_shown_v3_nagaoka", "a_shown_v3_sendai", "a_write_v1_nagaoka", "a_write_v1_sendai", "a_write_v2_nagaoka", "a_write_v2_sendai", "a_write_v3_nagaoka", "a_write_v3_sendai", "a_done_v1_nagaoka", "a_done_v1_sendai", "a_done_v2_nagaoka", "a_done_v2_sendai", "a_done_v3_nagaoka", "a_done_v3_sendai", "a_later_v1_nagaoka", "a_later_v1_sendai", "a_later_v2_nagaoka", "a_later_v2_sendai", "a_later_v3_nagaoka", "a_later_v3_sendai", "b_shown_v1_nagaoka", "b_shown_v1_sendai", "b_shown_v2_nagaoka", "b_shown_v2_sendai", "b_shown_v3_nagaoka", "b_shown_v3_sendai", "b_tap_v1_nagaoka", "b_tap_v1_sendai", "b_tap_v2_nagaoka", "b_tap_v2_sendai", "b_tap_v3_nagaoka", "b_tap_v3_sendai"]); }
+match /kakiapp_settings/{doc} { allow read: if true; allow write: if request.auth != null && request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"; }
+// 2026-11-11 店内QR（抜き打ち）の設定 kakiapp_qr/config＝{ salt, spotMax, spot }。読める・書けるのは運営だけ（利用者は salt を読めない＝当たり日を前もって計算できない）
+match /kakiapp_qr/{d} { allow read, delete: if isAdmin(); allow create, update: if isAdmin() && d == "config" && request.resource.data.salt is string && request.resource.data.salt.size() >= 16 && request.resource.data.spotMax is string && request.resource.data.spotMax.matches("^[0-9A-F]{8}$"); }
+// 問い合わせ用（doc は作らない・読むだけ）: 今日 QR が要るか（本人だけ）。読めた＝はい／拒否＝いいえ
+match /kakiapp_qrcheck/{u} { allow get: if request.auth != null && request.auth.uid == u && ((exists(userDoc(u)) && get(userDoc(u)).data.get("qrRequired", false) == true) || qrSpot(jstDate())); allow list, write: if false; }
+match /kakiapp_seasons/{doc} { allow read: if request.auth != null; allow write: if request.auth != null && request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"; }
+// 2026-10-09 プッシュ通知（案・未公開）: 端末の FCM トークンの控え。doc id＝本人の uid。書けるのは本人の1件だけ（決まった項目・形のみ）。読めるのは本人と運営（admin の「通知ONの端末」の数）
+match /kakiapp_push_tokens/{uid} { allow read: if request.auth != null && (request.auth.uid == uid || request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"); allow create, update: if request.auth != null && request.auth.uid == uid && request.resource.data.keys().hasOnly(["token", "platform", "enabled", "topics", "updatedAt"]) && request.resource.data.token is string && request.resource.data.token.size() <= 4096 && request.resource.data.enabled is bool && request.resource.data.platform in ["ios", "android", "web", "unknown"] && request.resource.data.topics is list && request.resource.data.topics.size() <= 5 && request.resource.data.updatedAt is string; allow delete: if request.auth != null && (request.auth.uid == uid || request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"); }
+    match /kakiapp_board_blocks/{uid} { allow read, delete: if request.auth != null && request.auth.uid == uid; allow create, update: if request.auth != null && request.auth.uid == uid && request.resource.data.keys().hasOnly(["list", "updatedAt"]) && request.resource.data.list is list && request.resource.data.list.size() <= 500 && request.resource.data.updatedAt is string; }
+// 2026-10-09 プッシュ通知の下書き（案・未公開）: admin.html で運営だけが作る・読む・消す。送信はサービスアカウント（scripts/push_send.mjs）＝ルールの外で status:"sent" を付ける
+match /kakiapp_push_requests/{doc} { allow read, write: if request.auth != null && request.auth.uid == "KtFyiOuMs6VcCguSKKFjLP4PUgg2"; }
+// 2026-10-08 みんなの一杯（写真の掲示板・案・未公開）。投稿 doc id＝「uid_日付（日本時間）」＝1人1日1件。投稿できるのは会員データの qrDate が今日（＝来店チェックインした日）の本人だけ。
+// 文字（text）は30文字まで（config.js の board.maxChars と揃える）。♥ と通報は likes/{uid}・reports/{uid} の作成（♥ は削除も）と数の ±1 を同じ batch でしか変えられない。運営は何でも直せる・消せる
+match /kakiapp_board/{postId} {
+  allow read: if request.auth != null;
+  allow create: if request.auth != null
+    && postId == request.auth.uid + "_" + jstDate()
+    && request.resource.data.keys().hasOnly(["uid", "name", "text", "shop", "img", "createdAt", "day", "likes", "reports", "hidden", "igOk"])
+    && request.resource.data.uid == request.auth.uid
+    && request.resource.data.day == jstDate()
+    && request.resource.data.text is string && request.resource.data.text.size() <= 30
+    && request.resource.data.name is string && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 20
+    && request.resource.data.shop in ["nagaoka", "sendai"]
+    && request.resource.data.img == "doc"
+    && request.resource.data.createdAt is string
+    && request.resource.data.likes == 0 && request.resource.data.reports == 0 && request.resource.data.hidden == false
+    && request.resource.data.igOk is bool
+    && get(/databases/$(database)/documents/kakiapp_users/$(request.auth.uid)).data.get("qrDate", "") == jstDate();
+  allow update: if request.auth != null && (isAdmin()
+    || (changed().hasOnly(["likes"])
+        && ((request.resource.data.likes == resource.data.likes + 1 && !exists(boardSub(postId, "likes")) && existsAfter(boardSub(postId, "likes")))
+         || (request.resource.data.likes == resource.data.likes - 1 && exists(boardSub(postId, "likes")) && !existsAfter(boardSub(postId, "likes")))))
+    || (changed().hasOnly(["reports"])
+        && request.resource.data.reports == resource.data.reports + 1 && !exists(boardSub(postId, "reports")) && existsAfter(boardSub(postId, "reports"))));
+  allow delete: if request.auth != null && (resource.data.uid == request.auth.uid || isAdmin());
+  match /likes/{likerId} {
+    allow read: if request.auth != null;
+    allow create: if request.auth != null && likerId == request.auth.uid
+      && request.resource.data.keys().hasOnly(["uid", "at"]) && request.resource.data.uid == likerId
+      && getAfter(boardDoc(postId)).data.likes == get(boardDoc(postId)).data.likes + 1;
+    allow delete: if request.auth != null && likerId == request.auth.uid
+      && existsAfter(boardDoc(postId)) && getAfter(boardDoc(postId)).data.likes == get(boardDoc(postId)).data.likes - 1;
+    allow update: if false;
+  }
+  match /reports/{reporterId} {
+    allow read: if request.auth != null && (reporterId == request.auth.uid || isAdmin());
+    allow create: if request.auth != null && reporterId == request.auth.uid
+      && request.resource.data.keys().hasOnly(["uid", "at"]) && request.resource.data.uid == reporterId
+      && getAfter(boardDoc(postId)).data.reports == get(boardDoc(postId)).data.reports + 1;
+    allow update: if false;
+    allow delete: if isAdmin();
+  }
+}
+// 写真（Storage 未設定のため data URL を別 doc に）。投稿と同じ batch で本人が作るだけ（あとから差し替え不可）。jpeg の data URL・90万文字未満
+match /kakiapp_board_img/{postId} {
+  allow read: if request.auth != null;
+  allow create: if request.auth != null
+    && request.resource.data.keys().hasOnly(["uid", "data", "createdAt"])
+    && request.resource.data.uid == request.auth.uid
+    && request.resource.data.data is string && request.resource.data.data.size() < 900000
+    && request.resource.data.data.matches("^data:image/jpeg;base64,.*")
+    && !exists(boardDoc(postId)) && existsAfter(boardDoc(postId)) && getAfter(boardDoc(postId)).data.uid == request.auth.uid;
+  allow update: if false;
+  allow delete: if request.auth != null && (resource.data.uid == request.auth.uid || isAdmin());
+}
+match /sugoroku_players/{uid} { allow read: if request.auth != null; allow write: if request.auth != null && request.auth.uid == uid; }
+match /sugoroku_props/{doc} { allow read: if request.auth != null; allow create: if request.auth != null && request.resource.data.owner == request.auth.uid; allow update: if request.auth != null && resource.data.owner in [null, request.auth.uid] && request.resource.data.owner == request.auth.uid; allow delete: if request.auth != null && resource.data.owner == request.auth.uid; }
+match /sugoroku_games/{doc} { allow read, write: if request.auth != null; }
+
+match /sugoroku_matches/{matchId} { allow read: if request.auth != null && request.auth.uid in resource.data.participantUids; allow write: if false;
+  match /hands/{seatId} { allow read: if request.auth != null && request.auth.uid == resource.data.uid; allow write: if false; }
+  match /actions/{actionId} { allow read: if request.auth != null && request.auth.uid == resource.data.actorUid; allow write: if false; }
+  match /events/{rev} { allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/sugoroku_matches/$(matchId)).data.participantUids; allow write: if false; }
+  match /serverState/{doc} { allow read, write: if false; }
+  match /jobs/{doc} { allow read, write: if false; } }
+match /sugoroku_requests/{uid}/{document=**} { allow read, write: if false; }
+  // 2026-10-15 講演会用「空中戦メーター」（masa 🇦 公開OK）: スマホが自分の端末の累計タップ数だけ書く。ログイン不要。他のデータには触れない
+match /kuuchuusen/{room}/phones/{cid} {
+  allow read: if room.matches('^[a-z0-9-]{4,40}$');
+  allow create, update: if room.matches('^[a-z0-9-]{4,40}$') && cid.matches('^[a-z0-9]{12,32}$')
+    && request.resource.data.keys().hasOnly(['n', 't'])
+    && request.resource.data.n is int && request.resource.data.n >= 0 && request.resource.data.n <= 100000
+    && request.resource.data.t == request.time
+    && (resource == null || request.resource.data.n >= resource.data.n);
+  allow delete: if false;
+}
+  }
+}

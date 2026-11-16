@@ -11,7 +11,7 @@ import {
   RecaptchaVerifier, signInWithPhoneNumber, linkWithPhoneNumber,
   PhoneAuthProvider, linkWithCredential
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { initializeFirestore, doc, getDoc, getDocFromServer, setDoc, deleteDoc, collection, getDocs, addDoc, updateDoc, increment, deleteField, query, where, orderBy, limit, startAfter, writeBatch, runTransaction, getCountFromServer } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, getDocFromServer, setDoc, deleteDoc, collection, getDocs, addDoc, updateDoc, increment, deleteField, query, where, orderBy, limit, startAfter, writeBatch, runTransaction, getCountFromServer, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const app = initializeApp({
   apiKey: "AIzaSyDtDZIEQtBzjujnpTDcXt1QeEU2r-wbg74",
@@ -197,7 +197,18 @@ async function pull(u) {
     }
   } else {
     /* 初回。ログイン前にこの端末で貯めていた分をそのまま引き継ぐ */
-    await write();
+    try { await write(); }
+    catch (e) {
+      /* 2026-11-16（ポイントの抜け穴ふさぎ）: ルールは新規作成も「空のデータからの変更」として検査する（作成時の大きなポイント・来店数を通さない）。
+         端末に前の人／消されたアカウントの状態が残っていると拒否されて先へ進めないので、端末の状態を空にして作り直す（お知らせメールの同意だけ残す） */
+      if (!isDenied(errCode(e))) throw e;
+      const old = window.kakiGetState(), fresh = {};
+      ["mailOptIn", "mailOptInAt", "devMode", "devSkipGeo"].forEach(k => { if (old[k] !== undefined) fresh[k] = old[k]; });
+      logErr("save", "最初の保存が拒否されたため、端末に残っていた状態を空にして作り直します");
+      savePending(null);
+      window.kakiSetState(fresh);
+      await write();
+    }
   }
 }
 /* 本体（kakiStart）が動き出した直後に呼ぶ: 控えを送り直す／重複を除いた履歴を送る */
@@ -350,6 +361,83 @@ window.cloudPush = function () {
   timer = setTimeout(() => flushSave(0), 700);
 };
 /* ==== SYNC-CORE-END ==== */
+
+/* ---- 交換（引換券）をサーバーで確定する（2026-11-16 masa 🇦「ポイント交換はサーバーで確定する形にする」）----
+   前は端末の中だけでポイントを減らして引換券を出していた＝電波を切って交換→ログアウト→ログインで残高が戻った。
+   → 引換券を出す前に、1つのトランザクションで「会員データの points を減らす＋交換の記録 kakiapp_redeems/{id} を作る」をサーバーへ書き、届いたのを確かめる。
+     ルールは「記録を作るなら、同じ書き込みで points がちょうどその分減っている・lastRedeem がその id」のときだけ通す（firestore.rules の kakiapp_redeems）。
+   ・残高はサーバーの値で確かめる（端末の値は信用しない）。足りなければ redeem/short
+   ・電波が無い・届いたか分からないときは引換券を出さない。「実は届いていた」場合に備えて、送ろうとした中身を端末に控え（kakiapp_redeem_try）、
+     次に「つかう」を開いたとき・起動時に記録の有無をサーバーに聞き、あれば（発行から10分以内なら）引換券を出す＝ポイントだけ減って引換券が出ない、を防ぐ
+   ・保存の列（writeChain）に並べて走らせる＝ふだんの保存と重ならない。届いたら端末の points・履歴・差分マージの基準（cloudBase・控えの base）を同じだけ動かす */
+const REDEEM_TRY_KEY = "kakiapp_redeem_try";
+const REDEEM_TTL_MS = 600000;   /* 引換券を出している時間（index.html の表示と同じ 10分） */
+const redeemErr = (code, extra) => Object.assign(new Error(code), { code }, extra || {});
+function redeemTry() { try { const r = JSON.parse(localStorage.getItem(REDEEM_TRY_KEY) || "null"); return r && typeof r === "object" && r.uid === uid && r.id ? r : null; } catch (_) { return null; } }
+function redeemTrySave(r) { try { if (r) localStorage.setItem(REDEEM_TRY_KEY, JSON.stringify(r)); else localStorage.removeItem(REDEEM_TRY_KEY); } catch (_) {} }
+function redeemShowState(rec) { const cur = window.kakiGetState(); cur.redeem = { code: rec.code, name: rec.name, pts: rec.pts, at: rec.at }; window.kakiSetState(cur); }
+async function redeemTx(rec) {
+  const ref = doc(db, "kakiapp_users", uid), rref = doc(db, "kakiapp_redeems", rec.id), now = new Date().toISOString();
+  const row = { d: now.slice(0, 16).replace("T", " "), label: "お店で交換 " + rec.name + "（" + rec.code + "）", points: -rec.pts };
+  await withTimeout(runTransaction(db, async tx => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw redeemErr("redeem/nodoc");
+    const d = snap.data(), have = Number(d.points) || 0;
+    if (have < rec.pts) throw redeemErr("redeem/short", { have });
+    tx.set(ref, { points: have - rec.pts, tx: unionTx([row], Array.isArray(d.tx) ? d.tx : []), lastRedeem: rec.id, updatedAt: now }, { merge: true });
+    tx.set(rref, { uid, pts: rec.pts, name: rec.name, code: rec.code, at: serverTimestamp() });
+  }), 15000, "redeem");
+  /* 届いた。端末も同じだけ動かす（points は端末の値から引く＝未送信の加点があっても差分はそのまま残る） */
+  const cur = window.kakiGetState();
+  cur.points = Math.max(0, (Number(cur.points) || 0) - rec.pts);
+  cur.tx = unionTx([row], cur.tx);
+  cur.redeem = { code: rec.code, name: rec.name, pts: rec.pts, at: rec.at };
+  window.kakiSetState(cur);
+  if (cloudBase) cloudBase = { points: cloudBase.points - rec.pts, updatedAt: now };
+  const p = readPending(); if (p && p.uid === uid && typeof p.base === "number") { p.base -= rec.pts; p.tries = []; savePending(p); }
+  redeemTrySave(null);
+}
+/* 控えの交換がサーバーに届いていたか確かめる。届いていたら端末を合わせて（ふだんの保存の差分マージで points・履歴が揃う）、10分以内なら引換券の中身を返す */
+async function redeemRecover() {
+  const rec = redeemTry();
+  if (!rec || !uid || !auth.currentUser) return null;
+  let snap;
+  try { snap = await withTimeout(getDocFromServer(doc(db, "kakiapp_redeems", rec.id)), 8000, "redeemCheck"); }
+  catch (e) { logErr("redeem", "check " + errCode(e)); return null; }   /* 聞けなかった＝控えは残して次回 */
+  if (!snap.exists()) { if (Date.now() - rec.at > REDEEM_TTL_MS) redeemTrySave(null); return null; }   /* 届いていない。遅れて届くことがあるので 10分は控えを残す */
+  try { clearTimeout(timer); await write(); } catch (e) { logErr("redeem", "resync " + errCode(e)); }
+  redeemTrySave(null);
+  if (Date.now() - rec.at >= REDEEM_TTL_MS) return null;
+  redeemShowState(rec);
+  return rec;
+}
+window.kakiRedeem = {
+  /* 交換する。成功＝サーバーに届いた（端末の state.redeem に引換券の中身が入る）。失敗は code で分ける:
+     redeem/net＝通信できない（交換していない）／redeem/short＝サーバーの残高が足りない（have）／redeem/unknown＝届いたか確認できなかった（次に開いたとき確かめる） */
+  commit: async ({ pts, name, code }) => {
+    if (!uid || !auth.currentUser || !ready) throw redeemErr("redeem/net");
+    pts = Math.floor(Number(pts));
+    if (!(pts > 0) || !/^[0-9]{4}$/.test(String(code))) throw redeemErr("redeem/bad");
+    const before = await redeemRecover();   /* 前の交換が実は届いていたら、そちらの引換券を出す（二重に引かない） */
+    if (before) return before;
+    if ((Number(window.kakiGetState().points) || 0) < pts) throw redeemErr("redeem/short", { have: Number(window.kakiGetState().points) || 0 });
+    /* 未送信の分を先に送る。通信の失敗＝交換しない。拒否（その日の来店が通らない等）は交換と関係ないので、サーバーの残高で続ける */
+    clearTimeout(timer);
+    try { await write(); } catch (e) { const c = errCode(e); logErr("redeem", "flush " + c); if (!isDenied(c)) throw redeemErr("redeem/net"); }
+    const rec = { uid, id: uid + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), pts, name: String(name || "").slice(0, 60), code: String(code), at: Date.now() };
+    redeemTrySave(rec);
+    try { await chained(() => redeemTx(rec)); return rec; }
+    catch (e) {
+      const c = errCode(e);
+      logErr("redeem", c);
+      if (c === "redeem/short" || c === "redeem/nodoc" || isDenied(c)) { redeemTrySave(null); throw (c === "redeem/short" ? e : redeemErr("redeem/net")); }   /* サーバーが断った＝届いていない */
+      const late = await redeemRecover();   /* 時間切れ・通信エラー: 実は届いていることがある */
+      if (late) return late;
+      throw redeemErr(redeemTry() ? "redeem/unknown" : "redeem/net");
+    }
+  },
+  recover: redeemRecover,
+};
 
 /* ---- SMS（電話番号）認証・試作（?sms=1 のときだけ入口を出す） ---- */
 const SMS_ON = true;   /* 2026-09-11 masa「出して」: 全員に展開（メール登録→電話番号を1回確認→紐付け。1番号1アカウント） */

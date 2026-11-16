@@ -453,8 +453,11 @@
         if (u.awards && u.awards[m] && !(u.awards[m].test && !isTestClose)) { kept++; continue; }   /* 再締めでも配布済みは上書きしない（二重付与防止）。ただし本番の締めはテスト版の award を上書きする */
         const tier = tierOf(u.teamId), isMvp = winners.mvp && u.teamId === winners.mvp; if(!tier && !isMvp) continue;
         const myV = (u.teamVisits && u.teamVisits[m]) || 0; const joined = String(u.teamJoinDay || (u.teamJoinedAt ? new Date(Date.parse(u.teamJoinedAt) + 9*3600e3).toISOString() : "")).slice(0,10);   /* 2026-11-01: 参加日は日本時間（teamJoinDay＝ルールでサーバーの今日を確認済み）。古い会員は teamJoinedAt を日本時間に直して使う */
-        if (myV < 1 || (joined && joined > s.entryUntil)) continue;
-        const lastV = String(u.teamVisitDay || "").slice(0,10); if (!lastV || (joined && lastV < joined)) continue;   /* 2026-11-01 masa 🇦: 学校に入ってからの来店が1回以上（乗り換え前の来店では受け取れない＝勝ち馬に乗る防止） */
+        if (joined && joined > s.entryUntil) continue;
+        /* 2026-11-16（ポイントの抜け穴⑤）: 「その月に、学校に入ってからの来店が1回以上」は、本人が自由に書ける teamVisits／teamVisitDay ではなく、
+           ルールで守られている来店日の一覧 visits（今日の来店チェックインでしか増えない）から数える */
+        const vIn = (Array.isArray(u.visits) ? u.visits : []).filter(v => String(v).slice(0,7) === m && (!joined || String(v).slice(0,10) >= joined)).length;
+        if (vIn < 1) continue;   /* 2026-11-01 masa 🇦: 学校に入ってからの来店が1回以上（乗り換え前の来店では受け取れない＝勝ち馬に乗る防止） */
         const t = rows.find(r => r.id === u.teamId); const useTier = tier || "mvp"; counters[u.teamId] = (counters[u.teamId]||0)+1;
         const pts = isTestClose ? 0 : (tier ? (s.rewards[tier]||0) : 0) + (isMvp ? (s.rewards.mvp||0) : 0);   /* テスト版の締めはポイント 0（カードだけ）＝本番残高を汚さない */
         const award = { month: m, round: s.round, trial: s.trial, tier: useTier, mvpAlso: !!(tier && isMvp), teamId: u.teamId, teamName: t?t.name:"", kind: t?t.kind:"高校", teamVisits: t?t.visits:0, teamMembers: t?t.members:0, myVisits: myV, nick: u.nickname||"", cardNo: counters[u.teamId], points: pts, status: "verified", test: isTestClose, createdAt: closedAt };   /* masa 2026-09-21「学生証チェックはしない・自動で付与」。test:true は本番アプリでは無視される */

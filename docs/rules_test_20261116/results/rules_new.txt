@@ -1,0 +1,234 @@
+OK      通った   L01 新規アカウントの最初の保存（メール・同意だけ）
+OK      通った   L02 新規アカウント: 最初の保存→ログインボーナス+1・使い始めた日
+OK      通った   L03 新規アカウント: 最初の保存にログインボーナス+1 が入っていても通る
+OK      通った   L04 ログインボーナス+1（既存会員）
+OK      通った   L05 毎日ルーレット+10
+OK      通った   L06 来店チェックイン（来店ポイント+10・来店数+1）
+OK      通った   L07 はじめての来店チェックイン（見習い+1・来店数 0→1）
+OK      通った   L08 来店ガチャ+100（来店した日・別の書き込み）
+OK      通った   L09 まとめて1回で保存（来店+10・ガチャ+100・ルーレット+10・ログイン+1）
+OK      通った   L10 未同期の来店2件（きのう＋今日）+20
+OK      通った   L11 ランクアップ 常連 +100（来店5回目のあと）
+OK      通った   L12 ランクアップ 猛者 +150（来店15回）
+OK      通った   L13 ランクアップ 血液が米油 +500（来店200回）
+OK      通った   L14 来店と同じ書き込みでランクアップ（来店+5・常連+100）
+OK      通った   L15 実在キャンペーンの受取 +350（期間内・来店1回以上）
+OK      通った   L16 キャンペーン2件目の受取（前の受取の印を残したまま）+60
+OK      通った   L17 キャンペーン最終日の受取が日付をまたいで届く（終了日＝きのう）
+OK      通った   L18 紹介した側の受取 2人分 +100（成立済みの紹介の記録あり）
+OK      通った   L19 紹介した側の受取 10人分まとめて +500（古い版は溜まった分を1回で送る）
+OK      通った   L20 みんなの一杯: 投稿（写真つき）→ 投稿ポイント+20
+OK      通った   L21 みんなの一杯: 自分の投稿を削除 → ポイントを戻す −20（e9b1717）
+OK      通った   L22 学校対抗: 既存の学校に参加（人数+1 と本人の teamId を同時に）
+OK      通った   L23 学校対抗: 新しい学校を作って参加
+OK      通った   L24 学校対抗: 来店した日の学校+1（本人の teamVisitDay と同じ batch）→ 自分の回数の保存
+OK      通った   L25 学校対抗: 学校を抜ける（人数−1 と teamId の削除を同時に）
+OK      通った   L26 古い版の交換（ポイントを減らすだけ −850・交換の記録なし）
+OK      通った   L27 新しい交換: ポイント −850 と交換の記録を同時に書く → 記録を本人が読める
+OK      通った   L28 新しい交換: まだ無い交換の記録を本人が確かめられる（届いたかの確認用）
+OK      通った   L29 アカウント削除（消せなかったときの上書き: ポイント0・履歴を空に）
+OK      通った   L30 運営（admin）の加算: 学校対抗の報酬 +200 と awards
+OK      通った   L31 ポイントが変わらない保存（お知らせメールの同意・ニックネーム・履歴の整理）
+OK      通った   L32 来店が拒否されたあとの送り直し（来店分を外してルーレット+10 だけ）
+[2026-11-16T06:35:52.753Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f078 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183
+（記録だけ）  弾かれた X01 ありえないほど重い保存: 来店・ガチャ・ルーレット・ログイン・ランクアップ・キャンペーン・紹介3人 を全部1回で（式の上限 1000 を超える＝旧・新とも弾く。ふつうは別々の保存になる）  [permission-denied]
+OK      通った   L39 重い保存: 来店・ガチャ・ルーレット・ログイン・ランクアップ+150・キャンペーン+350 を1回で（旧ルールは式の上限 1000 を超えて弾く・新は通る）
+OK      通った   L40 重い保存: 来店・ガチャ・ルーレット・ログイン・キャンペーン+350・紹介1人+50 を1回で
+OK      通った   L35 大きな会員データ: ログインボーナス+1（履歴も1件増える）
+OK      通った   L36 大きな会員データ: 来店+10（履歴も1件増える）
+OK      通った   L37 大きな会員データ: 来店+10・ガチャ+100・ルーレット+10・ログイン+1 を1回で（履歴4件増える）
+OK      通った   L38 大きな会員データ: 来店200回目＋ランクアップ「血液が米油」+500＋ガチャ+100 を1回で
+OK      通った   L34 運営の印がある人の来店（店内QRを読んだ印 qrTok つき）
+[2026-11-16T06:35:52.939Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f088 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた K09 運営の印がある人の、店内QRを読んでいない来店  [permission-denied]
+[2026-11-16T06:35:52.949Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f089 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'create' @ L183
+OK      弾かれた H01 ❌2 新規アカウント作成でいきなり 1000P  [permission-denied]
+[2026-11-16T06:35:52.960Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f08a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'create' @ L183
+OK      弾かれた H02 ❌2 新規アカウント作成で来店200件（営業時間中・lastStore つき）  [permission-denied]
+[2026-11-16T06:35:52.970Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f08b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'create' @ L183
+OK      弾かれた H03 ❌2 新規アカウント作成でランク受取の印＋500P  [permission-denied]
+[2026-11-16T06:35:52.987Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f08d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた H04 ❌2 常連（来店5回）のランクアップで 500P（本来 100）  [permission-denied]
+[2026-11-16T06:35:53.007Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f08f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, Service call error. Function: [get], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "kakiapp_campaigns"
+  }
+  segments {
+    simple: "fakeu046xjrj6u1"
+  }
+}
+]. for 'update' @ L183
+OK      弾かれた H05 ❌3 実在しないキャンペーンの受取 +500  [permission-denied]
+[2026-11-16T06:35:53.026Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f091 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた H06 ❌3 実在キャンペーン（60P）で 500P 受け取る  [permission-denied]
+[2026-11-16T06:35:53.047Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f093 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた H07 ❌3 とっくに終わったキャンペーン（10/13 まで）の受取  [permission-denied]
+[2026-11-16T06:35:53.066Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f095 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた H08 ❌3 停止中のキャンペーンの受取  [permission-denied]
+[2026-11-16T06:35:53.084Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f097 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた H09 ❌3 来店回数の条件（3回以上）を満たさない受取  [permission-denied]
+[2026-11-16T06:35:53.103Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f099 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, Service call error. Function: [get], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "kakiapp_referrals"
+  }
+  segments {
+    simple: "nobodyu051x3avqax"
+  }
+}
+]. for 'update' @ L183
+OK      弾かれた H10 ❌4 紹介していないのに紹介の受取 +50（記録なし）  [permission-denied]
+[2026-11-16T06:35:53.121Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f09b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた H11 ❌4 他人が紹介した記録で受取 +50  [permission-denied]
+[2026-11-16T06:35:53.139Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f09d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた H12 ❌4 まだ成立していない（pending）紹介で受取 +50  [permission-denied]
+[2026-11-16T06:35:53.167Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f09f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, Service call error. Function: [get], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "kakiapp_referrals"
+  }
+  segments {
+    simple: "fake0u054xr9x7ab"
+  }
+}
+]. for 'update' @ L183
+OK      弾かれた H13 ❌4 本物1件に偽物9件をまぜて +500  [permission-denied]
+[2026-11-16T06:35:53.183Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0a1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた H14 ❌5 来店していない日のガチャ +100  [permission-denied]
+[2026-11-16T06:35:53.200Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0a3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた H15 ❌5 投稿していないのに投稿ポイント +20（来店はした日）  [permission-denied]
+[2026-11-16T06:35:53.216Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0a5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた H16 ❌5 来店も投稿もなしで 1日 131P（ルーレット10・ログイン1・ガチャ100・投稿20）  [permission-denied]
+[2026-11-16T06:35:53.237Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0a7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, evaluation error at L204:474 for 'update' @ L204, false for 'update' @ L183
+OK      弾かれた H17 ❌6 来店していない日に学校の来店+1（teamVisitDay と同じ batch）  [permission-denied]
+[2026-11-16T06:35:53.257Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0a9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた H18 ❌6 来店していない日に自分の teamVisitDay・teamVisits だけ書く（賞の対象の自己申告）  [permission-denied]
+[2026-11-16T06:35:53.274Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0ab error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L204, evaluation error at L204:474 for 'update' @ L204, false for 'create' @ L204
+OK      弾かれた H20 ❌6 学校を新しく作るときに来店数 9999 を最初から入れておく  [permission-denied]
+[2026-11-16T06:35:53.291Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0ad error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた H19 ⚠7 来店1件で来店ポイント +20（本来は最大 10）  [permission-denied]
+OK      通った   F01 受取の印が10件ある長年の会員の、11件目の正しいキャンペーン受取（旧ルールは10件で頭打ち＝弾く・新は通る）
+[2026-11-16T06:35:53.331Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0b1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L190:20 for 'create' @ L190, false for 'update' @ L200, false for 'create' @ L190
+OK      弾かれた D01 ❌1 残高を減らさずに交換の記録だけ作る  [permission-denied]
+[2026-11-16T06:35:53.352Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0b3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, evaluation error at L190:20 for 'create' @ L190, false for 'update' @ L200, evaluation error at L190:20 for 'create' @ L190, false for 'update' @ L200, false for 'create' @ L190, false for 'update' @ L183, false for 'create' @ L190
+OK      弾かれた D02 ❌1 1回の減算（−850）で交換の記録を2つ作る  [permission-denied]
+[2026-11-16T06:35:53.373Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0b5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, evaluation error at L190:20 for 'create' @ L190, false for 'update' @ L200, false for 'create' @ L190
+OK      弾かれた D03 ❌1 50P しか減らさずに 850P 分の交換の記録を作る  [permission-denied]
+[2026-11-16T06:35:53.396Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0b8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, evaluation error at L190:20 for 'create' @ L190, false for 'update' @ L200, false for 'update' @ L183, false for 'create' @ L190
+OK      弾かれた D04 ❌1 他人の名前で交換の記録を作る／他人の交換の記録を読む  [permission-denied]
+[2026-11-16T06:35:53.411Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0ba error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L200
+[2026-11-16T06:35:53.414Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0bb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L201
+OK      弾かれた D05 ❌1 交換の記録を書き換える・消す（本人）  [permission-denied]
+[2026-11-16T06:35:53.432Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0bd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた K01 同じ日の2回目のルーレット（rouletteDate が今日のまま +10）  [permission-denied]
+[2026-11-16T06:35:53.449Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0bf error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた K02 理由なしでポイントを増やす +50  [permission-denied]
+[2026-11-16T06:35:53.470Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0c1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた K03 来店数が足りないランクアップ（来店3回で常連）  [permission-denied]
+[2026-11-16T06:35:53.486Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0c3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L183, false for 'update' @ L183
+OK      弾かれた K04 他人の会員データを書く  [permission-denied]
+[2026-11-16T06:35:53.502Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0c5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた K05 本人が awards・qrRequired を書く  [permission-denied]
+[2026-11-16T06:35:53.520Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0c7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた K06 受け取りの印を消して取り直す（rankBonus を空に）  [permission-denied]
+[2026-11-16T06:35:53.536Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0c9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた K07 営業時間外・店の指定なしの来店（lastStore なし）  [permission-denied]
+[2026-11-16T06:35:53.553Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0cb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L227:20 for 'create' @ L227, evaluation error at L240:20 for 'update' @ L240, evaluation error at L268:20 for 'create' @ L268, false for 'update' @ L274, false for 'create' @ L227
+OK      弾かれた K08 来店していない日のみんなの一杯の投稿  [permission-denied]
+[2026-11-16T06:35:53.572Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0cd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた K10 1日1回の日付を消して取り直す準備（rouletteDate を消す）  [permission-denied]
+[2026-11-16T06:35:53.591Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0cf error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた K11 日付を「あした」にしてログインボーナス+1  [permission-denied]
+[2026-11-16T06:35:53.610Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0d1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた K12 日付を「きのう」に書き換える（gachaDate・ポイントは変えない）  [permission-denied]
+[2026-11-16T06:35:53.627Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0d3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた K13 日付の項目に文字でない値を入れる（qrDate: 1）  [permission-denied]
+[2026-11-16T06:35:53.637Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0d4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'create' @ L183
+OK      弾かれた K14 新規アカウント作成で、きのうの日付つき（loginDate がきのう・+1）  [permission-denied]
+[2026-11-16T06:35:53.656Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0d6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた K15 知らないランク名で受取の印（rankBonus に legend）  [permission-denied]
+[2026-11-16T06:35:53.675Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0d8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた K16 ランクアップを1回で2段（silver と gold を同時に）  [permission-denied]
+[2026-11-16T06:35:53.691Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0da error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた K17 受取の印（claimed）の古いキーを消す  [permission-denied]
+[2026-11-16T06:35:53.708Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5342f0dc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+OK      弾かれた K18 紹介の受取の印（refClaimed）の古いキーを消す  [permission-denied]
+
+==== new（営業時間内・エントリー受付中の写し） firestore_rules_fix_20261116.rules ====
+正しい操作: 通った 36 ／ 弾かれた 0
+新しい交換（新ルールだけで通る）: 通った 2 ／ 弾かれた 0
+穴の操作: 通った 0 ／ 弾かれた 20
+前から守るもの・交換の記録の穴: 通った 0 ／ 弾かれた 23
+旧ルールの不具合で弾かれていた正しい操作: 通った 2 ／ 弾かれた 0
+式の上限の記録（判定しない）: 通った 0 ／ 弾かれた 1
+時刻に依るため飛ばした: 0 ／ 期待と違う: 0

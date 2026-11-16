@@ -1,0 +1,23 @@
+■ 学校の参加・抜ける・削除（../tmp_entryopen_firestore_rules_fix_20261116.rules）
+  OK   抜ける: 学校の人数 3→2（2）
+  OK   抜ける: クラウドの teamId／team／teamJoinedAt が消える（次の起動で参加中に戻らない）
+  OK   抜ける: ほかの項目（日付・teamVisitDay・ポイント）はそのまま
+  OK   抜ける: 端末の teamId も消える
+  OK   もう一度抜けても（クラウドに teamId が無いので）人数は減らない（2）
+  OK   乗り換え: A 2→1・B 5→6・本人 teamId=B（同時）
+  OK   乗り換え: 端末も B
+  OK   同じ学校にもう一度参加しても人数は増えない（6）
+  OK   新しい学校: 作成（1人）と本人の teamId が同時に入る
+  OK   統合元に残っていた人が抜ける: 統合先 6→5・統合元 0 のまま
+  OK   人数 0 の学校: 0 のまま・teamId は消える
+  OK   削除: 端末に teamId が無くてもクラウドの D を 4→3（3）
+[2026-11-16T06:37:46.795Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x31393a52 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L183
+  OK   削除: 本人による会員データの delete は今のルールでは拒否（isAdmin のみ）
+[2026-11-16T06:37:46.800Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x31393a53 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L183, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L183, false for 'update' @ L183
+  OK   削除: 直す前の置き換え set（日付の項目を消す）はルールに拒否される
+  OK   削除: 直した merge の上書きは通る（ポイント0・履歴・メール・ニックネーム・学校を消す）
+  OK   参加直後の今日の+1 がルールを通る（members 2・visitsTotal 1）
+
+結果: OK 16 / NG 0
