@@ -2024,9 +2024,18 @@ async function bdAct(act, id) {
       try { await B.setBlocks(Array.from(BD_BLOCKED)); } catch (e) { console.error("board block", e); }   /* 保存に失敗しても端末には控えてある */
       window.kakiAlert("ブロックしました。この人の投稿は表示されません。");
     } else if (act === "del") {
-      const ok = await window.kakiConfirm("この投稿を削除します。元に戻せません。\n（今日の投稿はこれで終わりです。ポイントはそのまま）", { okText: "削除する", danger: true });
+      /* 2026-11-16 masa 🇦「消したらその日の投稿のポイントも引く」: 自分の投稿（15P 制の 11/14 以降）を消すと 15P＋インスタOKの 5P を戻す。0P より下にはしない */
+      const mine = window.kakiBoard && p.uid === window.kakiBoard.uid();
+      const back = mine && p.day && p.day >= "2026-11-14" ? BC.points + (p.igOk ? BC.igBonus : 0) : 0;
+      const ok = await window.kakiConfirm(back
+        ? "この投稿を削除します。元に戻せません。\n（この投稿でもらった " + back + "P も戻ります。その日の投稿はこれで終わりです）"
+        : "この投稿を削除します。元に戻せません。\n（その日の投稿はこれで終わりです）", { okText: "削除する", danger: true });
       if (!ok) return;
       await B.remove(id); BD_ITEMS = BD_ITEMS.filter(x => x.id !== id); bdRender();
+      if (back) {
+        const take = Math.min(back, store.s.points || 0);
+        if (take > 0) { store.set({ points: (store.s.points || 0) - take }); logTx("みんなの一杯 投稿の削除（ポイントを戻す）", -take); }
+      }
     }
   } catch (e) { console.error("board " + act, e); window.kakiAlert("うまくいきませんでした。電波の良い所でもう一度お試しください。"); }
   finally { BD_BUSY = false; }
