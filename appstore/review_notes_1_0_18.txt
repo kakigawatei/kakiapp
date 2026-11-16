@@ -1,0 +1,9 @@
+[Version 1.0.18 — build 32]
+
+- Change: on the in-app photo board ("みんなの一杯"), when users delete their own post, the points they received for that post (15, plus 5 if they allowed the shop to feature it on Instagram) are taken back. The delete confirmation dialog says this before deleting. Points never go below zero.
+- No other changes from 1.0.17 (the optional Google Maps review prompt after posting, saving the posted photo via the share sheet, and post-count badges are unchanged).
+
+Demo account (same as before): kakigawatei+appreview@gmail.com / (password: see private file, not in repo)
+Phone verification (unchanged): test number 080-0000-0001, code 246810 — no real SMS is sent.
+
+Please do not delete the demo account during review (the reviewer would no longer be able to sign in).
