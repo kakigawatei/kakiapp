@@ -1,1 +1,0 @@
-{ "name": "kakiapp-rules-test-20261116", "private": true, "type": "module", "dependencies": { "@firebase/rules-unit-testing": "^3.0.4", "firebase": "^10.14.1" } }
