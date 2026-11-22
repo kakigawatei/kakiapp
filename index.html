@@ -720,7 +720,7 @@
     <div class="card" id="bdGoogle" style="display:none">
       <h3 id="bdGoogleTitle" style="display:none;font-family:var(--mincho);font-size:17px;font-weight:700;line-height:1.5"></h3>
       <p id="bdGoogleMsg" style="display:none;margin:6px 0 12px;font-size:14px;line-height:1.7;color:var(--ink)"></p>
-      <button class="ghost" id="btnBdGoogle" style="margin-top:0">同じ写真を Google マップにも載せる</button>
+      <button class="ghost" id="btnBdGoogle" style="margin-top:0">Google マップに口コミを書く</button>
       <p class="muted" id="bdGoogleSaved" style="display:none;font-size:12.5px;margin-top:8px;text-align:center;color:var(--ink)"></p>
       <p class="muted" id="bdGoogleNote" style="font-size:11.5px;margin-top:6px;text-align:center">写真は Google マップの画面で選べます。</p>
     </div>
@@ -2240,7 +2240,8 @@ async function grBoardGo(id, fromSheet) {
   if (btn.dataset.openOnly === "1") { btn.dataset.openOnly = ""; grOpen(id); return; }
   btn.dataset.busy = "1";
   if (!fromSheet) grStat("b_tap_v" + (btn.dataset.v || 0) + "_" + id); if (!grRec(id).done) grSet(id, { wrote: true });
-  let res = "none"; const ph = grPhotoFor(id);
+  /* 2026-11-22 masa「写真を保存するメニューは無くてもいい・保存する流れになりにくい」→ 保存の共有シートは出さず、すぐ口コミ画面へ（grSavePhoto は残す） */
+  let res = "none"; const ph = null;
   line.style.display = "none";
   try { if (ph) res = await grSavePhoto(ph); } catch (e) { res = "none"; }
   if (res === "saved") { line.textContent = "保存しました。Google の画面で写真を選んでください"; line.style.display = ""; }
@@ -2254,7 +2255,7 @@ function grBoardShow(id) {
   if (!card || !grUrl(id)) return;
   const r = grRec(id), quiet = r.done || r.wrote;
   btn.className = quiet ? "gr-small" : "ghost"; btn.style.marginTop = quiet ? "" : "0";
-  btn.textContent = quiet ? "Googleの口コミに写真を足す" : "同じ写真を Google マップにも載せる";
+  btn.textContent = quiet ? "Googleの口コミを書く" : "Google マップに口コミを書く";
   note.style.display = quiet ? "none" : "";
   card.style.cssText = quiet ? "display:block;background:none;box-shadow:none;border:none;padding:0" : "display:block";
   btn.dataset.openOnly = ""; document.getElementById("bdGoogleSaved").style.display = "none";
